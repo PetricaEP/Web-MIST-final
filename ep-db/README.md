@@ -2,12 +2,16 @@
 
 ## Requisitos
 
-Apache Maven Project: http://maven.apache.org/download.cgi
+Sbt
 
 ## Compilar
 
+No diretório `ep-project`:
+
 ```shell
-mvn clean install
+cd ep-db
+sbt
+[ep-db] compile
 ```
 
 ## Configurações
@@ -51,19 +55,19 @@ chmod +x *.sh
 ## Executar extração de documentos
 
 ```shell
-./docExtractor <direcroty_to_pdfs>
+.scripts/docExtractor <direcroty_to_pdfs>
 ```
 
 ## Atualizar projeções multidimensionais
 
 ```shell
-./updateMDP
+.scripts/updateMDP
 ```
 
 ## Atualizar ranking
 
 ```shell
-./updatePageRank
+.scripts/updatePageRank
 ```
 
 
