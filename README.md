@@ -16,7 +16,7 @@
     * Enter into project directory, initialize activator and compile:
     ```sh 
        $ cd ep-project
-       $ sby
+       $ sbt
        [ep-project] $ compile
     ```
     It will download all dependencies and compile the application.
