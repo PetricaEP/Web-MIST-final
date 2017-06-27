@@ -55,19 +55,19 @@ chmod +x *.sh
 ## Executar extração de documentos
 
 ```shell
-.scripts/docExtractor <direcroty_to_pdfs>
+./scripts/docExtractor <direcroty_to_pdfs>
 ```
 
 ## Atualizar projeções multidimensionais
 
 ```shell
-.scripts/updateMDP
+./scripts/updateMDP
 ```
 
 ## Atualizar ranking
 
 ```shell
-.scripts/updatePageRank
+./scripts/updatePageRank
 ```
 
 
