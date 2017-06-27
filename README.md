@@ -63,9 +63,9 @@ Replacing the application secret for your secret generated before.
 
 ## EP-DB: Document Extractor
 
-Refers to: (ep-db README.md)[https://github.com/zedomel/ep-project/tree/master/ep-db]
+Refers to: [ep-db README.md](https://github.com/zedomel/ep-project/tree/master/ep-db)
 
-**For more information see:** [Play Documentation: Deploying your application](https://www.playframework.com/documentation/2.5.x/Deploying)
+**For more information see:** [Play Documentation: Deploying your application](https://www.playframework.com/documentation/2.6.x/Deploying)
 
 **Free Software**
 
