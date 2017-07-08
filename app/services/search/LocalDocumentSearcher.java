@@ -14,8 +14,8 @@ import javax.inject.Inject;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import cern.colt.matrix.tdouble.DoubleMatrix1D;
-import cern.colt.matrix.tdouble.DoubleMatrix2D;
+import cern.colt.matrix.tfloat.FloatMatrix2D;
+import cern.colt.matrix.tint.IntMatrix1D;
 import ep.db.database.DatabaseService;
 import ep.db.model.Document;
 import play.db.Database;
@@ -85,7 +85,7 @@ public class LocalDocumentSearcher implements DocumentSearcher {
 			Map<Long, List<Long>> references = dbService.getReferences(docIds);
 			
 			// Controi matriz de frequencia de termos
-			DoubleMatrix2D matrix = dbService.buildFrequencyMatrix(docIds);
+			FloatMatrix2D matrix = dbService.buildFrequencyMatrix(docIds);
 			
 			assert docs.size() == matrix.rows();
 
@@ -94,12 +94,12 @@ public class LocalDocumentSearcher implements DocumentSearcher {
 			
 			KMeans kmeans = new KMeans();
 			kmeans.cluster(matrix, numClusters);
-			DoubleMatrix1D clusters = kmeans.getClusterAssignments();
+			IntMatrix1D clusters = kmeans.getClusterAssignments();
 
 			//Atribui id cluster e referencias
 			IntStream.range(0, docs.size()).parallel().forEach( (i) -> {
 				docs.get(i).setReferences(references.get(docs.get(i).getDocId()));
-				docs.get(i).setCluster((int)clusters.get(i));
+				docs.get(i).setCluster(clusters.get(i));
 			});
 
 			// Ordena por relevancia (descrescente)

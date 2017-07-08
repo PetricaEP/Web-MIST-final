@@ -24,7 +24,7 @@ import org.apache.commons.math3.distribution.UniformIntegerDistribution;
 import org.apache.commons.math3.random.MersenneTwister;
 import org.apache.commons.math3.random.RandomGenerator;
 
-import cern.colt.matrix.tdouble.DoubleMatrix2D;
+import cern.colt.matrix.tfloat.FloatMatrix2D;
 
 public class HardRandomPartitionGenerator implements PartitionGenerator {
 
@@ -35,7 +35,7 @@ public class HardRandomPartitionGenerator implements PartitionGenerator {
    }
 
    @Override
-   public void generate(DoubleMatrix2D partition) {
+   public void generate(FloatMatrix2D partition) {
       // Initialise U randomly
       partition.assign(0);
 

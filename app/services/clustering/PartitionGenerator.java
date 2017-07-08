@@ -22,11 +22,11 @@ package services.clustering;
 
 import org.apache.commons.math3.random.RandomGenerator;
 
-import cern.colt.matrix.tdouble.DoubleMatrix2D;
+import cern.colt.matrix.tfloat.FloatMatrix2D;
 
 public interface PartitionGenerator {
 
-   void generate(DoubleMatrix2D partition);
+   void generate(FloatMatrix2D partition);
 
    void setRandomGenerator(RandomGenerator randomGenerator);
 }

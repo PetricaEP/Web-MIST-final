@@ -6,8 +6,10 @@ import java.awt.RenderingHints;
 import java.awt.Shape;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.GeneralPath;
-import java.io.BufferedWriter;
-import java.io.FileWriter;
+import java.awt.geom.Point2D;
+import java.awt.geom.Rectangle2D;
+import java.io.BufferedReader;
+import java.io.FileReader;
 
 import javax.inject.Inject;
 import javax.swing.JFrame;
@@ -28,7 +30,7 @@ public class MSKDEService {
 
 	private DatabaseService dbService;
 
-	private double cellSize = 0.5;
+	private int gridSize = 151;
 
 	private double bandwidth = 3;
 
@@ -41,7 +43,7 @@ public class MSKDEService {
 
 
 	public void calculate(){
-		DoubleMatrix2D xy = new DenseDoubleMatrix2D(299,2);
+		DoubleMatrix2D xy;
 		try {
 //			xy = dbService.getProjections(null, null);
 		} catch (Exception e) {
@@ -66,16 +68,27 @@ public class MSKDEService {
 //			
 //		}
 		
-		try (BufferedWriter bw = new BufferedWriter(new FileWriter("docs_xy.csv"))){
-			for(int i = 0; i< xy.rows(); i++){
-				bw.write(String.format("%.4f,%.4f", xy.get(i, 0), xy.get(i, 1)));
-				bw.newLine();
-			}
-		}catch (Exception e) {
+		double[][] data = new double[110][2];
+		int i = 0;
+		try ( BufferedReader br = new BufferedReader(new FileReader("docs_xy.csv"))){
+			String line = null;
+			line = br.readLine();
 			
+			while( line != null){
+				String f[] = line.split("\\s*,\\s*");
+				data[i][0] = Double.parseDouble(f[0]);
+				data[i][1] = Double.parseDouble(f[1]);
+				++i;
+				line = br.readLine();
+			}
+			
+		}catch (Exception e) {
+			// TODO: handle exception
 		}
+		
+		 xy = new DenseDoubleMatrix2D(data);
 
-		MSKDE mskde = new MSKDE(new QuarticKernelFunction(bandwidth), cellSize, numClusters);
+		MSKDE mskde = new MSKDE(new QuarticKernelFunction(), gridSize, numClusters);
 		GeneralPath[] contours = mskde.compute(xy);
 
 		final Color[] colors = generatePallete(contours.length);
@@ -92,14 +105,21 @@ public class MSKDEService {
 		g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING,
 				RenderingHints.VALUE_ANTIALIAS_ON);
 		AffineTransform xf = new AffineTransform();
-		xf.translate(-1, -1);
+//		xf.translate(-11, -1);
 		xf.scale(3, 3);
-		for (int i = 0; i < contours.length; i++) {
+		for (i = 0; i < contours.length; i++) {
 			Shape iso = xf.createTransformedShape(contours[i]); // Remapped every pan & zoom.
 			g2.setColor(colors[i]);
 			g2.fill(iso);
 			g2.setColor(Color.gray);
 			g2.draw(iso);
+		}
+		
+		g2.setColor(Color.black);
+		for (i = 0; i < xy.rows(); i++) {
+			Point2D point = new Point2D.Double(xy.getQuick(i, 0), xy.getQuick(i, 1));
+			Rectangle2D rect = new Rectangle2D.Double(point.getX() - 0.5, point.getY() - 0.5, 1, 1);
+			g2.fill(xf.createTransformedShape(rect));
 		}
 	}
 

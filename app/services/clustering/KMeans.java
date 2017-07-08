@@ -23,20 +23,23 @@ package services.clustering;
 import org.apache.commons.math3.random.MersenneTwister;
 import org.apache.commons.math3.random.RandomGenerator;
 
-import cern.colt.matrix.impl.AbstractMatrix;
+import cern.colt.matrix.AbstractMatrix;
 import cern.colt.matrix.tdouble.DoubleMatrix1D;
-import cern.colt.matrix.tdouble.DoubleMatrix2D;
-import cern.colt.matrix.tdouble.algo.DoubleStatistic;
-import cern.colt.matrix.tdouble.impl.DenseDoubleMatrix1D;
-import cern.colt.matrix.tdouble.impl.DenseDoubleMatrix2D;
-import cern.colt.matrix.tdouble.impl.SparseDoubleMatrix2D;
+import cern.colt.matrix.tfloat.FloatMatrix1D;
+import cern.colt.matrix.tfloat.FloatMatrix2D;
+import cern.colt.matrix.tfloat.algo.FloatStatistic;
+import cern.colt.matrix.tfloat.impl.DenseFloatMatrix1D;
+import cern.colt.matrix.tfloat.impl.DenseFloatMatrix2D;
+import cern.colt.matrix.tfloat.impl.SparseFloatMatrix2D;
+import cern.colt.matrix.tint.IntMatrix1D;
+import cern.colt.matrix.tint.impl.DenseIntMatrix1D;
 
 
 public class KMeans {
 
 	private AbstractMatrix means;
-	private DoubleMatrix2D partition;
-	private DoubleMatrix1D clusters;
+	private FloatMatrix2D partition;
+	private IntMatrix1D clusters;
 	private int maxIterations = 1000;
 	private RandomGenerator randomGenerator = new MersenneTwister();
 	private PartitionGenerator partitionGenerator = new HardRandomPartitionGenerator();
@@ -45,16 +48,16 @@ public class KMeans {
 		
 	}
 
-	public void cluster(DoubleMatrix2D data, int numClusters) {
+	public void cluster(FloatMatrix2D data, int numClusters) {
 		int n = data.rows(); // Number of documents
 		int p = data.columns(); // Number of terms
 
-		clusters = new DenseDoubleMatrix1D(n);
-		partition = new SparseDoubleMatrix2D(n, numClusters);
+		clusters = new DenseIntMatrix1D(n);
+		partition = new SparseFloatMatrix2D(n, numClusters);
 		partitionGenerator.setRandomGenerator(randomGenerator);
 		partitionGenerator.generate(partition);
 
-		DoubleMatrix2D means = new DenseDoubleMatrix2D(p, numClusters);
+		FloatMatrix2D means = new DenseFloatMatrix2D(p, numClusters);
 
 		boolean changedPartition = true;
 		
@@ -73,16 +76,16 @@ public class KMeans {
 						sumValue += data.getQuick(i, j) * Um;
 					}
 
-					means.setQuick(j, k, sumValue / sumWeight);
+					means.setQuick(j, k, (float) (sumValue / sumWeight));
 				}
 			}
 
 			// Calculate distance measure d:
-			DoubleMatrix2D distances = new DenseDoubleMatrix2D(n, numClusters);
+			FloatMatrix2D distances = new DenseFloatMatrix2D(n, numClusters);
 			for (int k = 0; k < numClusters; k++) {
 				for (int i = 0; i < n; i++) {
 					// Euclidean distance calculation
-					double distance = DoubleStatistic.EUCLID.apply(means.viewColumn(k), data.viewRow(i));
+					float distance = FloatStatistic.EUCLID.apply(means.viewColumn(k), data.viewRow(i));
 					distances.setQuick(i, k, distance);
 				}
 			}
@@ -118,12 +121,12 @@ public class KMeans {
 	public void cluster(DoubleMatrix1D data, int numClusters) {
 		int n = (int) data.size(); // Number of examples
 
-		clusters = new DenseDoubleMatrix1D(n);
-		partition = new SparseDoubleMatrix2D(n, numClusters);
+		clusters = new DenseIntMatrix1D(n);
+		partition = new SparseFloatMatrix2D(n, numClusters);
 		partitionGenerator.setRandomGenerator(randomGenerator);
 		partitionGenerator.generate(partition);
 
-		DoubleMatrix1D means = new DenseDoubleMatrix1D(numClusters);
+		FloatMatrix1D means = new DenseFloatMatrix1D(numClusters);
 
 		boolean changedPartition = true;
 
@@ -132,11 +135,11 @@ public class KMeans {
 			// Get new prototypes (v) for each cluster using weighted median
 			for (int k = 0; k < numClusters; k++) {
 
-				double sumWeight = partition.viewColumn(k).zSum();
-				double sumValue = 0;	
+				float sumWeight = partition.viewColumn(k).zSum();
+				float sumValue = 0;	
 
 				for (int i = 0; i < n; i++) {
-					double Um = partition.getQuick(i, k);
+					float Um = partition.getQuick(i, k);
 					sumValue += data.getQuick(i) * Um;
 				}
 
@@ -144,11 +147,11 @@ public class KMeans {
 			}
 
 			// Calculate distance measure d:
-			DoubleMatrix2D distances = new DenseDoubleMatrix2D(n, numClusters);
+			FloatMatrix2D distances = new DenseFloatMatrix2D(n, numClusters);
 			for (int k = 0; k < numClusters; k++) {
 				for (int i = 0; i < n; i++) {
 					// Euclidean distance calculation
-					double distance = Math.abs(means.getQuick(k) - data.getQuick(i));
+					float distance = (float) Math.abs(means.getQuick(k) - data.getQuick(i));
 					distances.setQuick(i, k, distance);
 				}
 			}
@@ -185,11 +188,11 @@ public class KMeans {
 		return means;
 	}
 
-	public DoubleMatrix2D getPartition() {
+	public FloatMatrix2D getPartition() {
 		return partition;
 	}
 
-	public DoubleMatrix1D getClusterAssignments(){
+	public IntMatrix1D getClusterAssignments(){
 		return clusters;
 	}
 
