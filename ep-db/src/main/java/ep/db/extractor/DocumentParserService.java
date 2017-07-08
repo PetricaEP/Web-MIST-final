@@ -9,7 +9,6 @@ import java.nio.file.Files;
 import java.nio.file.PathMatcher;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Properties;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
@@ -23,8 +22,8 @@ import ep.db.database.DefaultDatabase;
 import ep.db.html_parser.DocumentHTMLParser;
 import ep.db.model.Author;
 import ep.db.model.Document;
+import ep.db.utils.Configuration;
 import ep.db.utils.Consolidation;
-import ep.db.utils.Utils;
 
 /**
  * Classe principal para processamento dos documentos
@@ -68,7 +67,7 @@ public class DocumentParserService {
 	 * @param config configuração
 	 * @throws IOException erro ao inicializar {@link DocumentParser}.
 	 */
-	public DocumentParserService( DocumentParser parser, Properties config ) throws IOException{
+	public DocumentParserService( DocumentParser parser, Configuration config ) throws IOException{
 		this.documentParser = parser;
 		this.dbService = new DatabaseService(new DefaultDatabase(config));
 		this.consolidator = new Consolidation(config);
@@ -300,13 +299,12 @@ public class DocumentParserService {
 		}
 
 		try {
-			Properties properties = new Properties();
-			properties.load(new FileInputStream(Utils.PROP_FILE));
+			Configuration config = new Configuration();
 
-			String grobidHome = properties.getProperty("grobid.home");
-			String grobidProperties = properties.getProperty("grobid.properties");
+			String grobidHome = config.getGrobidHome();
+			String grobidProperties = config.getGrobidConfig();
 			DocumentParser parser = new GrobIDDocumentParser(grobidHome, grobidProperties, true);
-			DocumentParserService parserService = new DocumentParserService(parser, properties);
+			DocumentParserService parserService = new DocumentParserService(parser, config);
 
 			long start = System.nanoTime();
 			parserService.addDocuments(args[0]);
@@ -321,6 +319,7 @@ public class DocumentParserService {
 		}finally {
 			try {
 				MockContext.destroyInitialContext();
+				GrobIDDocumentParser.closeEngine();
 			}catch (NoInitialContextException e) {}
 		}
 	}

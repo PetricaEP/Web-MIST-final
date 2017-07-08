@@ -1,15 +1,12 @@
 package ep.db.pagerank;
 
-import java.io.FileInputStream;
-import java.util.Properties;
-
 import org.apache.log4j.Logger;
 
 import edu.uci.ics.jung.algorithms.scoring.PageRank;
 import edu.uci.ics.jung.graph.DirectedGraph;
 import ep.db.database.DatabaseService;
 import ep.db.database.DefaultDatabase;
-import ep.db.utils.Utils;
+import ep.db.utils.Configuration;
 
 /**
  * Classe para cálculo das relevâncias de cada
@@ -46,7 +43,7 @@ public class RelevanceCalculator {
 	 * fator-C padrão ({@value #C} e configuração especificada.
 	 * @param config configuração.
 	 */
-	public RelevanceCalculator( Properties config ) {
+	public RelevanceCalculator( Configuration config ) {
 		this(config, C);
 	}
 	
@@ -56,7 +53,7 @@ public class RelevanceCalculator {
 	 * @param config configuração.
 	 * @param c fator-c.
 	 */
-	public RelevanceCalculator( Properties config, double c ) {
+	public RelevanceCalculator( Configuration config, double c ) {
 		this.dbService = new DatabaseService(new DefaultDatabase(config));
 		this.c = c;
 	}
@@ -92,11 +89,10 @@ public class RelevanceCalculator {
 	 */
 	public static void main(String[] args) {
 		try {
-			Properties properties = new Properties();
-			properties.load(new FileInputStream(Utils.PROP_FILE));
+			Configuration config = new Configuration();
 			
 			System.out.println("Updating ranking...");
-			RelevanceCalculator ranking = new RelevanceCalculator(properties);
+			RelevanceCalculator ranking = new RelevanceCalculator(config);
 			ranking.updateRelevance();
 			System.out.println("Ranking successful updated");
 

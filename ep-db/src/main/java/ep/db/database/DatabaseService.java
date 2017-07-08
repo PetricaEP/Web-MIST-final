@@ -10,14 +10,12 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.TreeMap;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import cern.colt.matrix.tdouble.DoubleMatrix2D;
-import cern.colt.matrix.tdouble.impl.DenseDoubleMatrix2D;
-import cern.colt.matrix.tdouble.impl.SparseDoubleMatrix2D;
+import cern.colt.matrix.tfloat.FloatMatrix2D;
+import cern.colt.matrix.tfloat.impl.SparseFloatMatrix2D;
 import edu.uci.ics.jung.algorithms.scoring.PageRank;
 import edu.uci.ics.jung.graph.DirectedGraph;
 import edu.uci.ics.jung.graph.DirectedSparseGraph;
@@ -37,14 +35,6 @@ import ep.db.utils.Utils;*
  * @since 2017
  */
 public class DatabaseService {
-
-	/**
-	 * SQL para recuperar grafo de citações
-	 */
-	private static final String GRAPH_SQL = "with nodes as (select row_number() over(order by doc_id ) as row_number, "
-			+ "doc_id n from documents) "
-			+ "select doc_id as source,row_number as target from citations c "
-			+ "inner join nodes ON c.ref_id = nodes.n order by doc_id, row_number";
 
 	/**
 	 * SQL para inserção de um novo documento
@@ -96,7 +86,7 @@ public class DatabaseService {
 	 * SQL para atualização da relevancia de um documento
 	 */
 	private static final String UPDATE_RELEVANCE = "UPDATE documents_data SET relevance = ? WHERE doc_id = ?";
-	
+
 	private static final String SEARCH_SQL = "SELECT d.doc_id, d.doi, d.title, d.keywords, d.publication_date, "
 			+ "dd.x, dd.y, dd.relevance, ts_rank(tsv, query, 32) rank , authors_name FROM documents d "
 			+ "INNER JOIN documents_data dd ON d.doc_id = dd.doc_id LEFT JOIN "
@@ -110,7 +100,7 @@ public class DatabaseService {
 			+ "(SELECT doc_id, string_agg(a.aut_name,';') authors_name FROM document_authors da INNER JOIN authors a "
 			+ "ON da.aut_id = a.aut_id GROUP BY da.doc_id) a ON d.doc_id = a.doc_id "
 			+ "ORDER BY doc_id";
-	
+
 	private static final String ADVANCED_SEARCH_SQL = "SELECT d.doc_id, d.doi, d.title, d.keywords, d.publication_date, "
 			+ "dd.x, dd.y, dd.relevance %rank, authors_name FROM documents d "
 			+ "INNER JOIN documents_data dd ON d.doc_id = dd.doc_id LEFT JOIN "
@@ -139,7 +129,7 @@ public class DatabaseService {
 		this.db = db;
 		this.batchSize = bacthSize;
 	}
-	
+
 	/**
 	 * Cria um novo serviço para manipulação do banco de dados, 
 	 * com processamento em lote padrão (batchSize = 50).
@@ -167,56 +157,7 @@ public class DatabaseService {
 		}
 	}
 
-	/**
-	 * Retorna matrix de adjacência para o grafo de
-	 * citações.
-	 * @return matrix de adjacência N x N, onde N é 
-	 * o número total de documentos na base.
-	 * @see {@link #getNumberOfDocuments()}. 
-	 * @throws Exception erro ao executar consulta.
-	 */
-	public DoubleMatrix2D getGraph() throws Exception{
-		try ( Connection conn = db.getConnection();){
-			
-			// Recupera numero de citacoes para pre-alocacao
-			// da matriz de adjacencia.
-			int size = getNumberOfDocuments();
-			if ( size == 0)
-				return null;
-
-			// Recupera citacoes para construção do grafo
-			PreparedStatement stmt = conn.prepareStatement(GRAPH_SQL);
-			try (ResultSet rs = stmt.executeQuery()){
-				DoubleMatrix2D graph = new SparseDoubleMatrix2D(size,size);
-				graph.assign(0.0);
-
-				int i = 0;
-				long lastSource = 0;
-				while ( rs.next() ){
-					//indices dos nós source e target
-					long source = rs.getLong(1);
-					int target = rs.getInt(2);
-					
-					//incrementa indice das linhas caso 
-					// source tenha alterado
-					if ( lastSource != i)
-						++i;
-					graph.set(i, target-1, 1.0);
-					lastSource = source;
-				}
-
-				return graph;
-
-			}catch (SQLException e) {
-				throw e;
-			}
-
-		}catch( Exception e){
-			throw e;
-		}
-	}
-	
-	public DoubleMatrix2D buildFrequencyMatrix(long[] docIds) throws Exception {
+	public FloatMatrix2D buildFrequencyMatrix(long[] docIds) throws Exception {
 		return buildFrequencyMatrix(docIds, new LogaritmicTFIDF());
 	}
 
@@ -229,8 +170,8 @@ public class DatabaseService {
 	 * termos.
 	 * @throws Exception erro ao executar consulta.
 	 */
-	public DoubleMatrix2D buildFrequencyMatrix(long[] docIds, TFIDF tfidfCalc) throws Exception {
-		
+	public FloatMatrix2D buildFrequencyMatrix(long[] docIds, TFIDF tfidfCalc) throws Exception {
+
 		// Retorna numero de documentos e ocorrencia total dos termos
 		int numberOfDocuments;
 		if ( docIds == null )
@@ -251,10 +192,10 @@ public class DatabaseService {
 		}
 
 		String where = sql.toString();
-		
+
 		float minNumberOfTerms = DatabaseService.minimumPercentOfTerms;
 		int numOfTerms = (int) Math.ceil(numberOfDocuments * minNumberOfTerms);
-		
+
 		// Recupera frequencia indiviual de cada termo na base de dados (todos os documentos)
 		final Map<String, Integer> termsCount = getTermsCounts(where, numOfTerms);
 
@@ -266,12 +207,12 @@ public class DatabaseService {
 			++c;
 		}
 
-		DoubleMatrix2D matrix = new DenseDoubleMatrix2D(numberOfDocuments, termsCount.size());
+		FloatMatrix2D matrix = new SparseFloatMatrix2D(numberOfDocuments, termsCount.size()); 
 
 		tfidfCalc.setTermsCount(termsCount);
-		
+
 		// Popula matriz com frequencia dos termos em cada documento
-		buildFrequencyMatrix(matrix, termsCount, termsToColumnMap, where, true, tfidfCalc );
+		buildFrequencyMatrix(matrix, termsToColumnMap, where, true, tfidfCalc );
 
 		return matrix;
 	}
@@ -533,7 +474,7 @@ public class DatabaseService {
 	 * @return mapa de termos ordenados pela contagem absoluta.
 	 * @throws Exception
 	 */
-	private TreeMap<String, Integer> getTermsCounts(String where, int minNumberOfTerms) throws Exception {
+	private Map<String, Integer> getTermsCounts(String where, int minNumberOfTerms) throws Exception {
 		try ( Connection conn = db.getConnection();){
 
 			String sql = "SELECT word,ndoc FROM ts_stat('SELECT tsv FROM documents";
@@ -543,7 +484,7 @@ public class DatabaseService {
 
 			Statement stmt = conn.createStatement();
 			ResultSet rs = stmt.executeQuery(sql);
-			TreeMap<String,Integer> termsCount = new TreeMap<>();
+			Map<String,Integer> termsCount = new HashMap<>();
 			while( rs.next() ){
 				String term = rs.getString("word");
 				int ndoc = rs.getInt("ndoc");
@@ -566,8 +507,8 @@ public class DatabaseService {
 	 * caso contrário a frequência absoluta é considerada.
 	 * @throws Exception erro ao executar consulta.
 	 */
-	private void buildFrequencyMatrix(DoubleMatrix2D matrix, Map<String, Integer> termsCount,
-			Map<String, Integer> termsToColumnMap, String where, boolean normalize, TFIDF tfidfCalc) throws Exception {
+	private void buildFrequencyMatrix(FloatMatrix2D matrix,Map<String, Integer> termsToColumnMap,
+			String where, boolean normalize, TFIDF tfidfCalc) throws Exception {
 		try ( Connection conn = db.getConnection();){
 
 			String sql = "SELECT freqs FROM documents";
@@ -578,35 +519,37 @@ public class DatabaseService {
 			Statement stmt = conn.createStatement();
 			ResultSet rs = stmt.executeQuery(sql);
 			int doc = 0;
-			
+
 			// Numero de documentos
-			int n = matrix.rows();
+			long n = matrix.rows();
 			ObjectMapper mapper = new ObjectMapper();
-			
+
 			while( rs.next() ){
 				String terms = rs.getString("freqs");
 				if ( terms != null && !terms.isEmpty() ){
-					
+
 					List<Map<String,Object>> t = mapper.readValue(terms, 
 							new TypeReference<List<Map<String,Object>>>(){});
-					
+
 					for(Map<String,Object> o : t){
 						String term = (String) o.get("word");
 						if ( termsToColumnMap.containsKey(term)){
 							double freq = ((Number) o.get("nentry")).doubleValue();
-							
-							double tfidf = tfidfCalc.calculate(freq, n, term);
+
+							double tfidf = tfidfCalc.calculate(freq, (int) n, term);
 							if ( freq != 0 )
 								tfidf += Math.log(freq);
-							
-							int col = termsToColumnMap.get(term);
-							matrix.setQuick(doc, col, tfidf);	
+
+							if ( tfidf != 0){
+								int col = termsToColumnMap.get(term);
+								matrix.set(doc, col, (float) tfidf);
+							}
 						}
 					}
 				}
 				++doc;
 			}
-			
+
 		}catch( Exception e){
 			throw e;
 		}
@@ -618,7 +561,7 @@ public class DatabaseService {
 	 * número de documentos.
 	 * @throws Exception erro ao executar atualização.
 	 */
-	public void updateXYProjections(DoubleMatrix2D y) throws Exception {
+	public void updateXYProjections(FloatMatrix2D y) throws Exception {
 		Connection conn = null;
 		try { 
 			conn = db.getConnection();
@@ -721,7 +664,7 @@ public class DatabaseService {
 				conn.close();
 		}
 	}
-	
+
 	public Map<Long, List<Long>> getReferences(long[] docIds) throws Exception {
 		try ( Connection conn = db.getConnection();){
 			String sql = "SELECT doc_id, ref_id FROM citations";
@@ -753,7 +696,7 @@ public class DatabaseService {
 			throw e;
 		}
 	}
-	
+
 	public List<Document> getSimpleDocuments(String querySearch, int limit) throws Exception {
 		try ( Connection conn = db.getConnection();){
 			PreparedStatement stmt = conn.prepareStatement(SEARCH_SQL);
@@ -796,14 +739,14 @@ public class DatabaseService {
 			throw e;
 		}
 	}
-	
+
 	public List<Document> getAdvancedSimpleDocuments(String querySearch, String authors, String yearStart, 
 			String yearEnd, int limit) throws Exception {
 		try ( Connection conn = db.getConnection();){
-			
+
 			StringBuilder sql = new StringBuilder();
 			StringBuilder rankSql = new StringBuilder();
-			
+
 			if ( querySearch != null ){
 				sql.append(", to_tsquery(?) query");
 				rankSql.append(", ts_rank(tsv, query, 32) ");
@@ -815,12 +758,12 @@ public class DatabaseService {
 				else
 					rankSql.append(", ts_rank(aut_name_tsv, aut_query, 32)");
 			}
-			
+
 			if ( querySearch != null || !authors.isEmpty())
 				rankSql.append(" rank ");
 			else
 				rankSql.append(", dd.relevance rank");
-			
+
 			sql.append(" WHERE ");
 			if ( querySearch != null )
 				sql.append("query @@ tsv AND ");
@@ -831,13 +774,13 @@ public class DatabaseService {
 			if ( !yearEnd.isEmpty() )
 				sql.append("publication_date <= ? AND ");
 			sql.append("TRUE");
-			
+
 			PreparedStatement stmt = conn.prepareStatement(
 					ADVANCED_SEARCH_SQL
 					.replaceAll("%rank", rankSql.toString())
 					.replaceAll("%advanced_query", sql.toString())
 					);
-			
+
 			int index = 1;
 			if (querySearch != null)
 				stmt.setString(index++, querySearch);
@@ -847,7 +790,7 @@ public class DatabaseService {
 				stmt.setInt(index++, Integer.parseInt(yearStart));
 			if ( !yearEnd.isEmpty() )
 				stmt.setInt(index++, Integer.parseInt(yearEnd));
-			
+
 			if ( limit > 0 )
 				stmt.setInt(index, limit);
 			else
@@ -867,7 +810,7 @@ public class DatabaseService {
 			throw e;
 		}
 	}
-	
+
 	private Document newSimpleDocument(ResultSet rs) throws SQLException {
 		//d.doc_id, d.doi, d.title, d.keywords, d.publication_date,
 		//dd.x, dd.y, dd.relevance , dd.relevance rank, authors_name
@@ -882,7 +825,7 @@ public class DatabaseService {
 		doc.setRelevance(rs.getDouble(8));
 		doc.setScore(rs.getDouble(9));
 		doc.setAuthors(Utils.getAuthors(rs.getString(10)));
-		
+
 		return doc;
 	}
 }

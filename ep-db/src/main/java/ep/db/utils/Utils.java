@@ -17,11 +17,6 @@ import ep.db.utils.Utils;
  *
  */
 public final class Utils {
-	
-	/**
-	 * Arquivo de configuração
-	 */
-	public static final String PROP_FILE = "conf/config.properties";
 
 	/**
 	 * Padrão de expressão regular para extração de ano a partir de datas.

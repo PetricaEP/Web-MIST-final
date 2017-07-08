@@ -3,12 +3,10 @@ package ep.db.mdp;
 import java.awt.Color;
 import java.awt.Shape;
 import java.io.IOException;
-import java.util.HashSet;
-import java.util.Iterator;
 import java.util.Random;
-import java.util.Set;
+import java.util.stream.IntStream;
 
-import org.jblas.DoubleMatrix;
+import org.jblas.FloatMatrix;
 import org.jblas.ranges.RangeUtils;
 import org.jfree.chart.ChartFactory;
 import org.jfree.chart.ChartPanel;
@@ -21,14 +19,14 @@ import org.jfree.ui.ApplicationFrame;
 import org.jfree.ui.RefineryUtilities;
 import org.jfree.util.ShapeUtilities;
 
-import cern.colt.matrix.tdouble.DoubleFactory1D;
-import cern.colt.matrix.tdouble.DoubleFactory2D;
-import cern.colt.matrix.tdouble.DoubleMatrix1D;
-import cern.colt.matrix.tdouble.DoubleMatrix2D;
-import cern.colt.matrix.tdouble.algo.DenseDoubleAlgebra;
-import cern.colt.matrix.tdouble.algo.decomposition.DenseDoubleSingularValueDecomposition;
-import cern.colt.matrix.tdouble.impl.DenseDoubleMatrix2D;
-import cern.jet.math.tdouble.DoubleFunctions;
+import cern.colt.matrix.tfloat.FloatFactory1D;
+import cern.colt.matrix.tfloat.FloatFactory2D;
+import cern.colt.matrix.tfloat.FloatMatrix1D;
+import cern.colt.matrix.tfloat.FloatMatrix2D;
+import cern.colt.matrix.tfloat.algo.decomposition.DenseFloatSingularValueDecomposition;
+import cern.colt.matrix.tfloat.impl.DenseFloatMatrix2D;
+import cern.jet.math.tfloat.FloatFunctions;
+import me.tongfei.progressbar.ProgressBar;
 
 /**
  * Implmentação do algoritmo LAMP para
@@ -59,7 +57,7 @@ public class Lamp {
 	public Lamp() {
 		this(0);
 	}
-	
+
 	/**
 	 * Cria um novo objeto para projeção multidimensional,
 	 * inicializando o gerador aletória com a semente
@@ -78,23 +76,12 @@ public class Lamp {
 	 * @param x matriz com valores a serem projetados (N x M).
 	 * @return matriz de projeção multimensional (N x 2).
 	 */
-	public DoubleMatrix2D project(DoubleMatrix2D x){
-		DoubleMatrix2D xs, ys;
+	public FloatMatrix2D project(FloatMatrix2D x){
+		FloatMatrix2D xs, ys;
 
 		// Seleciona control points aleatoriamente
 		int n = (int) Math.sqrt( x.rows() );
-		Set<Integer> sample = new HashSet<>(n);
-		while( sample.size() < n ){
-			Integer next = rng.nextInt( x.rows() );
-			sample.add(next);
-		}
-
-		// Salva control points em vetor de inteiros.
-		int[] cpoints = new int[n];
-		Iterator<Integer> iter = sample.iterator();
-		for(int j = 0; j < n && iter.hasNext(); j++){
-			cpoints[j] = iter.next();
-		}
+		int[] cpoints = IntStream.range(0, x.rows()).distinct().sorted().limit(n).toArray();
 
 		// Projeta control points usando MDS
 		ForceScheme forceScheme = new ForceScheme();
@@ -114,32 +101,33 @@ public class Lamp {
 	 * (<code>cpoints.length</code> x 2). 
 	 * @return
 	 */
-	public DoubleMatrix2D project(DoubleMatrix2D x, int[] cpoints, DoubleMatrix2D ys){
+	public FloatMatrix2D project(FloatMatrix2D x, int[] cpoints, FloatMatrix2D ys){
 
 		// Seleciona valores dos pontos de controle
-		DoubleMatrix2D xs = x.viewSelection(cpoints, null).copy();
+		FloatMatrix2D xs = new DenseFloatMatrix2D(cpoints.length, x.columns());
+		xs.assign(x.viewSelection(cpoints, null));
 
 		int ninst = x.rows(),
-				dim = x.columns();
-		int k = cpoints.length,
-				a = xs.columns();
-		int p = ys.columns();
+				dim = x.columns(),
+				a = xs.columns(),
+				k = xs.rows(),
+				p = ys.columns();
 
 		assert dim == a;
 
+		ProgressBar pb = new ProgressBar("MDP", ninst).start();
 		
-		DenseDoubleAlgebra alg = new DenseDoubleAlgebra();
-		
-		DoubleMatrix2D Y = DoubleFactory2D.dense.make(ninst, p, 0.0);
+		FloatMatrix2D Y = FloatFactory2D.dense.make(ninst, p, 0.0f);
 
-		for (int pt = 0; pt < ninst; pt++){
+		for(int pt = 0; pt < ninst; pt++){
 			// Calculo dos alfas
-			DoubleMatrix1D alpha = DoubleFactory1D.dense.make(k, 0.0);
+			FloatMatrix1D alpha = FloatFactory1D.dense.make(k, 0.0f);
 			boolean skip = false;
 			for( int i = 0; i < k; i++){
 				// Verifica se o ponto a ser projetado é um ponto de controle
 				// para evitar divisão por zero.
-				double norm2 = alg.norm2( xs.viewRow(i).copy().assign(x.viewRow(pt), DoubleFunctions.minus)); 
+				FloatMatrix1D diff = xs.viewRow(i).copy().assign(x.viewRow(pt), FloatFunctions.minus);
+				float norm2 =  (float) Math.sqrt(diff.zDotProduct(diff));
 				if ( norm2 < TOL ){
 					// ponto muito próximo ao ponto amostrado
 					// posicionando de forma similar.
@@ -148,86 +136,93 @@ public class Lamp {
 					break;
 				}
 
-				alpha.setQuick(i, 1.0 / norm2);
+				alpha.setQuick(i, 1.0f / norm2);
 			}
 
-			if ( skip )
+			if (skip)
 				continue;
 
-			double alphaSum = alpha.zSum();
+			float alphaSum = alpha.zSum();
 
 			// Computa x~ e y~ (eq. 3)
-			DoubleMatrix1D xtilde = DoubleFactory1D.dense.make(dim, 0.0);
-			DoubleMatrix1D ytilde = DoubleFactory1D.dense.make(p, 0.0);
+			FloatMatrix1D xtilde = FloatFactory1D.dense.make(dim, 0.0f);
+			FloatMatrix1D ytilde = FloatFactory1D.dense.make(p, 0.0f);
 
-			xtilde = alg.mult(xs.viewDice(), alpha).assign(DoubleFunctions.div(alphaSum));
-			ytilde = alg.mult(ys.viewDice(), alpha).assign(DoubleFunctions.div(alphaSum));
+			xs.zMult(alpha, xtilde, 1.0f/alphaSum, 0, true);
+			ys.zMult(alpha, ytilde, 1.0f/alphaSum, 0, true);
 
-			DoubleMatrix2D xhat = xs.copy(), yhat = ys.copy();
+			FloatMatrix2D xhat = new DenseFloatMatrix2D(k,dim), 
+					yhat = new DenseFloatMatrix2D(k,p);
+			xhat.assign(xs);
+			yhat.assign(ys);
+
+			FloatMatrix2D xtilde2D = FloatFactory2D.dense.repeat(xtilde.like2D(1, dim), k, 1);
+			FloatMatrix2D ytilde2D = FloatFactory2D.dense.repeat(ytilde.like2D(1, p), k, 1);
 
 			// Computa x^ e y^ (eq. 6)
-			for( int i = 0; i < xs.rows(); i++){
-				xhat.viewRow(i).assign(xtilde, DoubleFunctions.minus);
-				yhat.viewRow(i).assign(ytilde, DoubleFunctions.minus);
-			}
+			xhat.assign(xtilde2D, FloatFunctions.minus);
+			yhat.assign(ytilde2D, FloatFunctions.minus);
 
-			DoubleMatrix2D At, B;
+			FloatMatrix2D At, B;
 
-			// Sqrt(alpha)
-			alpha.assign(DoubleFunctions.sqrt);
 			for(int i = 0; i < xhat.columns(); i++ )
-				xhat.viewColumn(i).assign(alpha, DoubleFunctions.mult);
+				xhat.viewColumn(i).assign(alpha, (xx,yy) -> xx*(float)Math.sqrt(yy));
 			for(int i = 0; i < yhat.columns(); i++ )
-				yhat.viewColumn(i).assign(alpha, DoubleFunctions.mult);
+				yhat.viewColumn(i).assign(alpha, (xx,yy) -> xx*(float)Math.sqrt(yy));
 
 			At = xhat.viewDice();
 			B = yhat;
 
-			DenseDoubleSingularValueDecomposition svd = new DenseDoubleSingularValueDecomposition( 
+			DenseFloatSingularValueDecomposition svd = new DenseFloatSingularValueDecomposition( 
 					At.zMult(B, null), true , false  );
-			DoubleMatrix2D U = svd.getU(), V = svd.getV();
+			FloatMatrix2D U = svd.getU(), V = svd.getV();
 
 			// eq. 7: M = UV
-			DoubleMatrix2D M = U.zMult(V.viewDice(), null); 
+			FloatMatrix2D M = U.zMult(V.viewDice(), null); 
 
 			//eq. 8: y = (x - xtil) * M + ytil
-			DoubleMatrix1D rowX = x.viewRow(pt).copy();
-			rowX = M.viewDice().zMult(rowX.assign(xtilde, DoubleFunctions.minus),null).assign(ytilde, DoubleFunctions.plus);
-			Y.viewRow(pt).assign(rowX);
+			M.zMult(xtilde.assign(x.viewRow(pt), (xx,yy) -> yy-xx), ytilde, 1, 1, true);
+			Y.viewRow(pt).assign(ytilde);
+			
+			//Atualiza progresso
+			pb.step();
 		}
+		
+		pb.stepTo(pb.getMax());
+		pb.stop();
 
 		return Y;
 	}
 
 	public static void main(String[] args) throws IOException {
 
-		DoubleMatrix data = DoubleMatrix.loadCSVFile("/Users/jose/Documents/freelancer/petricaep/lamp-python/iris.data");
+		FloatMatrix data = FloatMatrix.loadCSVFile("/Users/jose/Documents/freelancer/petricaep/lamp-python/iris.data");
 
-		DoubleMatrix2D x = new DenseDoubleMatrix2D(data.getColumns(RangeUtils.interval(0, data.columns-1)).toArray2());
+		FloatMatrix2D x = new DenseFloatMatrix2D(data.getColumns(RangeUtils.interval(0, data.columns-1)).toArray2());
 
 		int[] indices = new int[]{47,   3,  31,  25,  15, 118,  89,   6, 103,  65,  88,  38,  92};
 
-		DoubleMatrix2D ys = new DenseDoubleMatrix2D(new double[][]{
-			{ 0.64594878, 0.21303289},
-			{ 0.71731767,  0.396145  },
-			{ 0.70414944, 0.65089645},
-			{ 0.57139458,  0.4722532 },
-			{ 0.76340806,  0.25250587},
-			{ 0.61347666,  0.8632922 },
-			{ 0.56565112,  0.54291614},
-			{ 0.80551708, -0.02531856},
-			{-0.08270801,  0.57582274},
-			{ 0.56379192,  0.22470327},
-			{ 0.82288279,  0.21620781},
-			{ 0.89253817,  0.46421933},
-			{-0.02987608,  0.6828974 }
+		FloatMatrix2D ys = new DenseFloatMatrix2D(new float[][]{
+			{ 0.64594878f, 0.21303289f},
+			{ 0.71731767f,  0.396145f  },
+			{ 0.70414944f, 0.65089645f},
+			{ 0.57139458f,  0.4722532f },
+			{ 0.76340806f,  0.25250587f},
+			{ 0.61347666f,  0.8632922f},
+			{ 0.56565112f,  0.54291614f},
+			{ 0.80551708f, -0.02531856f},
+			{-0.08270801f,  0.57582274f},
+			{ 0.56379192f,  0.22470327f},
+			{ 0.82288279f,  0.21620781f},
+			{ 0.89253817f,  0.46421933f},
+			{-0.02987608f,  0.6828974f }
 		});
 
 		Lamp lamp = new Lamp();
-		DoubleMatrix2D y = lamp.project(x, indices, ys);
+		FloatMatrix2D y = lamp.project(x, indices, ys);
 
 		XYSeriesCollection dataset = new XYSeriesCollection();
-        XYSeries series = new XYSeries("Random");
+		XYSeries series = new XYSeries("Random");
 		for( int i = 0; i < y.rows(); i++){
 			for(int j = 0; j < y.columns(); j++){
 				System.out.print(String.format("%e ", y.get(i,j)));
@@ -237,16 +232,16 @@ public class Lamp {
 		}
 
 		dataset.addSeries(series);
-		
+
 		JFreeChart jfreechart = ChartFactory.createScatterPlot("MDP", "X","Y", dataset);
 		Shape cross = ShapeUtilities.createDiagonalCross(3, 1);
-        XYPlot xyPlot = (XYPlot) jfreechart.getPlot();
-        xyPlot.setDomainCrosshairVisible(true);
-        xyPlot.setRangeCrosshairVisible(true);
-        XYItemRenderer renderer = xyPlot.getRenderer();
-        renderer.setSeriesShape(0, cross);
-        renderer.setSeriesPaint(0, Color.red);
-		
+		XYPlot xyPlot = (XYPlot) jfreechart.getPlot();
+		xyPlot.setDomainCrosshairVisible(true);
+		xyPlot.setRangeCrosshairVisible(true);
+		XYItemRenderer renderer = xyPlot.getRenderer();
+		renderer.setSeriesShape(0, cross);
+		renderer.setSeriesPaint(0, Color.red);
+
 		final ChartPanel panel = new ChartPanel(jfreechart, true);
 		panel.setPreferredSize(new java.awt.Dimension(500, 270));
 

@@ -2,11 +2,12 @@ package ep.db.database;
 
 import java.sql.Connection;
 import java.sql.SQLException;
-import java.util.Properties;
 
 import javax.sql.DataSource;
 
 import org.postgresql.ds.PGSimpleDataSource;
+
+import ep.db.utils.Configuration;
 
 /**
  * Classe para conexão com o banco de dados
@@ -16,7 +17,7 @@ import org.postgresql.ds.PGSimpleDataSource;
  */
 public class DefaultDatabase implements Database {
 	
-	private final Properties config;
+	private final Configuration config;
 	
 	private final DataSource ds;
 
@@ -25,7 +26,7 @@ public class DefaultDatabase implements Database {
 	 * para conexão com o banco de dados
 	 * @param configuration configuração
 	 */
-	public DefaultDatabase(Properties configuration) {
+	public DefaultDatabase(Configuration configuration) {
 		this.config = configuration;
 		this.ds = initializeDataSource();
 	}
@@ -36,11 +37,11 @@ public class DefaultDatabase implements Database {
 	 */
 	private DataSource initializeDataSource() {
 		PGSimpleDataSource ds = new PGSimpleDataSource();
-		ds.setServerName(config.getProperty("db.host"));
-		ds.setDatabaseName(config.getProperty("db.database"));
-		ds.setPortNumber(Integer.parseInt(config.getProperty("db.port")));
-		ds.setUser(config.getProperty("db.user"));
-		ds.setPassword(config.getProperty("db.password"));
+		ds.setServerName(config.getDbHost());
+		ds.setDatabaseName(config.getDbName());
+		ds.setPortNumber(config.getDbPort());
+		ds.setUser(config.getDbUser());
+		ds.setPassword(config.getDbPassword());
 		return ds;
 	}
 

@@ -5,7 +5,6 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLEncoder;
 import java.util.List;
-import java.util.Properties;
 import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.StringUtils;
@@ -28,13 +27,6 @@ import net.arnx.jsonic.JSON;
  */
 public class Consolidation {
 
-	private static final String MENDELEY_CLIENT_ID = "mendeley.client_id";
-	private static final String MENDELEY_CLIENT_SECRET = "mendeley.client_secret";
-	
-	private static final String MENDELEY_ACCESS_TOKEN = "mendeley.access_token";
-	private static final String MENDELEY_HOST = "mendeley.host";
-
-
 	private static final String MENDELEY_DOI_BASE_QUERY = "catalog?doi=%s&view=bib";
 	private static final String MENDELEY_TITLE_AUTHOR_BASE_QUERY = 
 			"search/catalog?title=%s&author=%s&limit=1&view=bib";
@@ -47,10 +39,10 @@ public class Consolidation {
 	
 	public int counter = 0;
 	
-	public Consolidation( Properties config ) {
-		MendeleyConfiguration.setApiBaseUrl(config.getProperty(MENDELEY_HOST));
+	public Consolidation( Configuration config ) {
+		MendeleyConfiguration.setApiBaseUrl(config.getMendeleyHost());
 		ClientCredentials credentials = new ClientCredentials(
-				config.getProperty(MENDELEY_CLIENT_ID), config.getProperty(MENDELEY_CLIENT_SECRET));
+				config.getMendeleyClientId(), config.getMendeleyClientSecret());
 		
 		authTokenManager = new InMemoryAuthTokenManager();
 		oAuthTokeRequest = new AccessTokenWithClientCredentialsRequest(authTokenManager, credentials);

@@ -1,7 +1,6 @@
 package ep.db.mendeley;
 
 
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStreamWriter;
@@ -10,14 +9,13 @@ import java.net.URL;
 import java.net.URLEncoder;
 import java.util.List;
 import java.util.Map;
-import java.util.Properties;
 
 import org.grobid.core.utilities.TextUtilities;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import ep.db.utils.Utils;
+import ep.db.utils.Configuration;
 
 /**
  * Class with the implementation of typical request against the /oauth/token endpoint.
@@ -205,24 +203,23 @@ public class OAuthTokenEndpoint {
 	
 	public static void main(String[] args) {
 		
-		Properties properties = new Properties();
+		Configuration config;
 		try {
-			properties.load(new FileInputStream(Utils.PROP_FILE));
+			config = new Configuration();
 		} catch (IOException e1) {
-			// TODO Auto-generated catch block
 			e1.printStackTrace();
+			return;
 		}
 		
-		MendeleyConfiguration.setApiBaseUrl(properties.getProperty("mendeley.host"));
+		MendeleyConfiguration.setApiBaseUrl(config.getMendeleyHost());
 		
 		AuthTokenManager manager = new InMemoryAuthTokenManager();
-		ClientCredentials credentials = new ClientCredentials("4439", "VysYkAJWQfnrDtsO");
+		ClientCredentials credentials = new ClientCredentials(config.getMendeleyClientId(), config.getMendeleyClientSecret());
 		
 		AccessTokenWithClientCredentialsRequest auth = new AccessTokenWithClientCredentialsRequest(manager, credentials);
 		try {
 			auth.doRun();
 		} catch (Exception e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 		

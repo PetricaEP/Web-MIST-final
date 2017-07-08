@@ -5,11 +5,11 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Random;
 
-import cern.colt.matrix.tdouble.DoubleMatrix1D;
-import cern.colt.matrix.tdouble.DoubleMatrix2D;
-import cern.colt.matrix.tdouble.algo.DenseDoubleAlgebra;
-import cern.colt.matrix.tdouble.impl.DenseDoubleMatrix2D;
-import cern.jet.math.tdouble.DoubleFunctions;
+import cern.colt.matrix.tfloat.FloatMatrix1D;
+import cern.colt.matrix.tfloat.FloatMatrix2D;
+import cern.colt.matrix.tfloat.algo.DenseFloatAlgebra;
+import cern.colt.matrix.tfloat.impl.DenseFloatMatrix2D;
+import cern.jet.math.tfloat.FloatFunctions;
 
 
 public class ForceScheme {
@@ -35,13 +35,13 @@ public class ForceScheme {
 		this.eps = eps;
 	}
 
-	public DoubleMatrix2D project(DoubleMatrix2D xs) {
+	public FloatMatrix2D project(FloatMatrix2D xs) {
 		// Gera matrix y aleatoriamente
 		int n = xs.rows();
-		DoubleMatrix2D y = new DenseDoubleMatrix2D(n, 2);
+		FloatMatrix2D y = new DenseFloatMatrix2D(n, 2);
 		for(int i = 0; i < n; i++)
 			for(int j = 0; j < 2; j++)
-				y.setQuick(i, j, rng.nextDouble());
+				y.setQuick(i, j, rng.nextFloat());
 
 		// Listas para iteração aleatoria nas linhas e colunas
 		List<Integer> i = new ArrayList<>(n), j = new ArrayList<>(n);
@@ -51,7 +51,7 @@ public class ForceScheme {
 		}
 
 		// Gradiente Descendente
-		final DenseDoubleAlgebra alg = new DenseDoubleAlgebra();
+		final DenseFloatAlgebra alg = new DenseFloatAlgebra();
 		double prevDeltaSum = Double.POSITIVE_INFINITY;
 		for (int iter = 0; iter < maxIter; iter++) {
 			double deltaSum = 0;
@@ -63,12 +63,12 @@ public class ForceScheme {
 					if (a == b)
 						continue;
 
-					DoubleMatrix1D direction = y.viewRow(b).copy().assign(y.viewRow(a), DoubleFunctions.minus);
-					double d2 = Math.max(alg.norm2(direction), eps);
-					double delta = (xs.getQuick(a, b) - d2) / fraction;
+					FloatMatrix1D direction = y.viewRow(b).copy().assign(y.viewRow(a), FloatFunctions.minus);
+					float d2 = (float) Math.max(Math.sqrt(direction.zDotProduct(direction)), eps);
+					float delta = (xs.getQuick(a, b) - d2) / fraction;
 					deltaSum += Math.abs(delta);
-					direction.assign(DoubleFunctions.mult(delta/d2));
-					y.viewRow(b).assign(direction, DoubleFunctions.plus);
+					direction.assign(FloatFunctions.mult(delta/d2));
+					y.viewRow(b).assign(direction, FloatFunctions.plus);
 				}
 			}
 

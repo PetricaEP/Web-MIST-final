@@ -1,14 +1,11 @@
 package ep.db.mdp;
 
-import java.io.FileInputStream;
-import java.util.Properties;
-
 import org.apache.log4j.Logger;
 
-import cern.colt.matrix.tdouble.DoubleMatrix2D;
+import cern.colt.matrix.tfloat.FloatMatrix2D;
 import ep.db.database.DatabaseService;
 import ep.db.database.DefaultDatabase;
-import ep.db.utils.Utils;
+import ep.db.utils.Configuration;
 
 /**
  * Classe para realizar projeção multidimensional
@@ -39,7 +36,7 @@ public class MultidimensionalProjection {
 	 * com a configuração dada.
 	 * @param config configuração.
 	 */
-	public MultidimensionalProjection( Properties config ) {
+	public MultidimensionalProjection( Configuration config ) {
 		this(config,true);
 	}
 	
@@ -48,7 +45,7 @@ public class MultidimensionalProjection {
 	 * com a configuração dada.
 	 * @param config configuração.
 	 */
-	public MultidimensionalProjection( Properties config, boolean normalize ) {
+	public MultidimensionalProjection( Configuration config, boolean normalize ) {
 		this.dbService = new DatabaseService(new DefaultDatabase(config));
 		this.normalize = normalize;
 	}
@@ -61,30 +58,31 @@ public class MultidimensionalProjection {
 	public void project() throws Exception {
 
 		// Constroi matriz de frequência de termos
-		DoubleMatrix2D matrix = null;
+		FloatMatrix2D matrix = null;
 		try {
 			 matrix = dbService.buildFrequencyMatrix(null);
 		} catch (Exception e) {
 			logger.error("Error building frequency matrix", e);
 			throw e;
 		}
-		
+
 		// Realiza projeção multidimensional utilizando LAMP
 		Lamp lamp = new Lamp();
-		DoubleMatrix2D y = lamp.project(matrix);
+		FloatMatrix2D y = lamp.project(matrix);
 		
 //		 Normaliza projeção para intervalo [-1,1]
 		if ( normalize ){
 			normalizeProjections(y);
 		}
+		
 		// Atualiza projeções no banco de dados.
 		updateProjections(y);
 	}
 	
-	private void normalizeProjections(DoubleMatrix2D y) {
-		final double maxX = y.viewColumn(0).getMaxLocation()[0], 
+	private void normalizeProjections(FloatMatrix2D y) {
+		final float maxX = y.viewColumn(0).getMaxLocation()[0], 
 				maxY = y.viewColumn(1).getMaxLocation()[0];
-		final double minX = y.viewColumn(0).getMinLocation()[0],
+		final float minX = y.viewColumn(0).getMinLocation()[0],
 				minY = y.viewColumn(1).getMinLocation()[0];
 		
 		y.viewColumn(0).assign( (v) -> 2 * (v - minX)/(maxX - minX) - 1 );
@@ -96,7 +94,7 @@ public class MultidimensionalProjection {
 	 * @param y
 	 * @throws Exception 
 	 */
-	private void updateProjections(DoubleMatrix2D y) throws Exception {
+	private void updateProjections(FloatMatrix2D y) throws Exception {
 		try {
 			dbService.updateXYProjections(y);
 		} catch (Exception e) {
@@ -111,11 +109,11 @@ public class MultidimensionalProjection {
 	 */
 	public static void main(String[] args) {
 		try {
-			Properties properties = new Properties();
-			properties.load(new FileInputStream(Utils.PROP_FILE));
+			
+			Configuration config = new Configuration();
 			
 			System.out.println("Updating MDP...");
-			MultidimensionalProjection mdp = new MultidimensionalProjection(properties);
+			MultidimensionalProjection mdp = new MultidimensionalProjection(config);
 			mdp.project();
 			System.out.println("MDP successful updated");
 
