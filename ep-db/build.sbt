@@ -4,10 +4,11 @@ version := "1.0"
 
 lazy val ep_db = (project in file("."))
 
+
 scalaVersion := "2.11.7"
 
+
 libraryDependencies ++= Seq(
-//  "colt" % "colt" % "1.2.0",
   "org.postgresql" % "postgresql" % "42.0.0",
   "net.arnx"% "jsonic" % "1.3.5",
   "commons-pool" % "commons-pool" % "1.6",
@@ -29,5 +30,6 @@ libraryDependencies ++= Seq(
   "net.sf.jung" % "jung-graph-impl" % "2.1.1",
   "org.jfree" % "jfreechart" % "1.0.19",
   "net.sourceforge.parallelcolt" % "parallelcolt" % "0.10.1",
-  "org.jsoup" % "jsoup" % "1.10.3"
+  "org.jsoup" % "jsoup" % "1.10.3",
+  "me.tongfei" % "progressbar" % "0.5.5"
 )
