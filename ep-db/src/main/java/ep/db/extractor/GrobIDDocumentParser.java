@@ -67,6 +67,7 @@ public final class GrobIDDocumentParser implements DocumentParser{
 	 */
 	private void initialize() throws Exception {			
 		try {
+			System.out.println("Initializing GROBID...");
 			MockContext.setInitialContext(grobidHome, grobidProperties);
 			GrobidProperties.getInstance();
 			engine = GrobidFactory.getInstance().getEngine();
@@ -224,7 +225,8 @@ public final class GrobIDDocumentParser implements DocumentParser{
 
 	public static void closeEngine() {
 		try {
-			engine.close();
+			if (engine != null )
+				engine.close();
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
