@@ -2,7 +2,7 @@
 successFn = function(data){
 
 	$('#loading').addClass('hidden');
-	
+
 	//Enable step button
 	$("#step-btn").prop('disabled', false);
 	$("#step-btn").off();
@@ -20,7 +20,7 @@ successFn = function(data){
 	var svg = d3.select("svg"),
 	width = $("svg").width(),
 	height = $("svg").height();
-	
+
 	svg.attr('width', width);
 	svg.attr('height', height);
 
@@ -43,34 +43,38 @@ successFn = function(data){
 		return;
 	}
 
+	// Transform x,y MDP coordinates from range [-1,1] to [0, width/height]
+//	var x = d3.scaleLinear().domain([-1,1]).range([0, width]);
+//	var y = d3.scaleLinear().domain([-1,1]).range([0, height]);
+	var x = function(xx){
+		return width * ( xx / 2.0 + 0.5);
+	};
+	var y = function(yy){
+		return height * (0.5 - yy / 2.0);
+	};
+
+	// Create contours
+	var contours = d3.contourDensity()
+	.x(function(d){ return x(d[0]);})
+	.y(function(d){ return y(d[1]);})
+	.size([width,height])
+	.bandwidth(40)
+	(data.density);
+
 	// Cluster colors
-	var color = d3.scaleSequential(d3.interpolateRainbow)
+	var clusterColor = d3.scaleSequential(d3.interpolateRainbow)
 	.domain([0, m]);
 
-	// Get max/min relevance
-	var maxRev = data.documents[0].relevance,
-	minRev = data.documents[data.documents.length-1].relevance;
-
-	// Radius interpolator based on document relevance
-	var radiusInterpolator = d3.scaleLinear()
-	.domain([minRev, maxRev])
-	.range([minRadius, maxRadius])
-	.interpolate(d3.interpolateRound);
+	var contourColor = d3.scaleSequential(d3.interpolateOranges)
+	.domain(d3.extent(contours.map(function(p) { return p.value;}))); // Points per square pixel.
 
 	// The largest node for each cluster.
 	var clusters = new Array(m);
 	var links = [];
 
-	// Transform x,y MDP coordinates from range [-1,1] to [0, width/height]
-	var x = d3.scaleLinear().domain([-1,1]).range([0, width]);
-	var y = d3.scaleLinear().domain([-1,1]).range([0, height]);
-
-	var maxArea = width * height,
-	sumArea = Math.PI * clusterPadding * clusterPadding * m,
-	maxRevToShow = 0;
-
 	//Create nodes
 	var nodes = createNodes(data.documents);
+	var points = createPoints(data.density);
 
 	// Tooltip on mouse over
 	var tip = d3.select("body").append("div")
@@ -91,29 +95,43 @@ successFn = function(data){
 	.append("path")
 	.attr("d", "M0,-5L10,0L0,5");
 
+	// Contours
+	svg.insert("g", "g")
+	.attr("fill", "none")
+//	.attr("stroke", "#000")
+//	.attr("stroke-width", 0.5)
+//	.attr("stroke-linejoin", "round")
+	.selectAll("path")
+	.data(contours)
+	.enter().append("path")
+	.attr("d", d3.geoPath())
+	.attr("fill", function(d){ return contourColor(d.value);});
 
-	var quadtree = d3.quadtree()
-	.extent([[-1,-1], [width+1,height+1]])
-	.x(function(d) { return  d.x;})
-	.y(function(d) { return  d.y;})
-	.addAll(nodes);
-
-	// Create points
+	// Create circles
 	var g = svg.append("g");
-	var points = g
+	var circles = g
 	.datum(nodes)
 	.selectAll('.circle')
 	.data(function(d) { return d;})
 	.enter().append('circle')
-	.attr('r', function(d) { return minRadius; })
+	.attr('r', function(d) { return d.r; })
 	.attr('cx', function(d) { return d.x;})
 	.attr('cy', function(d) { return  d.y;})
-	.attr('fill', function(d) { return  color(d.cluster);})
+	.attr('fill', function(d) { return  clusterColor(d.cluster);})
 	.attr('stroke', 'black')
 	.attr('stroke-width', 1);
 
-	var circles = points
-	.filter(function(d,i) { return d.data.relevance >= maxRevToShow;});
+	var point = g
+	.datum(points)
+	.selectAll('.circle')
+	.data(function(d) { return d;})
+	.enter().append('circle')
+	.attr('r', function(d) { return d.r; })
+	.attr('cx', function(d) { return d.x;})
+	.attr('cy', function(d) { return  d.y;})
+	.attr('fill', function(d) { return  clusterColor(d.cluster);})
+	.attr('stroke', 'black')
+	.attr('stroke-width', 1);
 
 	var path = g
 	.selectAll("path")
@@ -123,6 +141,62 @@ successFn = function(data){
 	.attr('stroke-width', 1.5)
 	.attr("marker-end", function(d) { return "url(#link)"; });
 
+	// Rectangular selection
+	var selection = svg.append("path")
+	.attr("class", "selection")
+	.attr("visibility", "hidden");
+
+	var startSelection = function(start) {
+		selection.attr("d", rect(start[0], start[0], 0, 0))
+		.attr("visibility", "visible");
+	};
+	var moveSelection = function(start, moved) {
+		selection.attr("d", rect(start[0], start[1], moved[0]-start[0], moved[1]-start[1]));
+	};
+	var endSelection = function(start, end) {
+		selection.attr("visibility", "hidden");
+		selectArea(start,end);
+	};
+
+	// Selection events
+	svg.on("mousedown", function() {
+		var isActive = $("#zoom-btn").hasClass("active");
+		if ( isActive ){
+			var subject = d3.select(window), parent = this.parentNode,
+			start = d3.mouse(parent);
+			startSelection(start);
+			subject
+			.on("mousemove.selection", function() {
+				moveSelection(start, d3.mouse(parent));
+			}).on("mouseup.selection", function() {
+				endSelection(start, d3.mouse(parent));
+				subject.on("mousemove.selection", null).on("mouseup.selection", null);
+			});
+		}
+	});
+	
+	point
+	.on("mouseover", function(p){
+		var d = p.data;
+		var html = "<p>x = " + d.x + ", y = " + d.y + "<p>";
+		
+		tip.transition()
+		.duration(500)
+		.style("opacity", 0);
+
+		tip.transition()
+		.duration(200)
+		.style("opacity", 0.9)
+		.style("display", "block");
+
+		tip.html(html)
+		.style("left", "150px")
+		.style("top", "150px");
+		d3.select(this).style("stroke-opacity", 1);
+		
+	})
+	.on("mouseout", hideTip);
+
 	++step;
 
 	// ###### Finish first step ######
@@ -130,8 +204,6 @@ successFn = function(data){
 	// Second step: set circle's radius
 	function secondStep(){
 		circles
-		.attr('r', function(d){ return  d.r; })
-		.attr('fill', function(d) { return color(d.cluster);})
 		.attr('fill-opacity', function(d) { return 0.3; });
 	}
 
@@ -151,7 +223,7 @@ successFn = function(data){
 
 		//Link force (citations)
 		var forceLink = d3.forceLink()
-		.id(function(d) { return d.docId; })
+		.id(function(d) { return d.id; })
 		.links(links)
 		.strength(0)
 		.distance(0);
@@ -181,7 +253,20 @@ successFn = function(data){
 
 	}
 
-	// Simulation has finished
+	function selectArea(start, end){
+		var numClusters = $("#num-clusters").val();
+		var r = jsRoutes.controllers.HomeController.zoom();
+		$.ajax({url: r.url, type: r.type, data: {
+			start: start,
+			end: end,
+			width: width,
+			height: height,
+			numClusters: numClusters
+		}, 
+		success: successFn, error: errorFn, dataType: "json"});
+	}
+
+//	Simulation has finished
 	function endSimulation(){
 		circles
 		.attr("fill-opacity", 1)
@@ -204,24 +289,17 @@ successFn = function(data){
 
 	}
 
-	// Create nodes
+//	Create nodes
 	function createNodes(documents){
 		return $.map(documents, function(doc, index){
 			if (doc.x !== undefined && doc.y !== undefined ){
-				var radius = radiusInterpolator(doc.relevance);
-
-				sumArea += 4 * (radius + padding)  * (radius + padding);
-				sumArea += Math.PI*(radius + padding)*(radius + padding);
-				if ( sumArea <= maxArea)
-					maxRevToShow = doc.relevance;
-
 				d = {
-						docId: doc.docId,
+						id: doc.id,
 						cluster: doc.cluster,
-						r: sumArea <= maxArea ? radius : minRadius,
-								x: x(doc.x),
-								y: y(doc.y),
-								data: doc
+						r: doc.radius,
+						x: x(doc.x),
+						y: y(doc.y),
+						data: doc
 				};
 
 				//Set links
@@ -230,7 +308,7 @@ successFn = function(data){
 					var references = doc.references;
 					for(i = 0; i < references.length; i++){
 						links.push({	
-							source: doc.docId,
+							source: doc.id,
 							target: references[i]
 						});
 					}
@@ -240,13 +318,29 @@ successFn = function(data){
 				addDocumentToTable(index, doc);
 
 				//Update cluster medoid
-				if (!clusters[ doc.cluster ] || (radius > clusters[ doc.cluster ].r)) clusters[ doc.cluster ] = d;
+				if (!clusters[ doc.cluster ] || (d.r > clusters[ doc.cluster ].r)) clusters[ doc.cluster ] = d;
 				return d;
 			}
 		});
 	}
 
-	// Add document to table
+	function createPoints(density){
+		var points = [];
+		for(var i = 0; i < density.length; i++){
+			d = {
+					id: i,
+					cluster: 1,
+					r: 3,
+					x: x(density[i][0]),
+					y: y(density[i][1]),
+					data: {x: density[i][0], y: density[i][1]}
+			};
+			points.push(d);
+		}
+		return points;
+	}
+
+//	Add document to table
 	function addDocumentToTable(index, doc){
 		var row = '<tr><td class="doc-index">' + index + '</td><td class="doc-title">' + doc.title +
 		'</td><td class="doc-authors">';
@@ -260,23 +354,23 @@ successFn = function(data){
 		if ( doc.publicationDate )
 			row += doc.publicationDate;
 		row += '</td><td class="doc-doi">';
-			if ( doc.doi )
-				row += '<a href="https://dx.doi.org/' + d.doi + '" target="_blank">' + 
-				doc.doi + '</a>';
+		if ( doc.doi )
+			row += '<a href="https://dx.doi.org/' + d.doi + '" target="_blank">' + 
+			doc.doi + '</a>';
 
-		row += '</td><td class="doc-relevance">' + (doc.relevance * 100 ).toFixed(3) + '</td><td class="doc-cluster">' + 
-		'<svg><circle cx="15" cy="15" r="10" stroke-width="0" fill="' + color(doc.cluster) + '"/></svg>'  +
+		row += '</td><td class="doc-relevance">' + (doc.rank * 100 ).toFixed(3) + '</td><td class="doc-cluster">' + 
+		'<svg><circle cx="15" cy="15" r="10" stroke-width="0" fill="' + clusterColor(doc.cluster) + '"/></svg>'  +
 		'</td></tr>';
 		$('.documents-table .table tbody').append(row);
 	}
 
-	// Execute at each simulation iteration
+//	Execute at each simulation iteration
 	function ticked(){
 
 		var width = $("svg").width();
 		var height = $("svg").height();
 
-		points
+		circles
 		.attr("cx", function(d) { return (d.x = Math.max(d.r, Math.min(width - d.r, d.x)));})
 		.attr("cy", function(d) { return (d.y = Math.max(d.r, Math.min(height - d.r, d.y)));});
 
@@ -284,12 +378,12 @@ successFn = function(data){
 		.attr("d", linkArc);
 	}
 
-	// Show tips when mouse over
+//	Show tips when mouse over
 	function showTip(n){
 		tip.transition()
 		.duration(500)
 		.style("opacity", 0);
-		
+
 		tip.transition()
 		.duration(200)
 		.style("opacity", 0.9)
@@ -314,7 +408,7 @@ successFn = function(data){
 		d3.select(this).style("stroke-opacity", 1);
 	}
 
-	// Hide tips
+//	Hide tips
 	function hideTip(d){
 		d3.select(this).style("stroke-opacity", 0);
 		// User has moved off the visualization and onto the tool-tip
@@ -328,7 +422,7 @@ successFn = function(data){
 		});
 	}
 
-	//Toggle links (citations) when selected
+//	Toggle links (citations) when selected
 	function toggleLinks(d,index){
 		var i;
 		var paths = d3.selectAll('path.link').nodes();
@@ -351,10 +445,10 @@ successFn = function(data){
 
 	function getPoint(row){
 		var index = parseInt($(row).children('td.doc-index').html());
-		return points.filter(function (d, i) { return i === index;});
+		return circles.filter(function (d, i) { return i === index;});
 	}
 
-	// Show arc (links)
+//	Show arc (links)
 	function linkArc(l) {
 		var dx = l.target.x - l.source.x,
 		dy = l.target.y - l.source.y,
@@ -426,17 +520,17 @@ successFn = function(data){
 				var neighbors = d.data.nb;
 				neighbors.forEach(function(val, idx){
 					var mj = Math.PI * val.r * val.r,
-						dx = d.x - val.x,
-						dy = d.y - val.y,
-						dist = Math.sqrt(dx*dx + dy*dy),
-						dij = Math.max(0, dist - (d.r + val.r));
-						
-						if ( dist > 0 ){
-							strength_x += (d.r * val.r) / (d.r + val.r) * dij * dx / dist;
-							strength_y += (d.r * val.r) / (d.r + val.r) * dij * dy / dist;
-						}
+					dx = d.x - val.x,
+					dy = d.y - val.y,
+					dist = Math.sqrt(dx*dx + dy*dy),
+					dij = Math.max(0, dist - (d.r + val.r));
+
+					if ( dist > 0 ){
+						strength_x += (d.r * val.r) / (d.r + val.r) * dij * dx / dist;
+						strength_y += (d.r * val.r) / (d.r + val.r) * dij * dy / dist;
+					}
 				});
-				
+
 				d.x -= strength_x * alpha  / 10000;
 				d.y -= strength_y * alpha  / 10000;
 			});
@@ -458,10 +552,10 @@ successFn = function(data){
 
 		return force;
 	}
-	
+
 	function findNodeByDocId(nodes , docId){
 		for(var i = 0; i < nodes.length; i++){
-			if ( nodes[i].docId == docId){
+			if ( nodes[i].id == docId){
 				return nodes[i];
 			}
 		}
@@ -485,5 +579,9 @@ successFn = function(data){
 		};
 
 		return force;
+	}
+
+	function rect(x, y, w, h) {
+		return "M"+[x,y]+" l"+[w,0]+" l"+[0,h]+" l"+[-w,0]+"z";
 	}
 };

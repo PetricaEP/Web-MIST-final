@@ -55,6 +55,7 @@ $(document).ready(function() {
 	$("#step-btn").prop('disabled', true);
 	$("#reheat-btn").prop('disabled', true);
 	$("#reset-btn").click(resetVisualization);
+	$("#zoom-btn").click(zoomTool);
 });
 
 //Submission error 
@@ -70,6 +71,11 @@ function resetVisualization(e){
 	$(".documents-table table tbody tr").removeClass('success');
 }
 
+function zoomTool(e){
+	$(".visualization-wrapper")
+		.toggleClass("zoom-cursor", !$(this).hasClass("active"));
+}
+
 //Ajax form submission
 function ajaxSubmitForm(){
 	var t = $("#terms").val(),
@@ -77,8 +83,10 @@ function ajaxSubmitForm(){
 	author = $("#author").val(),
 	yearS = $("#year-start").val(),
 	yearE = $("#year-end").val(),
-	numClusters = $("#num-clusters").val();
-
+	numClusters = $("#num-clusters").val(),
+	width = $("svg").width(),
+	height = $("svg").height(); 
+	
 	var r = jsRoutes.controllers.HomeController.search();
 	$.ajax({url: r.url, type: r.type, data: {
 		terms: t, 
@@ -86,7 +94,9 @@ function ajaxSubmitForm(){
 		author: author,
 		yearStart:  yearS,
 		yearEnd: yearE,
-		numClusters: numClusters
+		numClusters: numClusters,
+		width: width,
+		height: height 
 	}, 
 	success: successFn, error: errorFn, dataType: "json"});
 	

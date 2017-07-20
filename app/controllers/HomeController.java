@@ -4,6 +4,7 @@ import javax.inject.Inject;
 import javax.inject.Named;
 
 import play.Logger;
+import play.data.DynamicForm;
 import play.data.Form;
 import play.data.FormFactory;
 import play.mvc.Controller;
@@ -11,6 +12,7 @@ import play.mvc.Result;
 import play.routing.JavaScriptReverseRouter;
 import services.search.DocumentSearcher;
 import views.formdata.QueryData;
+import views.formdata.SelectionData;
 import views.html.Index;
 
 /**
@@ -67,6 +69,29 @@ public class HomeController extends Controller {
 		}
     	return ok(jsonResult).as("application/json");
     }
+    
+    /**
+     * Zoom to user selected area 
+     * @param term the search term
+     * @return Play result as Json
+     */
+    public Result zoom(){
+    	
+    	Form<SelectionData> selectionData = formFactory.form(SelectionData.class).bindFromRequest();
+    	
+    	if ( selectionData.hasErrors() ){
+    		return ok();
+    	}
+    	
+    	String jsonResult;
+		try {
+			jsonResult = docSearcher.zoom(selectionData.get());
+		} catch (Exception e) {
+			Logger.error("Can't search for documents. Query: " + selectionData.toString(), e);
+			return internalServerError("Can't search for documents");
+		}
+    	return ok(jsonResult).as("application/json");
+    }
 
     /**
      * Create javascript routes for this controller
@@ -75,7 +100,9 @@ public class HomeController extends Controller {
     public Result javascriptRoutes(){
     	return ok(
     			JavaScriptReverseRouter.create("jsRoutes",
-    					routes.javascript.HomeController.search()
+    					routes.javascript.HomeController.search(),
+    					routes.javascript.HomeController.zoom(),
+    					routes.javascript.GraphController.getGraph()
     				)).as("text/javascript");
     }
 }
