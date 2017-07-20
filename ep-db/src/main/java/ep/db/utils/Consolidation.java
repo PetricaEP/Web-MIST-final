@@ -16,6 +16,7 @@ import ep.db.mendeley.InMemoryAuthTokenManager;
 import ep.db.mendeley.MendeleyConfiguration;
 import ep.db.mendeley.OAuthTokenEndpoint.AccessTokenWithClientCredentialsRequest;
 import ep.db.model.Document;
+import ep.db.model.IDocument;
 import net.arnx.jsonic.JSON;
 
 /**
@@ -52,9 +53,15 @@ public class Consolidation {
 	 * Try to consolidate some uncertain bibliographical data with mendeley web service based on
 	 * core metadata
 	 */
-	public boolean consolidate(Document doc) throws Exception {
+	public boolean consolidate(IDocument idoc) throws Exception {
 		boolean valid = false;
-
+		
+		Document doc;
+		if ( idoc instanceof Document )
+			doc = (Document) idoc;
+		else
+			return false;
+		
 		String doi = doc.getDOI();
 
 		BiblioItem result = null;

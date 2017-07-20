@@ -5,7 +5,6 @@ import java.util.List;
 import ep.db.model.Author;
 import ep.db.model.Document;
 import ep.db.utils.Utils;
-import ep.db.utils.Utils;
 
 /**
  * Interface de processadores de documentos (parsers)

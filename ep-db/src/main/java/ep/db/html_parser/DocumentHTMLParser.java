@@ -10,6 +10,7 @@ import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
+import ep.db.model.IDocument;
 import ep.db.utils.Utils;
 
 public class DocumentHTMLParser {
@@ -22,8 +23,14 @@ public class DocumentHTMLParser {
 
 	}
 
-	public void process(ep.db.model.Document doc) throws IOException {
-
+	public void process(IDocument idoc) throws IOException {
+		
+		ep.db.model.Document doc;
+		if ( idoc instanceof Document )
+			doc = (ep.db.model.Document) idoc;
+		else
+			return;
+		
 		String doi = doc.getDOI();
 		if ( doi == null )
 			return;

@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import edu.uci.ics.jung.algorithms.scoring.PageRank;
+import ep.db.quadtree.Vec2;
 
 /**
  * Classe representando um documento armanzeado
@@ -13,7 +14,7 @@ import edu.uci.ics.jung.algorithms.scoring.PageRank;
  * @since 2017
  *
  */
-public class Document implements Serializable{
+public class Document implements IDocument, Serializable{
 
 	/**
 	 * Seria id
@@ -23,7 +24,7 @@ public class Document implements Serializable{
 	/**
 	 * Id do documento no banco de dados
 	 */
-	private long docId;
+	private long id;
 	
 	/**
 	 * DOI
@@ -88,17 +89,17 @@ public class Document implements Serializable{
 	/**
 	 * Coordenada x da projeção
 	 */
-	private double x;
+	private float x;
 	
 	/**
 	 * Coordenada y da projeção
 	 */
-	private double y;
+	private float y;
 	
 	/**
 	 * Relevância pelo {@link PageRank}
 	 */
-	private double relevance;
+	private float relevance;
 	
 	/**
 	 * Score relativo a consulta (PostgreSQL rank)
@@ -124,11 +125,13 @@ public class Document implements Serializable{
 	 * Lista com id's dos documentos citados
 	 */
 	private List<Long> references;
-
+	
 	/**
-	 * List com k-vizinhos mais próximos
+	 * Raio do documento para
+	 * visualização (interpolacão linear
+	 * com a relevância).
 	 */
-	private List<Long> neighbors;
+	private double radius;
 
 	/**
 	 * Cria um novo documento
@@ -137,20 +140,27 @@ public class Document implements Serializable{
 		
 	}
 	
+	public Document(long docId, float relevance, float x, float y) {
+		this.id = docId;
+		this.relevance = relevance;
+		this.x = x;
+		this.y = y;
+	}
+
 	/**
 	 * Retorna id do documento.
 	 * @return id do documento.
 	 */
-	public long getDocId() {
-		return docId;
+	public long getId() {
+		return id;
 	}
 
 	/**
 	 * Atribui id do documento.
 	 * @param docId id do documento.
 	 */
-	public void setDocId(long docId) {
-		this.docId = docId;
+	public void setId(long docId) {
+		this.id = docId;
 	}
 
 	/**
@@ -354,7 +364,7 @@ public class Document implements Serializable{
 	 * Retorna coordenada x da projeção.
 	 * @return coordenada x.
 	 */
-	public double getX() {
+	public float getX() {
 		return x;
 	}
 
@@ -362,7 +372,7 @@ public class Document implements Serializable{
 	 * Atribui coordenada x da projeção.
 	 * @param x coordenda x.
 	 */
-	public void setX(double x) {
+	public void setX(float x) {
 		this.x = x;
 	}
 
@@ -370,7 +380,7 @@ public class Document implements Serializable{
 	 * Retorna coordenada y da projeção.
 	 * @return coordenada y.
 	 */
-	public double getY() {
+	public float getY() {
 		return y;
 	}
 
@@ -378,8 +388,13 @@ public class Document implements Serializable{
 	 * Atribui coordenada y da projeção.
 	 * @param y coordenada y
 	 */
-	public void setY(double y) {
+	public void setY(float y) {
 		this.y = y;
+	}
+	
+	@Override
+	public Vec2 getPos() {
+		return new Vec2(x, y);
 	}
 
 	/**
@@ -388,7 +403,7 @@ public class Document implements Serializable{
 	 * @return relevância do documento em relação a toda a base 
 	 * (no. de citações).
 	 */
-	public double getRelevance() {
+	public float getRank() {
 		return relevance;
 	}
 
@@ -396,7 +411,7 @@ public class Document implements Serializable{
 	 * Atribui relevância do documento.
 	 * @param relevance relevância.
 	 */
-	public void setRelevance(double relevance) {
+	public void setRank(float relevance) {
 		this.relevance = relevance;
 	}
 
@@ -492,15 +507,21 @@ public class Document implements Serializable{
 	public void setNumberOfCitations(long numberOfCitations) {
 		this.numberOfCitations = numberOfCitations;
 	}
-	
-	public void addNeighbor(long docId) {
-		if ( neighbors == null)
-			neighbors = new ArrayList<Long>();
-		neighbors.add(docId);
+
+	/**
+	 * Retorn o raio para visualzação
+	 * @return raio
+	 */
+	public double getRadius() {
+		return radius;
 	}
-	
-	public List<Long> getNeighbors() {
-		return neighbors;
+
+	/**
+	 * Atribui raio para visualização.
+	 * @param radius
+	 */
+	public void setRadius(double radius) {
+		this.radius = radius;
 	}
 
 	/**
@@ -518,5 +539,30 @@ public class Document implements Serializable{
 		return sb.toString().trim(); 
 	}
 
-	
+	@Override
+	public int compareTo(IDocument o) {
+		return Float.compare(this.relevance, o.getRank());
+	}
+
+	@Override
+	public int hashCode() {
+		final int prime = 31;
+		int result = 1;
+		result = prime * result + (int) (id ^ (id >>> 32));
+		return result;
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj)
+			return true;
+		if (obj == null)
+			return false;
+		if (getClass() != obj.getClass())
+			return false;
+		Document other = (Document) obj;
+		if (id != other.id)
+			return false;
+		return true;
+	}
 }

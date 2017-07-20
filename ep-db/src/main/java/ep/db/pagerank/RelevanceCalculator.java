@@ -1,6 +1,7 @@
 package ep.db.pagerank;
 
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import edu.uci.ics.jung.algorithms.scoring.PageRank;
 import edu.uci.ics.jung.graph.DirectedGraph;
@@ -21,7 +22,7 @@ public class RelevanceCalculator {
 	/**
 	 * Logger
 	 */
-	private static Logger logger = Logger.getLogger(RelevanceCalculator.class);
+	private static Logger logger = LoggerFactory.getLogger(RelevanceCalculator.class);
 	
 	/**
 	 * Fator-C padrão
@@ -59,14 +60,31 @@ public class RelevanceCalculator {
 	}
 	
 	/**
+	 * Atualiza PageRank.
+	 */
+	public void update(){
+		try {
+			updateRelevance(DatabaseService.DOCUMENTS_GRAPH);
+		} catch (Exception e) {
+			logger.error("Error updating relevance for documents.",e);
+		}
+		
+		try {
+			updateRelevance(DatabaseService.AUTHORS_GRAPH);
+		} catch (Exception e) {
+			logger.error("Error updating relevance for authors.",e);
+		}
+	}
+	
+	/**
 	 * Atualiza relevâncias no banco de dados.
 	 * @throws Exception erro ao recuperar ou atualizar relevâncias.
 	 */
-	public void updateRelevance() throws Exception {
+	public void updateRelevance(int type) throws Exception {
 		
 		DirectedGraph<Long,Long> graph = null;
 		try {
-			graph = dbService.getCitationGraph();
+			graph = dbService.getCitationGraph(type);
 		} catch (Exception e) {
 			logger.error("Error while getting citation graph from database",e);
 			throw e;
@@ -76,7 +94,7 @@ public class RelevanceCalculator {
 		pageRank.evaluate(); 
 		
 		try {
-			dbService.updatePageRank(graph, pageRank);
+			dbService.updatePageRank(graph, pageRank, type);
 		} catch (Exception e) {
 			logger.error("Error updating page rank in database", e);
 			throw e;
@@ -93,7 +111,7 @@ public class RelevanceCalculator {
 			
 			System.out.println("Updating ranking...");
 			RelevanceCalculator ranking = new RelevanceCalculator(config);
-			ranking.updateRelevance();
+			ranking.update();
 			System.out.println("Ranking successful updated");
 
 		} catch (Exception e) {

@@ -14,8 +14,9 @@ import java.util.zip.ZipInputStream;
 
 import javax.naming.NoInitialContextException;
 
-import org.apache.log4j.Logger;
 import org.grobid.core.mock.MockContext;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import ep.db.database.DatabaseService;
 import ep.db.database.DefaultDatabase;
@@ -42,7 +43,7 @@ public class DocumentParserService {
 	/**
 	 * Logger
 	 */
-	private static Logger logger = Logger.getLogger(DocumentParserService.class);
+	private static Logger logger = LoggerFactory.getLogger(DocumentParserService.class);
 
 	/**
 	 * Document Parser

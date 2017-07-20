@@ -1,22 +1,34 @@
 package ep.db.model;
 
+import java.io.Serializable;
+
 /**
  * Classe represetando autor de um documento.
  * @version 1.0
  * @since 2017
  *
  */
-public class Author {
+public class Author implements Serializable{
 	
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = -6489761035542574310L;
+
 	/**
 	 * ID do autor no banco de dados.
 	 */
-	private long authorId;
+	private long id;
 	
 	/**
 	 * Nome completo do autor
 	 */
 	private String name;
+	
+	/**
+	 * Relevancia do autor
+	 */
+	private float rank;
 
 	/**
 	 * Cria novo autor
@@ -38,16 +50,16 @@ public class Author {
 	 * Retorna id do autor no banco de dados.
 	 * @return id do autor.
 	 */
-	public long getAuthorId() {
-		return authorId;
+	public long getId() {
+		return id;
 	}
 
 	/**
 	 * Atribui id do autor.
 	 * @param authorId id do autor
 	 */
-	public void setAuthorId(long authorId) {
-		this.authorId = authorId;
+	public void setId(long authorId) {
+		this.id = authorId;
 	}
 
 	/**
@@ -64,6 +76,22 @@ public class Author {
 	 */
 	public void setName(String name) {
 		this.name = name;
+	}
+	
+	/**
+	 * Retorna relevância do autor.
+	 * @return relevância do autor (pagerank).
+	 */
+	public float getRank() {
+		return rank;
+	}
+	
+	/**
+	 * Atribui relevância para o autor.
+	 * @param rank relevância (pagerank).
+	 */
+	public void setRank(float rank) {
+		this.rank = rank;
 	}
 
 	@Override

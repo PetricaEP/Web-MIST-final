@@ -1,6 +1,8 @@
 package ep.db.mdp;
 
-import org.apache.log4j.Logger;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import cern.colt.matrix.tfloat.FloatMatrix2D;
 import ep.db.database.DatabaseService;
@@ -19,7 +21,7 @@ public class MultidimensionalProjection {
 	/**
 	 * Logger
 	 */
-	private static Logger logger = Logger.getLogger(MultidimensionalProjection.class);
+	private static Logger logger = LoggerFactory.getLogger(MultidimensionalProjection.class);
 	
 	/**
 	 * Serviço para manipulação do banco de dados.
@@ -116,6 +118,7 @@ public class MultidimensionalProjection {
 			MultidimensionalProjection mdp = new MultidimensionalProjection(config);
 			mdp.project();
 			System.out.println("MDP successful updated");
+			System.out.println("\r\n");
 
 		} catch (Exception e) {
 			e.printStackTrace(System.err);
