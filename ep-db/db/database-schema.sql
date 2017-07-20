@@ -6,6 +6,7 @@ DROP TABLE IF EXISTS documents_data;
 DROP TABLE IF EXISTS document_authors;
 DROP TABLE IF EXISTS documents;
 DROP TABLE IF EXISTS authors;
+DROP TABLE IF EXISTS nodes;
 
 CREATE TABLE documents (
 	doc_id				bigserial PRIMARY KEY,
@@ -27,6 +28,7 @@ CREATE TABLE documents (
 CREATE TABLE authors (
 	aut_id		bigserial PRIMARY KEY,
 	aut_name	varchar(500),
+	relevance	real default 0,
 	aut_name_tsv	tsvector,
 	UNIQUE(aut_name)
 );
@@ -38,12 +40,25 @@ CREATE TABLE document_authors(
 	UNIQUE(doc_id,aut_id)
 );
 
+CREATE TABLE nodes (
+	node_id		bigint PRIMARY KEY,
+	isleaf		boolean,
+	rankmax		real,
+	rankmin		real,
+	parent_id	bigint REFERENCES nodes(node_id) ON DELETE CASCADE ,
+	depth		int,
+	index		int
+);
+
 CREATE TABLE documents_data (
 	doc_id				bigint PRIMARY KEY REFERENCES documents(doc_id) ON UPDATE CASCADE ON DELETE CASCADE,
+	node_id				bigint REFERENCES nodes(node_id) ON UPDATE CASCADE ON DELETE CASCADE,
 	x					real,
 	y					real,
 	relevance			real
 );
+
+ALTER TABLE nodes ADD CONSTRAINT no_self_loops_nodes_chk CHECK (node_id <> parent_id);
 
 CREATE TABLE citations (
 	id			bigserial PRIMARY KEY,
