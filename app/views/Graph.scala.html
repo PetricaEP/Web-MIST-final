@@ -1,0 +1,23 @@
+@(graph :  String)
+ 
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <title>Welcome</title>
+        @head()
+        
+        <link rel="stylesheet" media="screen" href="@routes.Assets.versioned("stylesheets/graph.css")">
+        <script src="@routes.Assets.versioned("javascripts/graph.js")" type="text/javascript"></script>
+    </head>
+    <body>	
+    	
+    	@navbar("graph")
+    	
+    	<div class="container-fluid">
+		    <div class="visualization-wrapper">
+				<svg width="960" height="600" id="graph" class="graph"></svg>
+			</div>
+		</div>
+		<span id="graph-type" style="display: none;">@graph</span>
+    </body>
+</html>
