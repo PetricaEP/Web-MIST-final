@@ -301,6 +301,7 @@ public class DocumentParserService {
 
 		try {
 			Configuration config = new Configuration();
+			config.loadConfiguration();
 
 			String grobidHome = config.getGrobidHome();
 			String grobidProperties = config.getGrobidConfig();

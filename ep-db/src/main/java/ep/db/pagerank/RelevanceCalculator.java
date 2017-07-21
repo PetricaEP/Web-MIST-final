@@ -8,6 +8,7 @@ import edu.uci.ics.jung.graph.DirectedGraph;
 import ep.db.database.DatabaseService;
 import ep.db.database.DefaultDatabase;
 import ep.db.utils.Configuration;
+import me.tongfei.progressbar.ProgressBar;
 
 /**
  * Classe para cálculo das relevâncias de cada
@@ -18,27 +19,27 @@ import ep.db.utils.Configuration;
  *
  */
 public class RelevanceCalculator {
-	
+
 	/**
 	 * Logger
 	 */
 	private static Logger logger = LoggerFactory.getLogger(RelevanceCalculator.class);
-	
+
 	/**
 	 * Fator-C padrão
 	 */
 	private static final double C = 0.85;
-	
+
 	/**
 	 * Serviço de manipulação do banco de dados.
 	 */
 	private final DatabaseService dbService;
-	
+
 	/**
 	 * Fator-C
 	 */
 	private final double c;
-	
+
 	/**
 	 * Cria novo objeto para cálculo de relevância utilizando
 	 * fator-C padrão ({@value #C} e configuração especificada.
@@ -47,7 +48,7 @@ public class RelevanceCalculator {
 	public RelevanceCalculator( Configuration config ) {
 		this(config, C);
 	}
-	
+
 	/**
 	 * Cria novo objeto para cálculo de relevância utilizando
 	 * fator-C e configuração especificada.
@@ -58,30 +59,32 @@ public class RelevanceCalculator {
 		this.dbService = new DatabaseService(new DefaultDatabase(config));
 		this.c = c;
 	}
-	
+
 	/**
 	 * Atualiza PageRank.
 	 */
 	public void update(){
 		try {
+			System.out.println("Documents Page Rank...");
 			updateRelevance(DatabaseService.DOCUMENTS_GRAPH);
 		} catch (Exception e) {
 			logger.error("Error updating relevance for documents.",e);
 		}
-		
+
 		try {
+			System.out.println("Authors Page Rank...");
 			updateRelevance(DatabaseService.AUTHORS_GRAPH);
 		} catch (Exception e) {
 			logger.error("Error updating relevance for authors.",e);
 		}
 	}
-	
+
 	/**
 	 * Atualiza relevâncias no banco de dados.
 	 * @throws Exception erro ao recuperar ou atualizar relevâncias.
 	 */
 	public void updateRelevance(int type) throws Exception {
-		
+
 		DirectedGraph<Long,Long> graph = null;
 		try {
 			graph = dbService.getCitationGraph(type);
@@ -89,10 +92,19 @@ public class RelevanceCalculator {
 			logger.error("Error while getting citation graph from database",e);
 			throw e;
 		}
-		
+
 		PageRank<Long, Long> pageRank = new PageRank<>(graph, c);
-		pageRank.evaluate(); 
-		
+		ProgressBar pb = new ProgressBar("Page Rank", pageRank.getMaxIterations()).start();
+
+		do{
+			pageRank.step();
+			pb.step();
+		} while (!pageRank.done());
+		//		pageRank.evaluate(); 
+
+		pb.stepTo(pb.getMax());
+		pb.stop();
+
 		try {
 			dbService.updatePageRank(graph, pageRank, type);
 		} catch (Exception e) {
@@ -100,7 +112,7 @@ public class RelevanceCalculator {
 			throw e;
 		}
 	}
-	
+
 	/**
 	 * Método main para cálculo/atualização das relevâncias.
 	 * @param args
@@ -108,7 +120,8 @@ public class RelevanceCalculator {
 	public static void main(String[] args) {
 		try {
 			Configuration config = new Configuration();
-			
+			config.loadConfiguration();
+
 			System.out.println("Updating ranking...");
 			RelevanceCalculator ranking = new RelevanceCalculator(config);
 			ranking.update();

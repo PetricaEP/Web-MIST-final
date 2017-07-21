@@ -1,13 +1,57 @@
-.link {
-	line {
-	  stroke: #000;
-	  stroke-opacity: 0.8;
-  }
+.graph {
+	min-width: 95vw;
+	min-height: 80vh;
 }
 
-.node {
-	circle {
-	  stroke: #fff;
-	  stroke-width: 1.5px;
-  }
+path{ 
+	&.link {
+		fill: none;
+    	stroke: #666;
+    }
+   
+   &.marker_only {
+   		fill: none;
+    	stroke-opacity: .5;
+    	stroke-width: 1.5px;
+    }
+}
+
+.node-active {
+    stroke: #555;
+    stroke-width: 1.5px;
+}
+
+circle {
+	fill: #ccc;
+    stroke: #fff;
+    stroke-width: 1.5px;
+}
+
+text {
+    fill: #000;
+    font: 10px sans-serif;
+    pointer-events: none;
+}
+
+div.node-tooltip {
+	position: absolute;
+	text-align: center;
+	width: 350px;
+	height: auto;
+	padding: 5px;
+	font: 12px sans-serif;
+	background: #1a1a1a;
+	border: 0px;
+	border-radius: 8px;
+	line-height: 1;
+	
+	p {
+		text-transform: capitalize;
+		color: #fff;
+		margin: 0;
+	}
+
+	a {
+		color: #ffffff;
+	}
 }

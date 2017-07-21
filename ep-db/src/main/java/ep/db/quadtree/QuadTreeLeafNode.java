@@ -31,7 +31,7 @@ public class QuadTreeLeafNode extends QuadTreeNode {
     
     public QuadTreeLeafNode() {
         nodeId = numberOfNodes++;
-        data = new Bunch[QuadTree.MAX_ELEMENTS_PER_LEAF / QuadTree.MAX_ELEMENT_PER_BUNCH]; //25 por Bunch X 4 = 100 por Leaf
+        data = new Bunch[QuadTree.maxElementsPerLeaf / QuadTree.maxElementsPerBunch]; //25 por Bunch X 4 = 100 por Leaf
         nDocuments = 0;
     }
 
@@ -42,7 +42,7 @@ public class QuadTreeLeafNode extends QuadTreeNode {
         this.rankMax = rankMax;
         this.rankMin = rankMin;
         this.parent = parent;
-        data = new Bunch[QuadTree.MAX_ELEMENTS_PER_LEAF / QuadTree.MAX_ELEMENT_PER_BUNCH]; //25 por Bunch X 4 = 100 por Leaf
+        data = new Bunch[QuadTree.maxElementsPerLeaf / QuadTree.maxElementsPerBunch]; //25 por Bunch X 4 = 100 por Leaf
         nDocuments = 0;
     }
 
@@ -51,10 +51,10 @@ public class QuadTreeLeafNode extends QuadTreeNode {
     }
 
     public boolean addElement(IDocument b) {
-        if (nDocuments >= QuadTree.MAX_ELEMENTS_PER_LEAF) {
+        if (nDocuments >= QuadTree.maxElementsPerLeaf) {
             return false;
         }
-        int bunchIndex = nDocuments / QuadTree.MAX_ELEMENT_PER_BUNCH;
+        int bunchIndex = nDocuments / QuadTree.maxElementsPerBunch;
 
         if (data[bunchIndex] == null) {
             data[bunchIndex] = new Bunch();
@@ -88,12 +88,12 @@ public class QuadTreeLeafNode extends QuadTreeNode {
         if (index >= nTotalDocuments) {
             return null;
         }
-        int bunchIndex = index / QuadTree.MAX_ELEMENT_PER_BUNCH;
+        int bunchIndex = index / QuadTree.maxElementsPerBunch;
         if (data[bunchIndex] == null || data[bunchIndex].isEmpty()) {
             data[bunchIndex] = new Bunch();
             loadBunch(bunchIndex);
         }
-        int elementIndex = index % QuadTree.MAX_ELEMENT_PER_BUNCH;
+        int elementIndex = index % QuadTree.maxElementsPerBunch;
         if(elementIndex < data[bunchIndex].size()){
             return data[bunchIndex].getElement(elementIndex);
         } 
@@ -102,7 +102,7 @@ public class QuadTreeLeafNode extends QuadTreeNode {
 
     public void loadBunch(int indexBunch) {
         //Load the Documents from the Bunch from Data Base
-        List<IDocument> documents = QuadTree.dbService.getDocumentsFromNode(nodeId, indexBunch*QuadTree.MAX_ELEMENT_PER_BUNCH, QuadTree.MAX_ELEMENT_PER_BUNCH);
+        List<IDocument> documents = QuadTree.dbService.getDocumentsFromNode(nodeId, indexBunch*QuadTree.maxElementsPerBunch, QuadTree.maxElementsPerBunch);
         if(data[indexBunch].addElements(documents)){
             nDocuments += documents.size();
         }

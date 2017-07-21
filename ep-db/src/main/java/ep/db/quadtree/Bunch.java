@@ -27,7 +27,7 @@ public class Bunch {
     }
 
     public boolean addElements(List<IDocument> documents) {
-        if (elements.size() + documents.size() <= QuadTree.MAX_ELEMENT_PER_BUNCH) {
+        if (elements.size() + documents.size() <= QuadTree.maxElementsPerBunch) {
             elements.addAll(documents);
             return true;
         }
@@ -35,7 +35,7 @@ public class Bunch {
     }
 
     public boolean addElement(IDocument b) {
-        if (elements.size() < QuadTree.MAX_ELEMENT_PER_BUNCH) {
+        if (elements.size() < QuadTree.maxElementsPerBunch) {
             elements.add(b);
             return true;
         }

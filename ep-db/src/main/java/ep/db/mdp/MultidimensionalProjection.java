@@ -113,12 +113,13 @@ public class MultidimensionalProjection {
 		try {
 			
 			Configuration config = new Configuration();
+			config.loadConfiguration();
 			
 			System.out.println("Updating MDP...");
 			MultidimensionalProjection mdp = new MultidimensionalProjection(config);
 			mdp.project();
 			System.out.println("MDP successful updated");
-			System.out.println("\r\n");
+			System.out.println("\n");
 
 		} catch (Exception e) {
 			e.printStackTrace(System.err);

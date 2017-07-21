@@ -206,6 +206,7 @@ public class OAuthTokenEndpoint {
 		Configuration config;
 		try {
 			config = new Configuration();
+			config.loadConfiguration();
 		} catch (IOException e1) {
 			e1.printStackTrace();
 			return;

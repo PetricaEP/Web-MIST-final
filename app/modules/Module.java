@@ -1,5 +1,11 @@
 package modules;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.util.Properties;
+
 import com.google.inject.AbstractModule;
 import com.google.inject.name.Names;
 
@@ -37,8 +43,18 @@ public class Module extends AbstractModule {
 			throw new RuntimeException(e);
 		}
 		
-		String minPercTerms = configuration.getString("minPercentOfTerms");
-		if ( minPercTerms != null )
-			DatabaseService.minimumPercentOfTerms = Float.parseFloat(minPercTerms);
+		File configFile = new File(configuration.getString("ep_db.config_file"));
+		if (!configFile.exists())
+			throw new RuntimeException(
+					new FileNotFoundException("Cannot find ep-db configuration file: " +configFile.getAbsolutePath()));
+		ep.db.utils.Configuration config = new ep.db.utils.Configuration(configFile.getAbsolutePath());
+		try {
+			config.loadConfiguration();
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		}
+		
+		bind(ep.db.utils.Configuration.class)
+		.toInstance(config);
 	}
 }

@@ -22,16 +22,19 @@ import ep.db.utils.Configuration;
  */
 public class QuadTree {
 
-	public static final int MAX_ELEMENT_PER_BUNCH = 28;
-	public static final int MAX_ELEMENTS_PER_LEAF = 112;
-	public static final int DEFAULT_QUADTREE_MAX_DEPTH = 14;
+	protected static final int DEFAULT_MAX_ELEMENT_PER_BUNCH = 28;
+	protected static final int DEFAULT_MAX_ELEMENTS_PER_LEAF = 112;
+	protected static final int DEFAULT_QUADTREE_MAX_DEPTH = 14;
 
+	protected static int maxDepth;
+	protected static int maxElementsPerBunch;
+	protected static int maxElementsPerLeaf;
+	
 	protected QuadTreeBranchNode root;
 	protected int leafCount = 0;
 	protected int branchCount = 0;
 	protected int depth = 0;
 	protected long depthMask;
-	protected int maxDepth;
 	protected Bounds bounds;
 	protected Vec2 resolution;
 	protected Vec2 scale;
@@ -50,21 +53,28 @@ public class QuadTree {
 		}
 	}
 
-	public QuadTree(Bounds b, int maxDepth, DatabaseService dbService) {
+	public QuadTree(Bounds b, int maxDepth, int maxElementsPerBunch, int maxElementsPerLeaf, DatabaseService dbService) {
 		this.root = new QuadTreeBranchNode();
 		root.parent = null;
 		root.index = -1;
 		this.leafCount = 0;
 		this.branchCount = 1;
 		this.depth = 0;
-		this.maxDepth = maxDepth;
 		this.bounds = b;
 		this.depthMask = sizeBits(maxDepth - 1);
 		this.bounds.inflate(fatFactor);
 		this.resolution = bounds.size().multiply(1f / sizeBits(maxDepth));
 		this.scale = new Vec2(this.resolution);
 		this.scale.inverse();
+		
+		QuadTree.maxDepth = maxDepth;
+		QuadTree.maxElementsPerBunch = maxElementsPerBunch;
+		QuadTree.maxElementsPerLeaf = maxElementsPerLeaf;
 		QuadTree.dbService = dbService;
+	}
+	
+	public QuadTree(Bounds b, DatabaseService dbService) {
+		this(b, DEFAULT_QUADTREE_MAX_DEPTH, DEFAULT_MAX_ELEMENT_PER_BUNCH, DEFAULT_MAX_ELEMENTS_PER_LEAF, dbService);
 	}
 
 	public void setRoot(QuadTreeBranchNode branch) {
@@ -363,6 +373,14 @@ public class QuadTree {
 		}
 		return d2sum;
 	}
+	
+	public QuadTree loadQuadTree(){
+		return dbService.loadQuadTree(this);
+	}
+	
+	public boolean persistQuadTree(){
+		return dbService.persistQuadTree(this);
+	}
 
 	private static double eps() {
 		return 0.0000001;
@@ -375,22 +393,24 @@ public class QuadTree {
 	private double searchSize2(double d2, double r2) {
 		return d2 * 0.25f + r2 + Math.sqrt(d2 * r2);
 	}
+	
+	public int getMaxDepth() {
+		return maxDepth;
+	}
+	
+	public int getMaxElementsPerBunch() {
+		return maxElementsPerBunch;
+	}
+	
+	public int getMaxElementsPerLeaf() {
+		return maxElementsPerLeaf;
+	}
 
 	public static void main(String[] args) {
 
-		int maxDepth = DEFAULT_QUADTREE_MAX_DEPTH;
-		if ( args.length == 1){
-			try{
-				maxDepth = Integer.parseInt(args[0]);
-			}catch (NumberFormatException e) {
-				maxDepth = DEFAULT_QUADTREE_MAX_DEPTH;
-				System.err.println("Invalid max depth. Set to default: "+DEFAULT_QUADTREE_MAX_DEPTH);
-			}
-		}
-
-		Configuration config;
+		Configuration config = new Configuration();
 		try {
-			config = new Configuration();
+			config.loadConfiguration();
 		} catch (IOException e) {
 			System.err.println("Error reading configuration: ");
 			e.printStackTrace();
@@ -403,7 +423,11 @@ public class QuadTree {
 		Vec2 p1 = new Vec2(-1, -1);
 		Vec2 p2 = new Vec2(2,2);
 		Bounds bounds = new Bounds(p1,p2);
-		QuadTree quadTree = new QuadTree(bounds, maxDepth, dbService);
+		QuadTree quadTree = new QuadTree(bounds,
+				config.getQuadTreeMaxDepth(),
+				config.getQuadTreeMaxElementsPerBunch(),
+				config.getQuadTreeMaxElementsPerLeaf(),
+				dbService);
 
 		System.out.println("Creating QuadTree...");
 
@@ -411,7 +435,6 @@ public class QuadTree {
 		try {
 			docs = dbService.getAllSimpleDocuments();
 		} catch (Exception e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 			return;
 		}
@@ -423,10 +446,12 @@ public class QuadTree {
 
 		System.out.println("Done!");	
 
-		System.out.println("Loading QuadTree!");
+		System.out.println("Loading QuadTree from DB...");
 
-		QuadTree quadTree2 = new QuadTree(bounds, maxDepth, dbService);
+		QuadTree quadTree2 = new QuadTree(bounds, dbService);
 		dbService.loadQuadTree(quadTree2);
+		
+		System.out.println("Done!");
 	}
 
 }

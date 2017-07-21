@@ -1,6 +1,5 @@
 package services.search;
 
-import java.awt.Point;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -32,6 +31,7 @@ import ep.db.quadtree.Bounds;
 import ep.db.quadtree.QuadTree;
 import ep.db.quadtree.QuadTreeNode;
 import ep.db.quadtree.Vec2;
+import ep.db.utils.Configuration;
 import play.Logger;
 import play.db.Database;
 import services.clustering.KMeans;
@@ -47,11 +47,14 @@ public class LocalDocumentSearcher implements DocumentSearcher {
 
 	private DatabaseService dbService;
 
+	private Configuration configuration;
+
 	private static QuadTree quadTree;
 
 	@Inject
-	public LocalDocumentSearcher(Database db) {
+	public LocalDocumentSearcher(Database db, Configuration configuration) {
 		this.dbService = new DatabaseService(new PlayDatabaseWrapper(db));
+		this.configuration = configuration;
 		initQuadTree();
 	}
 
@@ -118,7 +121,7 @@ public class LocalDocumentSearcher implements DocumentSearcher {
 					selected.get(i).setCluster(clusters.get(i));
 				});
 
-				double[][] densities = new double[docs.size()-index+1][2];
+				double[][] densities = new double[docs.size()-index][2];
 				for(int i = index, j = 0; i < docs.size() && j < densities.length; i++, j++){
 					densities[j][0] = docs.get(i).getX();
 					densities[j][1] = docs.get(i).getY();
@@ -181,7 +184,7 @@ public class LocalDocumentSearcher implements DocumentSearcher {
 
 			if ( documents.size() > 0){
 				// Ordena por relevancia (descrescente)
-				documents.sort(Comparator.comparing((IDocument d) -> d.getRank()).reversed());
+//				documents.sort(Comparator.comparing((IDocument d) -> d.getRank()).reversed());
 
 				final int numClusters = selectionData.getNumClusters();
 				IntMatrix1D clusters = clustering(documents, numClusters);
@@ -268,15 +271,18 @@ public class LocalDocumentSearcher implements DocumentSearcher {
 		Vec2 p1 = new Vec2(-1,-1);
 		Vec2 p2 = new Vec2(2,2);
 		Bounds bounds = new Bounds(p1,p2);
-		quadTree = new QuadTree(bounds, QuadTree.DEFAULT_QUADTREE_MAX_DEPTH, dbService);
-		dbService.loadQuadTree(quadTree);
+		quadTree = new QuadTree(bounds, configuration.getQuadTreeMaxDepth(), 
+				configuration.getQuadTreeMaxElementsPerBunch(), 
+				configuration.getQuadTreeMaxElementsPerLeaf(), dbService);
+		quadTree.loadQuadTree();
 	}
 
 	private int interpolateRadii(List<? extends IDocument> docs, float width, float height) {
 		float maxRev = docs.get(0).getRank(),
 				minRev = docs.get(docs.size()-1).getRank(),
-				maxRadius = width * 0.05f,
-				minRadius = width * 0.005f;
+				maxRadius = width * configuration.getMaxRadiusSizePercent(),
+				minRadius = width * configuration.getMaxRadiusSizePercent();
+		
 		UnivariateFunction f;
 
 		// Se todos documentos tem mesma relevancia então todos
@@ -286,6 +292,22 @@ public class LocalDocumentSearcher implements DocumentSearcher {
 		else{
 			double[] x = generateInterpolationXY(minRev, maxRev, 10);
 			double[] y = generateInterpolationXY(minRadius, maxRadius, 10);
+			
+			// Ajusta x e y para que ambos possuam mesmo tamanho 
+			int diffSize = Math.abs(x.length - y.length);
+			if ( diffSize != 0){
+				if ( x.length > y.length){
+					y = Arrays.copyOf(y, x.length);
+					for(int i = y.length - diffSize; i < y.length; i++)
+						y[i] = maxRadius;
+				}
+				else{
+					x = Arrays.copyOf(x, y.length);
+					for(int i = x.length - diffSize; i < x.length; i++)
+						x[i] = maxRev;
+				}
+			}
+			
 			LinearInterpolator radiusInterpolator = new LinearInterpolator();
 			f = radiusInterpolator.interpolate(x, y);
 		}
@@ -315,7 +337,7 @@ public class LocalDocumentSearcher implements DocumentSearcher {
 		int i = 0;
 		while (++i < n) ticks[i] = (start + i) * step;
 
-		if ( ticks[n-1] != end){
+		if ( ticks[n-1] != end ){
 			ticks = Arrays.copyOf(ticks, ticks.length+1);
 			ticks[ticks.length-1] = end;
 		}
@@ -445,18 +467,5 @@ public class LocalDocumentSearcher implements DocumentSearcher {
 		}
 
 		return query.toString();
-	}
-
-	public static void main(String[] args) {
-		LocalDocumentSearcher searcher = new LocalDocumentSearcher(null);
-		try {
-			QueryData queryData  = new QueryData();
-			queryData.setTerms("rat \"cat mouse\" dog \"duck horse\"");
-			queryData.setOperator("or");
-			searcher.search(queryData);
-		} catch (Exception e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
 	}	
 }

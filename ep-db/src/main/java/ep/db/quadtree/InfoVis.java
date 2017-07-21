@@ -42,9 +42,9 @@ public class InfoVis {
      */
     public static void main(String[] args) throws Exception {
 
-    	Configuration config;
+    	Configuration config = new Configuration();
 		try {
-			config = new Configuration();
+			config.loadConfiguration();
 		} catch (IOException e) {
 			System.err.println("Error reading configuration: ");
 			e.printStackTrace();
@@ -54,11 +54,15 @@ public class InfoVis {
 		Database db = new DefaultDatabase(config);
 		DatabaseService dbService = new DatabaseService(db);
 		
-        QuadTree qTree = new QuadTree(new Bounds(new Vec2(qTreeP0), new Vec2(qTreeSize)), depth, dbService);
-        dbService.loadQuadTree(qTree);
-//        List<Document> docs = dbService.getAllSimpleDocuments();
-//        for(Document d : docs)
-//        	qTree.addElement(d);
+        QuadTree qTree = new QuadTree(new Bounds(new Vec2(qTreeP0), new Vec2(qTreeSize)),
+        		config.getQuadTreeMaxDepth(),
+        		config.getQuadTreeMaxElementsPerBunch(), 
+        		config.getQuadTreeMaxElementsPerLeaf(),
+        		dbService);
+//        dbService.loadQuadTree(qTree);
+        List<Document> docs = dbService.getAllSimpleDocuments();
+        for(Document d : docs)
+        	qTree.addElement(d);
         
         desenha(qTree, panelSize.x, panelSize.y);
     }
@@ -168,7 +172,7 @@ public class InfoVis {
     }
 
     private static QuadTree testRandomPointTree(Vec2 p0, Vec2 size, int max_depth, int numberOfPoints) {
-        QuadTree qTree = new QuadTree(new Bounds(new Vec2(p0), new Vec2(size)), max_depth, null);
+        QuadTree qTree = new QuadTree(new Bounds(new Vec2(p0), new Vec2(size)), null);
 
         Random rand = new Random();
         int i = 0;
@@ -200,7 +204,8 @@ public class InfoVis {
     }
 
     private static QuadTree testStaticTree(Vec2 P0, Vec2 size, int max_depth) {
-        QuadTree qTree = new QuadTree(new Bounds(new Vec2(P0), new Vec2(size)), max_depth, null);
+    	
+        QuadTree qTree = new QuadTree(new Bounds(new Vec2(P0), new Vec2(size)), null);
 
         qTree.addElement(new Document(1, 0.4f, -0.99f, 0.89f));
         qTree.addElement(new Document(1, 0.4f, -0.99f, 0.88f));

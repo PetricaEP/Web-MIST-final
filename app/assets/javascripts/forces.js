@@ -30,10 +30,7 @@ successFn = function(data){
 	$(".documents-table table tbody tr").remove();
 
 	var padding = 3, // separation between same-color nodes
-	clusterPadding = 6, // separation between different-color nodes
-	pointPadding = 1,
-	maxRadius = width * 0.05,
-	minRadius = width * 0.005;
+	clusterPadding = 6; // separation between different-color nodes
 
 	var n = data.documents.length, // total number of documents
 	m = data.nclusters; // number of distinct clusters
@@ -44,8 +41,6 @@ successFn = function(data){
 	}
 
 	// Transform x,y MDP coordinates from range [-1,1] to [0, width/height]
-//	var x = d3.scaleLinear().domain([-1,1]).range([0, width]);
-//	var y = d3.scaleLinear().domain([-1,1]).range([0, height]);
 	var x = function(xx){
 		return width * ( xx / 2.0 + 0.5);
 	};
@@ -119,7 +114,8 @@ successFn = function(data){
 	.attr('cy', function(d) { return  d.y;})
 	.attr('fill', function(d) { return  clusterColor(d.cluster);})
 	.attr('stroke', 'black')
-	.attr('stroke-width', 1);
+	.attr('stroke-width', 1)
+	.attr('fill-opacity', 0.65);
 
 	var point = g
 	.datum(points)
@@ -217,7 +213,7 @@ successFn = function(data){
 
 		//Collision force
 		var forceCollide = d3.forceCollide()
-		.radius(function(d) { return d.r > minRadius ? d.r + padding : d.r + pointPadding; })
+		.radius(function(d) { return d.r + padding; })
 		.strength(collideStrength)
 		.iterations(1);
 
@@ -269,7 +265,7 @@ successFn = function(data){
 //	Simulation has finished
 	function endSimulation(){
 		circles
-		.attr("fill-opacity", 1)
+		.attr("fill-opacity", 0.65)
 		.on("mouseover", showTip)
 		.on("mouseout", hideTip)
 		.on("click", toggleLinks);
@@ -403,8 +399,8 @@ successFn = function(data){
 			tipHtml +=  ", " + d.publicationDate;
 		tipHtml += "</p></a>";
 		tip.html(tipHtml)
-		.style("left", (n.x + n.r/2) + "px")
-		.style("top", (n.y + n.r/2) + "px");
+		.style("left", (d3.event.clientX + n.r/2) + "px")
+		.style("top", (d3.event.clientY + n.r/2) + "px");
 		d3.select(this).style("stroke-opacity", 1);
 	}
 
