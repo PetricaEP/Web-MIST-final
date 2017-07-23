@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -899,8 +900,7 @@ public class DatabaseService {
 	public List<Document> getAllSimpleDocuments() throws Exception {
 		try ( Connection conn = db.getConnection();){
 			PreparedStatement stmt = conn.prepareStatement(
-					String.format(SEARCH_SQL_ALL, documentRelevanceFactor, authorsRelevanceFactor));
-
+					String.format(Locale.ENGLISH,SEARCH_SQL_ALL, documentRelevanceFactor, authorsRelevanceFactor));
 			try (ResultSet rs = stmt.executeQuery()){
 				List<Document> docs = new ArrayList<>();
 				while ( rs.next() ){
