@@ -151,14 +151,14 @@ public class Configuration {
 		
 		prop = properties.getProperty(QUADTREE_MAX_ELEMENTS_PER_BUNCH);
 		try{
-			quadTreeMaxElementsPerBunch = Integer.parseInt(prop);
+			quadTreeMaxElementsPerBunch = Integer.parseInt(prop.trim());
 		}catch (NumberFormatException e) {
 			logger.warn("Cannot parse quadtree max elements per bunch value: " + prop, e);
 		}
 		
 		prop = properties.getProperty(QUADTREE_MAX_ELEMENTS_PER_LEAF);
 		try{
-			quadTreeMaxElementsPerLeaf = Integer.parseInt(prop);
+			quadTreeMaxElementsPerLeaf = Integer.parseInt(prop.trim());
 		}catch (NumberFormatException e) {
 			logger.warn("Cannot parse quadtree max elements per leaf value: " + prop, e);
 		}

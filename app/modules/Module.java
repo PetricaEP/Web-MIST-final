@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.util.Locale;
 import java.util.Properties;
 
 import com.google.inject.AbstractModule;
@@ -56,5 +57,7 @@ public class Module extends AbstractModule {
 		
 		bind(ep.db.utils.Configuration.class)
 		.toInstance(config);
+		
+		Locale.setDefault(Locale.ENGLISH);
 	}
 }
