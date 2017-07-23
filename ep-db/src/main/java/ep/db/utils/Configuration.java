@@ -165,14 +165,14 @@ public class Configuration {
 		
 		prop = properties.getProperty(MAX_RADIUS_SIZE);
 		try{
-			maxRadiusSizePercent = Integer.parseInt(prop);
+			maxRadiusSizePercent = Float.parseFloat(prop);
 		}catch (NumberFormatException e) {
 			logger.warn("Cannot parse max. radius size value: " + prop, e);
 		}
 		
 		prop = properties.getProperty(MIN_RADIUS_SIZE);
 		try{
-			minRadiusSizePercent = Integer.parseInt(prop);
+			minRadiusSizePercent = Float.parseFloat(prop);
 		}catch (NumberFormatException e) {
 			logger.warn("Cannot parse min. radius size value: " + prop, e);
 		}
