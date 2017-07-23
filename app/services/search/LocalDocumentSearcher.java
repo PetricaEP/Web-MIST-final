@@ -95,7 +95,7 @@ public class LocalDocumentSearcher implements DocumentSearcher {
 			if( docs.size() > 0){
 
 				// Ordena por relevancia (descrescente)
-				docs.sort(Comparator.comparing((Document d) -> d.getRank()).reversed());
+//				docs.sort(Comparator.comparing((Document d) -> d.getRank()).reversed());
 
 				// Realiza interpolacão das relevancias 
 				// para obter  os raios de cada documento.
@@ -125,7 +125,6 @@ public class LocalDocumentSearcher implements DocumentSearcher {
 				for(int i = index, j = 0; i < docs.size() && j < densities.length; i++, j++){
 					densities[j][0] = docs.get(i).getX();
 					densities[j][1] = docs.get(i).getY();
-					System.out.println(docs.get(i).getX() + ", " + docs.get(i).getY());
 				}
 
 				result.put("documents", selected);
@@ -281,7 +280,7 @@ public class LocalDocumentSearcher implements DocumentSearcher {
 		float maxRev = docs.get(0).getRank(),
 				minRev = docs.get(docs.size()-1).getRank(),
 				maxRadius = width * configuration.getMaxRadiusSizePercent(),
-				minRadius = width * configuration.getMaxRadiusSizePercent();
+				minRadius = width * configuration.getMinRadiusSizePercent();
 		
 		UnivariateFunction f;
 
