@@ -900,7 +900,7 @@ public class DatabaseService {
 	public List<Document> getAllSimpleDocuments() throws Exception {
 		try ( Connection conn = db.getConnection();){
 			PreparedStatement stmt = conn.prepareStatement(
-					String.format(Locale.ENGLISH,SEARCH_SQL_ALL, documentRelevanceFactor, authorsRelevanceFactor));
+					String.format(SEARCH_SQL_ALL, documentRelevanceFactor, authorsRelevanceFactor));
 			try (ResultSet rs = stmt.executeQuery()){
 				List<Document> docs = new ArrayList<>();
 				while ( rs.next() ){
@@ -1115,38 +1115,17 @@ public class DatabaseService {
 
 		return qTree;
 	}
-	/*
-    private QuadTreeNode rsToNode(ResultSet rs) throws SQLException {
-        int node_id = rs.getInt(1);
-        boolean isLeaf = rs.getBoolean(2);
-        float rankMax = rs.getFloat(3);
-        float rankMin = rs.getFloat(4);
-        int parent_id = rs.getInt(5);
-        int depth = rs.getByte(6);
-        int index = rs.getByte(7);
-        QuadTreeBranchNode parent = QuadTreeBranchNode) nodes.get(parent_id);
-
-        if (isLeaf) {
-            nodes.put(node_id, new QuadTreeLeafNode(depth, index, node_id, rankMax, rankMin, parent));
-        } else {
-            nodes.put(node_id, new QuadTreeBranchNode(depth, index, node_id, rankMax, rankMin, parent));
-        }
-        if (parent != null) {
-            parent.setChild(index, nodes.get(node_id));
-        }
-
-    }
-	 */
+	
 	public boolean persistQuadTree(QuadTree quadTree) {
 		boolean result = true;
 		try (Connection conn = db.getConnection();) {
 			//Deleting Table Nodes
-			String sql = UPDATE_NODEID_NULL_DOC_DATA_SQL;
-			PreparedStatement stmt = conn.prepareStatement(sql);
-			stmt.execute();
+//			String sql = UPDATE_NODEID_NULL_DOC_DATA_SQL;
+//			PreparedStatement stmt = conn.prepareStatement(sql);
+//			stmt.execute();
 
-			sql = DELETE_NODE_DATA_SQL;
-			stmt = conn.prepareStatement(sql);
+			String sql = DELETE_NODE_DATA_SQL;
+			PreparedStatement stmt = conn.prepareStatement(sql);
 			stmt.execute();
 
 			List<QuadTreeNode> nodes = new ArrayList<>();

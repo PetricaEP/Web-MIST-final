@@ -52,7 +52,7 @@ CREATE TABLE nodes (
 
 CREATE TABLE documents_data (
 	doc_id				bigint PRIMARY KEY REFERENCES documents(doc_id) ON UPDATE CASCADE ON DELETE CASCADE,
-	node_id				bigint REFERENCES nodes(node_id) ON UPDATE CASCADE ON DELETE CASCADE,
+	node_id				bigint REFERENCES nodes(node_id) ON UPDATE CASCADE ON DELETE SET NULL,
 	x					real,
 	y					real,
 	relevance			real

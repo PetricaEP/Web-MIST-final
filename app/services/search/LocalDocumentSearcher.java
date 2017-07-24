@@ -14,6 +14,7 @@ import javax.inject.Inject;
 
 import org.apache.commons.math3.analysis.UnivariateFunction;
 import org.apache.commons.math3.analysis.interpolation.LinearInterpolator;
+import org.apache.commons.math3.util.IntegerSequence.Range;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -44,6 +45,8 @@ public class LocalDocumentSearcher implements DocumentSearcher {
 	private static final Pattern TERM_PATTERN = Pattern.compile(".*(\".*?\").*");
 
 	private static final double PADDING = 6.0f;
+
+	private static final float INC = 0.001f;
 
 	private DatabaseService dbService;
 
@@ -183,7 +186,7 @@ public class LocalDocumentSearcher implements DocumentSearcher {
 
 			if ( documents.size() > 0){
 				// Ordena por relevancia (descrescente)
-//				documents.sort(Comparator.comparing((IDocument d) -> d.getRank()).reversed());
+				documents.sort(Comparator.comparing((IDocument d) -> d.getRank()).reversed());
 
 				final int numClusters = selectionData.getNumClusters();
 				IntMatrix1D clusters = clustering(documents, numClusters);
@@ -297,13 +300,13 @@ public class LocalDocumentSearcher implements DocumentSearcher {
 			if ( diffSize != 0){
 				if ( x.length > y.length){
 					y = Arrays.copyOf(y, x.length);
-					for(int i = y.length - diffSize; i < y.length; i++)
-						y[i] = maxRadius;
+					for(int i = y.length - diffSize, j = 1; i < y.length; i++, j++)
+						y[i] = maxRadius + (j * INC);
 				}
 				else{
 					x = Arrays.copyOf(x, y.length);
-					for(int i = x.length - diffSize; i < x.length; i++)
-						x[i] = maxRev;
+					for(int i = x.length - diffSize, j = 1; i < x.length; i++, j++)
+						x[i] = maxRev + (j * INC);
 				}
 			}
 			
@@ -326,7 +329,7 @@ public class LocalDocumentSearcher implements DocumentSearcher {
 	}
 
 	private static double[] generateInterpolationXY(float start, float stop, int count) {
-		float step = (stop - start) / Math.max(0, count);
+		float step = (stop - start) / Math.max(1, count);
 		float end = stop;
 		start = (float) Math.ceil(start / step);
 		stop = (float) Math.floor(stop / step);
@@ -336,7 +339,7 @@ public class LocalDocumentSearcher implements DocumentSearcher {
 		int i = 0;
 		while (++i < n) ticks[i] = (start + i) * step;
 
-		if ( ticks[n-1] != end ){
+		if ( ticks[n-1] < end ){
 			ticks = Arrays.copyOf(ticks, ticks.length+1);
 			ticks[ticks.length-1] = end;
 		}

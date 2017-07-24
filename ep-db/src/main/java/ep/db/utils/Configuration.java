@@ -3,6 +3,7 @@ package ep.db.utils;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.util.Locale;
 import java.util.Properties;
 
 import org.slf4j.Logger;
@@ -91,6 +92,9 @@ public class Configuration {
 	}
 
 	public void loadConfiguration() throws IOException {
+		
+		Locale.setDefault(Locale.ENGLISH);
+		
 		try {
 			properties.load(new FileInputStream(configFile));
 		} catch (IOException e) {
@@ -103,7 +107,7 @@ public class Configuration {
 		dbUser = properties.getProperty(DB_USER);
 		dbPassword = properties.getProperty(DB_PASSWORD);
 		try {
-			dbBatchSize = Integer.parseInt(properties.getProperty(DB_BATCH_SIZE));
+			dbBatchSize = Integer.parseInt(properties.getProperty(DB_BATCH_SIZE).trim());
 			DatabaseService.batchSize = dbBatchSize;
 		}catch (NumberFormatException e) {
 			logger.warn("Cannot parse database batch size value: " + properties.getProperty(DB_BATCH_SIZE), e);
@@ -119,7 +123,7 @@ public class Configuration {
 		String prop = properties.getProperty(MININUM_PERCENT_OF_TERMS);
 		if ( prop != null ){
 			try {
-				minimumPercentOfTerms = Float.parseFloat(prop);	
+				minimumPercentOfTerms = Float.parseFloat(prop.trim());	
 				DatabaseService.minimumPercentOfTerms = minimumPercentOfTerms;
 			} catch( NumberFormatException e){
 				logger.warn("Cannot parse minimum percente of terms value: " + prop, e);
@@ -128,7 +132,7 @@ public class Configuration {
 
 		prop = properties.getProperty(DOCUMENT_RELEVANCE_FACTOR, "1");
 		try {
-			documentRelevanceFactor = Float.parseFloat(prop);	
+			documentRelevanceFactor = Float.parseFloat(prop.trim());	
 			DatabaseService.documentRelevanceFactor = documentRelevanceFactor;
 		} catch( NumberFormatException e){
 			logger.warn("Cannot parse document relevance factor value: " + prop, e);
@@ -136,7 +140,7 @@ public class Configuration {
 		
 		prop = properties.getProperty(AUTHORS_RELEVANCE_FACTOR, "0");
 		try {
-			authorsRelevanceFactor = Float.parseFloat(prop);	
+			authorsRelevanceFactor = Float.parseFloat(prop.trim());	
 			DatabaseService.authorsRelevanceFactor = authorsRelevanceFactor;
 		} catch( NumberFormatException e){
 			logger.warn("Cannot parse authors relevance factor value: " + prop, e);
@@ -144,7 +148,7 @@ public class Configuration {
 		
 		prop = properties.getProperty(QUADTREE_MAX_DEPTH);
 		try{
-			quadTreeMaxDepth = Integer.parseInt(prop);
+			quadTreeMaxDepth = Integer.parseInt(prop.trim());
 		}catch (NumberFormatException e) {
 			logger.warn("Cannot parse quadtree max depth value: " + prop, e);
 		}
@@ -165,14 +169,14 @@ public class Configuration {
 		
 		prop = properties.getProperty(MAX_RADIUS_SIZE);
 		try{
-			maxRadiusSizePercent = Float.parseFloat(prop);
+			maxRadiusSizePercent = Float.parseFloat(prop.trim());
 		}catch (NumberFormatException e) {
 			logger.warn("Cannot parse max. radius size value: " + prop, e);
 		}
 		
 		prop = properties.getProperty(MIN_RADIUS_SIZE);
 		try{
-			minRadiusSizePercent = Float.parseFloat(prop);
+			minRadiusSizePercent = Float.parseFloat(prop.trim());
 		}catch (NumberFormatException e) {
 			logger.warn("Cannot parse min. radius size value: " + prop, e);
 		}
@@ -186,7 +190,7 @@ public class Configuration {
 		properties.setProperty(DB_PORT, Integer.toString(dbPort));
 		properties.setProperty(DB_USER, dbUser);
 		properties.setProperty(DB_PASSWORD, dbPassword);
-		properties.setProperty(DB_BATCH_SIZE, Integer.toBinaryString(dbBatchSize));
+		properties.setProperty(DB_BATCH_SIZE, Integer.toString(dbBatchSize));
 		
 		properties.setProperty(GROBID_CONFIG, grobidConfig);
 		properties.setProperty(GROBID_HOME, grobidHome);
