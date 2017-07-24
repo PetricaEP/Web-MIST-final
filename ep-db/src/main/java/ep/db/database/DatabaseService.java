@@ -123,7 +123,7 @@ public class DatabaseService {
 			+ "(SELECT doc_id, string_agg(a.aut_name,';') authors_name, sum(a.relevance) relevance "
 			+ "FROM document_authors da INNER JOIN authors a "
 			+ "ON da.aut_id = a.aut_id GROUP BY da.doc_id) a ON d.doc_id = a.doc_id, "
-			+ "to_tsquery(?) query WHERE query @@ tsv ORDER BY rank, score DESC LIMIT ?";
+			+ "to_tsquery(?) query WHERE query @@ tsv ORDER BY rank DESC, score DESC LIMIT ?";
 
 	private static final String SEARCH_SQL_ALL = "SELECT " + SQL_SELECT_COLUMNS + ", dd.relevance score FROM documents d "
 			+ "INNER JOIN documents_data dd ON d.doc_id = dd.doc_id LEFT JOIN "
