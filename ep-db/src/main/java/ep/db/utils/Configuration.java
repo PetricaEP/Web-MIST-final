@@ -30,6 +30,7 @@ public class Configuration {
 	private static final String MENDELEY_CLIENT_ID = "mendeley.client_id";
 	private static final String GROBID_HOME = "grobid.home";
 	private static final String MININUM_PERCENT_OF_TERMS = "minimumPercentOfTerms";
+	private static final String MAXIMUM_PERCENT_OF_TERMS = "maximumPercentOfTerms";
 	private static final String DOCUMENT_RELEVANCE_FACTOR = "relevance.documents";
 	private static final String AUTHORS_RELEVANCE_FACTOR = "relevance.authors";
 	private static final String QUADTREE_MAX_DEPTH = "quadtree.max_depth";
@@ -67,6 +68,8 @@ public class Configuration {
 	private String dbPassword;
 
 	private float minimumPercentOfTerms;
+	
+	private float maximumPercentOfTerms;
 
 	private float documentRelevanceFactor;
 
@@ -127,6 +130,16 @@ public class Configuration {
 				DatabaseService.minimumPercentOfTerms = minimumPercentOfTerms;
 			} catch( NumberFormatException e){
 				logger.warn("Cannot parse minimum percente of terms value: " + prop, e);
+			}
+		}
+		
+		prop = properties.getProperty(MAXIMUM_PERCENT_OF_TERMS);
+		if ( prop != null ){
+			try {
+				maximumPercentOfTerms = Float.parseFloat(prop.trim());	
+				DatabaseService.maximumPercentOfTerms = maximumPercentOfTerms;
+			} catch( NumberFormatException e){
+				logger.warn("Cannot parse maximum percente of terms value: " + prop, e);
 			}
 		}
 
@@ -200,6 +213,7 @@ public class Configuration {
 		properties.setProperty(MENDELEY_HOST, mendeleyHost);
 		
 		properties.setProperty(MININUM_PERCENT_OF_TERMS, Float.toString(minimumPercentOfTerms));
+		properties.setProperty(MAXIMUM_PERCENT_OF_TERMS, Float.toString(maximumPercentOfTerms));
 		
 		properties.setProperty(DOCUMENT_RELEVANCE_FACTOR, Float.toString(documentRelevanceFactor));
 		properties.setProperty(AUTHORS_RELEVANCE_FACTOR, Float.toString(authorsRelevanceFactor));
@@ -310,6 +324,14 @@ public class Configuration {
 	public void setMinimumPercentOfTerms(float minimumPercentOfTerms) {
 		this.minimumPercentOfTerms = minimumPercentOfTerms;
 		DatabaseService.minimumPercentOfTerms = minimumPercentOfTerms;
+	}
+	
+	public float getMaximumPercentOfTerms() {
+		return maximumPercentOfTerms;
+	}
+	
+	public void setMaximumPercentOfTerms(float maximumPercentOfTerms) {
+		this.maximumPercentOfTerms = maximumPercentOfTerms;
 	}
 
 	public float getDocumentRelevanceFactor() {

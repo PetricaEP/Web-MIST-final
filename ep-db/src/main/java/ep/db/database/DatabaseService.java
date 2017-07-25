@@ -10,7 +10,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -53,6 +52,8 @@ public class DatabaseService {
 	public static float authorsRelevanceFactor = 0;
 	
 	public static float minimumPercentOfTerms = 0;
+	
+	public static float maximumPercentOfTerms = 1;
 	
 	/**
 	 * Tamanho do batch (para inserções)
@@ -254,12 +255,12 @@ public class DatabaseService {
 		}
 
 		String where = sql.toString();
-
-		float minNumberOfTerms = DatabaseService.minimumPercentOfTerms;
-		int numOfTerms = (int) Math.ceil(numberOfDocuments * minNumberOfTerms);
+		
+		int minNumOfTerms = (int) Math.ceil(numberOfDocuments * minimumPercentOfTerms);
+		int maxNumOfTerms = (int) Math.ceil(numberOfDocuments * maximumPercentOfTerms);
 
 		// Recupera frequencia indiviual de cada termo na base de dados (todos os documentos)
-		final Map<String, Integer> termsCount = getTermsCounts(where, numOfTerms);
+		final Map<String, Integer> termsCount = getTermsCounts(where, minNumOfTerms, maxNumOfTerms);
 
 		// Mapeamento termo -> coluna na matriz (bag of words)
 		final Map<String, Integer> termsToColumnMap = new HashMap<>();
@@ -533,16 +534,18 @@ public class DatabaseService {
 	 * ou seja, numero de documentos que um termo apareceu.
 	 * @param where parte da consultam em SQL indicando id's do documentos a serem
 	 * considerados ou <code>null</code> para todos os documentos.
+	 * @param minNumberOfTerms
+	 * @param maxNumberOfTerms 
 	 * @return mapa de termos ordenados pela contagem absoluta.
 	 * @throws Exception
 	 */
-	private Map<String, Integer> getTermsCounts(String where, int minNumberOfTerms) throws Exception {
+	private Map<String, Integer> getTermsCounts(String where, int minNumberOfTerms, int maxNumberOfTerms) throws Exception {
 		try ( Connection conn = db.getConnection();){
 
 			String sql = "SELECT word,ndoc FROM ts_stat('SELECT tsv FROM documents";
 			if ( where != null && !where.isEmpty() )
 				sql += where;
-			sql += String.format("') WHERE nentry > 1 AND ndoc > %d", minNumberOfTerms);
+			sql += String.format("') WHERE nentry > 1 AND ndoc > %d AND ndoc < %d", minNumberOfTerms, maxNumberOfTerms);
 
 			Statement stmt = conn.createStatement();
 			ResultSet rs = stmt.executeQuery(sql);
