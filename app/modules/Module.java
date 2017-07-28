@@ -1,16 +1,13 @@
 package modules;
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.Locale;
-import java.util.Properties;
 
 import com.google.inject.AbstractModule;
 import com.google.inject.name.Names;
 
-import ep.db.database.DatabaseService;
 import play.Configuration;
 import play.Environment;
 import services.search.DocumentSearcher;
@@ -48,9 +45,10 @@ public class Module extends AbstractModule {
 		if (!configFile.exists())
 			throw new RuntimeException(
 					new FileNotFoundException("Cannot find ep-db configuration file: " +configFile.getAbsolutePath()));
-		ep.db.utils.Configuration config = new ep.db.utils.Configuration(configFile.getAbsolutePath());
+		
+		ep.db.utils.Configuration config = ep.db.utils.Configuration.getInstance();
 		try {
-			config.loadConfiguration();
+			config.loadConfiguration(configFile.getAbsolutePath());
 		} catch (IOException e) {
 			throw new RuntimeException(e);
 		}

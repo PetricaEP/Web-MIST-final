@@ -38,63 +38,86 @@ public class Configuration {
 	private static final String QUADTREE_MAX_ELEMENTS_PER_LEAF = "quadtree.max_elements_per_leaf";
 	private static final String MAX_RADIUS_SIZE = "max_radius";
 	private static final String MIN_RADIUS_SIZE = "min_radius";
-
+	private static final String WEIGHT_A = "weight_A";
+	private static final String WEIGHT_B = "weight_B";
+	private static final String WEIGHT_C = "weight_C";
+	private static final String WEIGHT_D = "weight_D";
+	private static final String NORMALIZATION = "normalization";
+	private static final String USE_PRE_CALCULATED_FREQS = "use_pre_calculated_freqs";
+	
 	private static Logger logger = LoggerFactory.getLogger(Configuration.class);
 
 	private final Properties properties;
 
-	private final String configFile;
+	private String configFile;
 
 	private String dbHost;
 
-	private String dbName;
+	private  String dbName;
 
-	private int dbPort;
+	private  int dbPort;
 
-	private String dbUser;
+	private  String dbUser;
 
-	private String mendeleyClientId;
+	private  String mendeleyClientId;
 
-	private String mendeleyHost;
+	private  String mendeleyHost;
 
-	private String grobidHome;
+	private  String grobidHome;
 
-	private String mendeleyClientSecret;
+	private  String mendeleyClientSecret;
 
-	private String grobidConfig;
+	private  String grobidConfig;
 
-	private int dbBatchSize;
+	private  int dbBatchSize;
 
-	private String dbPassword;
+	private  String dbPassword;
 
-	private float minimumPercentOfTerms;
+	private  float minimumPercentOfTerms;
 	
-	private float maximumPercentOfTerms;
+	private  float maximumPercentOfTerms;
 
-	private float documentRelevanceFactor;
+	private  float documentRelevanceFactor;
 
-	private float authorsRelevanceFactor;
+	private  float authorsRelevanceFactor;
 	
-	private int quadTreeMaxDepth;
+	private  int quadTreeMaxDepth;
 	
-	private int quadTreeMaxElementsPerBunch;
+	private  int quadTreeMaxElementsPerBunch;
 	
-	private int quadTreeMaxElementsPerLeaf;
+	private  int quadTreeMaxElementsPerLeaf;
 	
-	private float maxRadiusSizePercent;
+	private  float maxRadiusSizePercent;
 	
-	private float minRadiusSizePercent;
+	private  float minRadiusSizePercent;
+	
+	private  Float[] weights;
 
-	public Configuration() {
-		this(PROP_FILE);
-	}
+	private  String normalization;
+	
+	private boolean usePreCalculatedFreqs;
+	
+	private static Configuration instance;
 
-	public Configuration(String configFile) {
+	private Configuration() {
 		properties = new Properties();
-		this.configFile = configFile;
+	}
+	
+	public static Configuration getInstance() {
+		if ( instance == null )
+			instance = new Configuration();
+		return instance;
+	}
+	
+	public Configuration loadConfiguration() throws IOException{
+		return loadConfiguration(PROP_FILE);
 	}
 
-	public void loadConfiguration() throws IOException {
+	public Configuration loadConfiguration(String configFile) throws IOException {
+		
+		if ( configFile == null )
+			configFile = PROP_FILE;
+		this.configFile = configFile;
 		
 		Locale.setDefault(Locale.ENGLISH);
 		
@@ -127,7 +150,6 @@ public class Configuration {
 		if ( prop != null ){
 			try {
 				minimumPercentOfTerms = Float.parseFloat(prop.trim());	
-				DatabaseService.minimumPercentOfTerms = minimumPercentOfTerms;
 			} catch( NumberFormatException e){
 				logger.warn("Cannot parse minimum percente of terms value: " + prop, e);
 			}
@@ -137,7 +159,6 @@ public class Configuration {
 		if ( prop != null ){
 			try {
 				maximumPercentOfTerms = Float.parseFloat(prop.trim());	
-				DatabaseService.maximumPercentOfTerms = maximumPercentOfTerms;
 			} catch( NumberFormatException e){
 				logger.warn("Cannot parse maximum percente of terms value: " + prop, e);
 			}
@@ -146,7 +167,6 @@ public class Configuration {
 		prop = properties.getProperty(DOCUMENT_RELEVANCE_FACTOR, "1");
 		try {
 			documentRelevanceFactor = Float.parseFloat(prop.trim());	
-			DatabaseService.documentRelevanceFactor = documentRelevanceFactor;
 		} catch( NumberFormatException e){
 			logger.warn("Cannot parse document relevance factor value: " + prop, e);
 		}
@@ -154,7 +174,6 @@ public class Configuration {
 		prop = properties.getProperty(AUTHORS_RELEVANCE_FACTOR, "0");
 		try {
 			authorsRelevanceFactor = Float.parseFloat(prop.trim());	
-			DatabaseService.authorsRelevanceFactor = authorsRelevanceFactor;
 		} catch( NumberFormatException e){
 			logger.warn("Cannot parse authors relevance factor value: " + prop, e);
 		}
@@ -195,6 +214,40 @@ public class Configuration {
 		}
 		
 		
+		weights = new Float[4];
+		int i = 0;
+		prop = properties.getProperty(WEIGHT_A);
+		try{
+			weights[i] = Float.parseFloat(prop.trim());
+		}catch (NumberFormatException e) {
+			logger.warn("Cannot parse weight A value: " + prop, e);
+		}
+		++i;
+		prop = properties.getProperty(WEIGHT_B);
+		try{
+			weights[i] = Float.parseFloat(prop.trim());
+		}catch (NumberFormatException e) {
+			logger.warn("Cannot parse weight B value: " + prop, e);
+		}
+		++i;
+		prop = properties.getProperty(WEIGHT_C);
+		try{
+			weights[i] = Float.parseFloat(prop.trim());
+		}catch (NumberFormatException e) {
+			logger.warn("Cannot parse weight C value: " + prop, e);
+		}
+		++i;
+		prop = properties.getProperty(WEIGHT_D);
+		try{
+			weights[i] = Float.parseFloat(prop.trim());
+		}catch (NumberFormatException e) {
+			logger.warn("Cannot parse weight D value: " + prop, e);
+		}
+		
+		normalization = properties.getProperty(NORMALIZATION);
+		usePreCalculatedFreqs = Boolean.parseBoolean(properties.getProperty(USE_PRE_CALCULATED_FREQS));
+		
+		return this;
 	}
 
 	public void save() throws IOException{
@@ -225,6 +278,13 @@ public class Configuration {
 		
 		properties.setProperty(MAX_RADIUS_SIZE, Float.toString(maxRadiusSizePercent));
 		properties.setProperty(MIN_RADIUS_SIZE, Float.toString(minRadiusSizePercent));
+		
+		properties.setProperty(WEIGHT_A, Float.toString(weights[0]));
+		properties.setProperty(WEIGHT_B, Float.toString(weights[1]));
+		properties.setProperty(WEIGHT_C, Float.toString(weights[2]));
+		properties.setProperty(WEIGHT_D, Float.toString(weights[3]));
+		
+		properties.setProperty(NORMALIZATION, normalization);
 		
 		properties.store(new FileOutputStream(configFile), null);
 	}
@@ -323,7 +383,6 @@ public class Configuration {
 
 	public void setMinimumPercentOfTerms(float minimumPercentOfTerms) {
 		this.minimumPercentOfTerms = minimumPercentOfTerms;
-		DatabaseService.minimumPercentOfTerms = minimumPercentOfTerms;
 	}
 	
 	public float getMaximumPercentOfTerms() {
@@ -388,5 +447,29 @@ public class Configuration {
 
 	public void setMinRadiusSizePercent(float minRadiusSizePercent) {
 		this.minRadiusSizePercent = minRadiusSizePercent;
+	}
+	
+	public Float[] getWeights() {
+		return weights;
+	}
+	
+	public void setWeights(Float[] weights) {
+		this.weights = weights;
+	}
+	
+	public String getNormalization() {
+		return normalization;
+	}
+	
+	public void setNormalization(String normalization) {
+		this.normalization = normalization;
+	}
+
+	public boolean isUsePreCalculatedFreqs() {
+		return usePreCalculatedFreqs;
+	}
+
+	public void setUsePreCalculatedFreqs(boolean usePreCalculatedFreqs) {
+		this.usePreCalculatedFreqs = usePreCalculatedFreqs;
 	}
 }

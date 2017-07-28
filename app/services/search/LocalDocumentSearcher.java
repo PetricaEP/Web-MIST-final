@@ -14,7 +14,6 @@ import javax.inject.Inject;
 
 import org.apache.commons.math3.analysis.UnivariateFunction;
 import org.apache.commons.math3.analysis.interpolation.LinearInterpolator;
-import org.apache.commons.math3.util.IntegerSequence.Range;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -47,17 +46,18 @@ public class LocalDocumentSearcher implements DocumentSearcher {
 	private static final double PADDING = 6.0f;
 
 	private static final float INC = 0.001f;
-
-	private DatabaseService dbService;
-
-	private Configuration configuration;
+	
+	private static Configuration configuration;
 
 	private static QuadTree quadTree;
+	
+	private DatabaseService dbService;
+	
 
 	@Inject
-	public LocalDocumentSearcher(Database db, Configuration configuration) {
+	public LocalDocumentSearcher(Database db) {
 		this.dbService = new DatabaseService(new PlayDatabaseWrapper(db));
-		this.configuration = configuration;
+		configuration = Configuration.getInstance();
 		initQuadTree();
 	}
 

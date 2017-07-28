@@ -112,7 +112,7 @@ public class MultidimensionalProjection {
 	public static void main(String[] args) {
 		try {
 			
-			Configuration config = new Configuration();
+			Configuration config = Configuration.getInstance();
 			config.loadConfiguration();
 			
 			System.out.println("Updating MDP...");

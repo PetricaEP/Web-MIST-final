@@ -42,7 +42,7 @@ public class InfoVis {
      */
     public static void main(String[] args) throws Exception {
 
-    	Configuration config = new Configuration();
+    	Configuration config = Configuration.getInstance();
 		try {
 			config.loadConfiguration();
 		} catch (IOException e) {

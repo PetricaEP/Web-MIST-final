@@ -11,6 +11,9 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -30,6 +33,7 @@ import ep.db.quadtree.QuadTreeLeafNode;
 import ep.db.quadtree.QuadTreeNode;
 import ep.db.tfidf.LogaritmicTFIDF;
 import ep.db.tfidf.TFIDF;
+import ep.db.utils.Configuration;
 import ep.db.utils.Utils;
 
 /*
@@ -47,14 +51,8 @@ public class DatabaseService {
 
 	public static final int AUTHORS_GRAPH = 1;
 
-	public static float documentRelevanceFactor = 1;
+	public static final Pattern TSV_VALUE_PATTERN = Pattern.compile("\\d+(\\w?)");
 
-	public static float authorsRelevanceFactor = 0;
-	
-	public static float minimumPercentOfTerms = 0;
-	
-	public static float maximumPercentOfTerms = 1;
-	
 	/**
 	 * Tamanho do batch (para inserções)
 	 */
@@ -118,8 +116,8 @@ public class DatabaseService {
 
 	private static final String SQL_SELECT_COLUMNS = "d.doc_id, d.doi, d.title, d.keywords, d.publication_date, "
 			+ "dd.x, dd.y, (%f * dd.relevance + %f * coalesce(a.relevance,0)) rank, a.authors_name";
-	
-	private static final String SEARCH_SQL = "SELECT " + SQL_SELECT_COLUMNS + ", ts_rank(tsv, query, 32) score FROM documents d "
+
+	private static final String SEARCH_SQL = "SELECT " + SQL_SELECT_COLUMNS + ", ts_rank(?, tsv, query, ?) score FROM documents d "
 			+ "INNER JOIN documents_data dd ON d.doc_id = dd.doc_id LEFT JOIN "
 			+ "(SELECT doc_id, string_agg(a.aut_name,';') authors_name, sum(a.relevance) relevance "
 			+ "FROM document_authors da INNER JOIN authors a "
@@ -159,7 +157,7 @@ public class DatabaseService {
 
 	private static final String DELETE_NODE_DATA_SQL = "DELETE FROM nodes;";
 
-	private static final String UPDATE_NODEID_NULL_DOC_DATA_SQL = "UPDATE documents_data SET node_id = NULL;";
+//	private static final String UPDATE_NODEID_NULL_DOC_DATA_SQL = "UPDATE documents_data SET node_id = NULL;";
 
 	private static final String INSERT_NODE_SQL = "INSERT INTO nodes( node_id, isleaf, rankmax, rankmin, "
 			+ "parent_id, depth, index) VALUES (?, ?, ?, ?, ?, ?, ?);";
@@ -255,9 +253,10 @@ public class DatabaseService {
 		}
 
 		String where = sql.toString();
-		
-		int minNumOfTerms = (int) Math.ceil(numberOfDocuments * minimumPercentOfTerms);
-		int maxNumOfTerms = (int) Math.ceil(numberOfDocuments * maximumPercentOfTerms);
+		Configuration config = Configuration.getInstance();
+
+		int minNumOfTerms = (int) Math.ceil(numberOfDocuments * config.getMinimumPercentOfTerms());
+		int maxNumOfTerms = (int) Math.ceil(numberOfDocuments * config.getMaximumPercentOfTerms());
 
 		// Recupera frequencia indiviual de cada termo na base de dados (todos os documentos)
 		final Map<String, Integer> termsCount = getTermsCounts(where, minNumOfTerms, maxNumOfTerms);
@@ -275,7 +274,10 @@ public class DatabaseService {
 		tfidfCalc.setTermsCount(termsCount);
 
 		// Popula matriz com frequencia dos termos em cada documento
-		buildFrequencyMatrix(matrix, termsToColumnMap, where, true, tfidfCalc );
+		if ( config.isUsePreCalculatedFreqs() )
+			buildFrequencyMatrix(matrix, termsToColumnMap, where, true, tfidfCalc );
+		else
+			buildFrequencyMatrixFromTSV(matrix, termsToColumnMap, where, true, tfidfCalc );
 
 		return matrix;
 	}
@@ -621,6 +623,91 @@ public class DatabaseService {
 	}
 
 	/**
+	 * Constroi matrix de frequência de termos (bag of words). 
+	 * @param matrix matrix de frequência de termos já inicializada
+	 * @param termsCount mapa com os termos ordenados por frequência. 
+	 * @param termsToColumnMap mapa de termos para indice da coluna na matrix de frequência.
+	 * @param where clause WHERE em SQL para filtragem de documentos por id's.
+	 * @param normalize se <code>true</code> a frequência de cada termo será normalizada,
+	 * caso contrário a frequência absoluta é considerada.
+	 * @throws Exception erro ao executar consulta.
+	 */
+	private void buildFrequencyMatrixFromTSV(FloatMatrix2D matrix,Map<String, Integer> termsToColumnMap,
+			String where, boolean normalize, TFIDF tfidfCalc) throws Exception {
+		try ( Connection conn = db.getConnection();){
+
+			String sql = "SELECT tsv::varchar tsv_str FROM documents";
+			if ( where != null)
+				sql += where;
+			sql += " ORDER BY doc_id";
+
+			Statement stmt = conn.createStatement();
+			ResultSet rs = stmt.executeQuery(sql);
+			int doc = 0;
+
+			// Numero de documentos
+			long n = matrix.rows();
+			while( rs.next() ){
+				Map<String, String> terms = parseTSV(rs.getString("tsv_str"));
+				if ( terms != null && !terms.isEmpty() ){
+					for(String term : terms.keySet()){
+						if ( termsToColumnMap.containsKey(term)){
+							String value = terms.get(term);
+							// Divide valores para contagem de termos e pesos
+							float[] freqWeight = splitValue(value);
+							double tfidf = tfidfCalc.calculate(freqWeight[1], (int) n, term);
+							int col = termsToColumnMap.get(term);
+							matrix.set(doc, col, (float) tfidf) ; 
+						}	
+					}
+				}
+				++doc;
+			}
+		}catch( Exception e){
+			throw e;
+		}
+	}
+
+	private Map<String, String> parseTSV(String tsv) {
+		if ( tsv != null && !tsv.trim().isEmpty()){
+			return Arrays.stream(tsv.split("\\s+"))
+					.map((s) -> s.split(":"))
+					.collect(Collectors.toMap((e) -> e[0].replace("'", ""), (e) -> e[1]));
+		}
+		return null;
+	}
+
+	private float[] splitValue(String value) {
+		String[] f = value.split(",");
+		Float[] weigths = Configuration.getInstance().getWeights();
+		float weight = 0;
+		for(String s : f){
+			Matcher m = TSV_VALUE_PATTERN.matcher(s);
+			if ( m.matches() ){
+				switch (m.group(1)) {
+				case "A":
+					weight += weigths[0];
+					break;
+				case "B":
+					weight += weigths[1];
+					break;
+				case "C":
+					weight += weigths[2];
+					break;
+				case "D":
+					weight += weigths[3];
+					break;
+				default:
+					weight += weigths[0];
+					break;
+				}
+			}
+		}
+
+		return new float[]{f.length, weight};
+	}
+
+	/**
 	 * Atualiza projeção dos documentos
 	 * @param y matrix de projeção N x 2, onde N é o 
 	 * número de documentos.
@@ -877,13 +964,17 @@ public class DatabaseService {
 
 	public List<Document> getSimpleDocuments(String querySearch, int limit) throws Exception {
 		try ( Connection conn = db.getConnection();){
+			Configuration config = Configuration.getInstance();
 			PreparedStatement stmt = conn.prepareStatement(
-					String.format(SEARCH_SQL, documentRelevanceFactor, authorsRelevanceFactor));
-			stmt.setString(1, querySearch);
+					String.format(SEARCH_SQL, config.getDocumentRelevanceFactor(), config.getAuthorsRelevanceFactor()));
+			
+			stmt.setObject(1, conn.createArrayOf("float4", config.getWeights()));
+			stmt.setString(2, config.getNormalization());
+			stmt.setString(3, querySearch);
 			if ( limit > 0)
-				stmt.setInt(2, limit);
+				stmt.setInt(4, limit);
 			else
-				stmt.setNull(2, java.sql.Types.INTEGER);
+				stmt.setNull(4, java.sql.Types.INTEGER);
 
 			try (ResultSet rs = stmt.executeQuery()){
 				List<Document> docs = new ArrayList<>();
@@ -902,8 +993,10 @@ public class DatabaseService {
 
 	public List<Document> getAllSimpleDocuments() throws Exception {
 		try ( Connection conn = db.getConnection();){
+			Configuration config = Configuration.getInstance();
 			PreparedStatement stmt = conn.prepareStatement(
-					String.format(SEARCH_SQL_ALL, documentRelevanceFactor, authorsRelevanceFactor));
+					String.format(SEARCH_SQL_ALL, config.getDocumentRelevanceFactor(), config.getAuthorsRelevanceFactor()));
+
 			try (ResultSet rs = stmt.executeQuery()){
 				List<Document> docs = new ArrayList<>();
 				while ( rs.next() ){
@@ -928,14 +1021,14 @@ public class DatabaseService {
 
 			if ( querySearch != null ){
 				sql.append(", to_tsquery(?) query");
-				rankSql.append(", ts_rank(tsv, query, 32) ");
+				rankSql.append(", ts_rank(?, tsv, query, ?) ");
 			}
 			if ( !authors.isEmpty() ){
 				sql.append( ", to_tsquery(?) aut_query");
 				if ( querySearch != null)
-					rankSql.append(" + ts_rank(aut_name_tsv, aut_query, 32)");
+					rankSql.append(" + ts_rank(aut_name_tsv, aut_query, ?)");
 				else
-					rankSql.append(", ts_rank(aut_name_tsv, aut_query, 32)");
+					rankSql.append(", ts_rank(aut_name_tsv, aut_query, ?)");
 			}
 
 			if ( querySearch != null || !authors.isEmpty())
@@ -954,24 +1047,38 @@ public class DatabaseService {
 				sql.append("publication_date <= ? AND ");
 			sql.append("TRUE");
 
-
+			Configuration config = Configuration.getInstance();
 			PreparedStatement stmt = conn.prepareStatement(
 					String.format(ADVANCED_SEARCH_SQL,
-							documentRelevanceFactor,
-							authorsRelevanceFactor,
+							config.getDocumentRelevanceFactor(),
+							config.getAuthorsRelevanceFactor(),
 							rankSql.toString(),
 							sql.toString())
 					);
 
 			int index = 1;
-			if (querySearch != null)
-				stmt.setString(index++, querySearch);
-			if ( !authors.isEmpty() )
-				stmt.setString(index++, authors);
+			if (querySearch != null){
+				stmt.setArray(index++, conn.createArrayOf("float4", config.getWeights())); // index = 2
+				stmt.setString(index++, config.getNormalization()); //index = 3
+				if ( authors.isEmpty() ){
+					stmt.setString(index++, querySearch); //index = 4
+				}
+				else{
+					stmt.setString(index++, config.getNormalization()); //index = 4
+					stmt.setString(index++, querySearch); //index = 5
+					stmt.setString(index++, authors); //index = 6
+				}
+				// index = 3 ou 4
+			}
+			else if ( !authors.isEmpty() ){
+				stmt.setString(index++, config.getNormalization()); //index = 2
+				stmt.setString(index++, authors); //index = 3
+			}
+
 			if ( !yearStart.isEmpty() )
-				stmt.setInt(index++, Integer.parseInt(yearStart));
+				stmt.setInt(index++, Integer.parseInt(yearStart)); //index = 2, 4, 5 ou 7
 			if ( !yearEnd.isEmpty() )
-				stmt.setInt(index++, Integer.parseInt(yearEnd));
+				stmt.setInt(index++, Integer.parseInt(yearEnd)); // index = 3, 5, 6 ou 8
 
 			if ( limit > 0 )
 				stmt.setInt(index, limit);
@@ -1015,8 +1122,9 @@ public class DatabaseService {
 	public List<Document> getFullDocuments(int maxDocumentsPerNode){
 		List<Document> docs = new ArrayList<>();
 		try (Connection conn = db.getConnection();) {
+			Configuration config = Configuration.getInstance();
 			PreparedStatement stmt = conn.prepareStatement(
-					String.format(DOCUMENTS_DATA_SQL, documentRelevanceFactor, authorsRelevanceFactor));
+					String.format(DOCUMENTS_DATA_SQL, config.getDbBatchSize(), config.getAuthorsRelevanceFactor()));
 			stmt.setInt(1, maxDocumentsPerNode);
 			try (ResultSet rs = stmt.executeQuery()) {
 				while (rs.next()) {
@@ -1038,7 +1146,8 @@ public class DatabaseService {
 	public List<IDocument> getDocumentsFromNode(long node_id, int offset, int limit){
 		List<IDocument> docs = new ArrayList<>();
 		try (Connection conn = db.getConnection();) {
-			String sql = String.format(DOCUMENTS_NODE_SQL, documentRelevanceFactor, authorsRelevanceFactor);
+			Configuration config = Configuration.getInstance();
+			String sql = String.format(DOCUMENTS_NODE_SQL, config.getDbBatchSize(), config.getAuthorsRelevanceFactor());
 			PreparedStatement stmt = conn.prepareStatement(sql);
 			stmt.setLong(1, node_id);
 			stmt.setInt(2, limit);
@@ -1096,7 +1205,8 @@ public class DatabaseService {
 				qTree.setRoot((QuadTreeBranchNode) nodes.get(0));
 			}
 
-			sql = String.format(DOCUMENTS_DATA_SQL, documentRelevanceFactor, authorsRelevanceFactor);
+			Configuration config = Configuration.getInstance();
+			sql = String.format(DOCUMENTS_DATA_SQL, config.getDocumentRelevanceFactor(), config.getAuthorsRelevanceFactor());
 			stmt = conn.prepareStatement(sql);
 			stmt.setInt(1, qTree.getMaxElementsPerBunch());
 
@@ -1118,14 +1228,14 @@ public class DatabaseService {
 
 		return qTree;
 	}
-	
+
 	public boolean persistQuadTree(QuadTree quadTree) {
 		boolean result = true;
 		try (Connection conn = db.getConnection();) {
 			//Deleting Table Nodes
-//			String sql = UPDATE_NODEID_NULL_DOC_DATA_SQL;
-//			PreparedStatement stmt = conn.prepareStatement(sql);
-//			stmt.execute();
+			//			String sql = UPDATE_NODEID_NULL_DOC_DATA_SQL;
+			//			PreparedStatement stmt = conn.prepareStatement(sql);
+			//			stmt.execute();
 
 			String sql = DELETE_NODE_DATA_SQL;
 			PreparedStatement stmt = conn.prepareStatement(sql);

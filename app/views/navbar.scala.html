@@ -11,7 +11,7 @@
 	        <span class="icon-bar"></span>
    			</button>
  		</div>
-  		<di class="collapse navbar-collapse" id="navbar-collapse">
+  		<div class="collapse navbar-collapse" id="navbar-collapse">
     		<ul class="nav navbar-nav">
     		@menu_item(active, "home")<a href="@routes.HomeController.index">Home</a></li>
       		@menu_item(active, "graph", "dropdown")
@@ -23,6 +23,96 @@
         			</ul>
       		</li>
     		</ul>
+    		
+    		@if( active == "home"){
+    			<form id="searchForm" class="navbar-form">
+    			<div class="row form-inline simple-search">
+	    			<div class="col-sm-4">
+	    				<input type="text" id="terms" name="terms" class="form-control">
+	    			</div>
+	    			<div class="col-sm-1">
+		    			<select id="operator" name="operator" class="form-control">
+		                	<option value="or">OR</option>
+		                	<option value="and">AND</option>
+		        		</select>
+	        		 </div>
+	        		 <div class="col-sm-2 search-buttons">
+		        			<button type="submit" id="search" class="btn btn-primary">Search</button>
+		        			<button id="advanced-search-btn" type="button" class="btn btn-default" aria-label="Left Align">
+		  						<span class="glyphicon glyphicon-chevron-down" aria-hidden="true"></span>
+							</button>
+							<button id="viz-settings-btn" type="button" class="btn btn-default" aria-label="Left Align">
+		  						<span class="glyphicon glyphicon-cog" aria-hidden="true"></span>
+							</button>
+					</div>
+					
+					<div class="viz-options nav nav-bar col-sm-3">
+		    			<button type="button" id="reset-btn" class="btn btn-danger glyphicon glyphicon-erase"></button>
+		    			<button type="button" id="step-btn" class="btn btn-success glyphicon glyphicon-play"></button>
+		    			<button type="button" id="reheat-btn" class="btn btn-warning glyphicon glyphicon-fire"></button>
+		    			<button type="button" id="zoom-btn" class="btn btn-primary glyphicon glyphicon-zoom-in" data-toggle="button" 
+	    					aria-pressed="false"></button>
+	    				<button type="button" id="show-list-btn" class="btn btn-info glyphicon glyphicon-list-alt" data-toggle="button"
+	    					aria-pressed="false"></button> 
+    			</div>
+    			
+				</div>
+				
+				<div class="viz-settings form-horizontal">
+					<div class="form-group">
+						<label for="collision-force" class="col-sm-3">Collision force:</label>
+						<div class="col-sm-9">
+							<input id="collision-force" data-slider-id='collision-force-slider' type="text" data-slider-min="0" data-slider-max="1" data-slider-step="0.1" data-slider-value="0.5"/>							
+						</div>
+					</div>
+					<div class="form-group">
+						<label for="manybody-force" class="col-sm-3">Attraction force:</label>
+						<div class="col-sm-9">
+							<input id="manybody-force" data-slider-id='manybody-force-slider' type="text" data-slider-min="0" data-slider-max="50" data-slider-step="5" data-slider-value="1"/>							
+						</div>
+					</div>
+					<div class="form-group">
+						<label for="clustering-force" class="col-sm-5">Clustering force:</label>
+						<div class="col-sm-7">
+							<label>
+      							<input type="checkbox" id="clustering-force" value="1"> On/Off
+    						</label>							
+						</div>
+					</div>
+					<div class="form-group">
+						<label for="show-density-points" class="col-sm-5">Show density points:</label>
+						<div class="col-sm-7">
+							<label>
+      							<input type="checkbox" id="show-density-points" value="1"> On/Off
+    						</label>							
+						</div>
+					</div>					
+				</div>
+				<div class="advanced-search form-horizontal">
+					<div class="form-group col-sm-4">
+						<label for="author" class="col-sm-3">Authors:</label>
+						<div class="col-sm-9">
+							<input type="text" class="form-control" id="author">
+						</div>
+					</div>
+					<div class="form-group col-sm-4">
+						<label for="year-start" class="col-sm-5">Publication year between:</label>
+						<div class="col-sm-7">
+						<input type="text" class="form-control auto-width col-sm-4" id="year-start" size="4" maxlength="4" pattern="[0-9]*">
+						<span class="col-sm-1"> - </span>  
+						<input type="text" class="form-control auto-width col-sm-4" id="year-end" size="4" maxlength="4" pattern="[0-9]*">
+						</div>
+					</div>
+					<div class="form-group col-sm-4">
+						<label for="num-clusters" class="col-sm-5">Number of clusters:</label>
+						<div class="col-sm-7">
+							<input type="number" id="num-clusters" class="form-control auto-width" value="10">
+						</div>
+					</div>
+				</div>
+    		</form>
+    		}
+    		
   		</div>
 	</div>
 </nav>

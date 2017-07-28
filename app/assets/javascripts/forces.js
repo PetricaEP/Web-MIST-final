@@ -10,9 +10,11 @@ successFn = function(data){
 
 	//Reheat visualization
 	$("#reheat-btn").click(reheat);
+	$("#show-list-btn").prop('disabled', false);
+	$("#show-list-btn").click(showListTool);
 
 	//Disable click event onto table rows
-	$(".documents-table table tbody tr").off();
+//	$(".documents-table table tbody tr").off();
 
 	var step = 0;
 
@@ -27,7 +29,7 @@ successFn = function(data){
 	//Clear previous visualization
 	svg.selectAll('g').remove();
 	svg.selectAll('defs').remove();
-	$(".documents-table table tbody tr").remove();
+	$(".documents-table table tbody").empty();
 
 	var padding = 3, // separation between same-color nodes
 	clusterPadding = 6; // separation between different-color nodes
@@ -69,7 +71,12 @@ successFn = function(data){
 
 	//Create nodes
 	var nodes = createNodes(data.documents);
-	var points = createPoints(data.density);
+
+	var showPoints = $("#show-density-points").prop('checked');
+	var points = [];
+	if ( showPoints ){
+		points = createPoints(data.density);
+	}
 
 	// Tooltip on mouse over
 	var tip = d3.select("body").append("div")
@@ -117,17 +124,20 @@ successFn = function(data){
 	.attr('stroke-width', 1)
 	.attr('fill-opacity', 0.65);
 
-	var point = g
-	.datum(points)
-	.selectAll('.circle')
-	.data(function(d) { return d;})
-	.enter().append('circle')
-	.attr('r', function(d) { return d.r; })
-	.attr('cx', function(d) { return d.x;})
-	.attr('cy', function(d) { return  d.y;})
-	.attr('fill', function(d) { return  clusterColor(d.cluster);})
-	.attr('stroke', 'black')
-	.attr('stroke-width', 1);
+	var point;
+	if ( points.length > 0 ){
+		point = g
+		.datum(points)
+		.selectAll('.circle')
+		.data(function(d) { return d;})
+		.enter().append('circle')
+		.attr('r', function(d) { return d.r; })
+		.attr('cx', function(d) { return d.x;})
+		.attr('cy', function(d) { return  d.y;})
+		.attr('fill', function(d) { return  clusterColor(d.cluster);})
+		.attr('stroke', 'black')
+		.attr('stroke-width', 1);
+	}
 
 	var path = g
 	.selectAll("path")
@@ -170,28 +180,30 @@ successFn = function(data){
 			});
 		}
 	});
-	
-	point
-	.on("mouseover", function(p){
-		var d = p.data;
-		var html = "<p>x = " + d.x + ", y = " + d.y + "<p>";
-		
-		tip.transition()
-		.duration(500)
-		.style("opacity", 0);
 
-		tip.transition()
-		.duration(200)
-		.style("opacity", 0.9)
-		.style("display", "block");
+	if ( showPoints ){
+		point
+		.on("mouseover", function(p){
+			var d = p.data;
+			var html = "<p>x = " + d.x + ", y = " + d.y + "<p>";
 
-		tip.html(html)
-		.style("left", "150px")
-		.style("top", "150px");
-		d3.select(this).style("stroke-opacity", 1);
-		
-	})
-	.on("mouseout", hideTip);
+			tip.transition()
+			.duration(500)
+			.style("opacity", 0);
+
+			tip.transition()
+			.duration(200)
+			.style("opacity", 0.9)
+			.style("display", "block");
+
+			tip.html(html)
+			.style("left", "150px")
+			.style("top", "150px");
+			d3.select(this).style("stroke-opacity", 1);
+
+		})
+		.on("mouseout", hideTip);
+	}
 
 	++step;
 
@@ -271,18 +283,6 @@ successFn = function(data){
 		.on("click", toggleLinks);
 
 		$("#reheat-btn").prop('disabled', false);
-
-		//Make rows clickable
-		$(".documents-table table tbody tr").click(selectRow);
-		$(".documents-table table tbody tr").on('mouseover', function(){
-			var point = getPoint(this);
-			point.dispatch('mouseover');
-		});
-		$(".documents-table table tbody tr").on('mouseout', function(){
-			var point = getPoint(this);
-			point.dispatch('mouseout');
-		});
-
 	}
 
 //	Create nodes
@@ -311,7 +311,7 @@ successFn = function(data){
 				}
 
 				//Add to documents table
-				addDocumentToTable(index, doc);
+//				addDocumentToTable(index, doc);
 
 				//Update cluster medoid
 				if (!clusters[ doc.cluster ] || (d.r > clusters[ doc.cluster ].r)) clusters[ doc.cluster ] = d;
@@ -336,8 +336,41 @@ successFn = function(data){
 		return points;
 	}
 
-//	Add document to table
-	function addDocumentToTable(index, doc){
+	function showListTool(){
+		var isActive = !$(this).hasClass("active");
+		$(".documents-table table").toggleClass("hidden", !isActive);
+		if (  !isActive ){
+			hideDocumentList();
+		}
+		else{
+			showDocumentList();
+			//Make rows clickable
+			$(".documents-table table tbody tr").click(selectRow);
+			$(".documents-table table tbody tr").on('mouseover', function(){
+				var p = getPoint(this);
+				p.dispatch('mouseover');
+			});
+			$(".documents-table table tbody tr").on('mouseout', function(){
+				var p = getPoint(this);
+				p.dispatch('mouseout');
+			});
+		}
+	}
+
+	function showDocumentList(){
+		nodes.forEach(function(d, ind){
+			//Add to documents table
+			addDocumentToTable(ind, d);
+		});
+	}
+
+	function hideDocumentList(){
+		$('.documents-table .table tbody').empty();
+	}
+
+	//	Add document to table
+	function addDocumentToTable(index, node){
+		var doc = node.data;
 		var row = '<tr><td class="doc-index">' + index + '</td><td class="doc-title">' + doc.title +
 		'</td><td class="doc-authors">';
 		if ( doc.authors && doc.authors.length > 0){

@@ -14,7 +14,8 @@
 
 .documents-table {
 	.table {		
-		width: 100%;	
+		width: 100%;
+		table-layout:fixed;	
 		
 		svg {
 			width: 2vw;
@@ -83,6 +84,9 @@
 			td{
 				width: 16.6%;
 				float: left;
+				white-space: nowrap;
+				overflow: hidden;
+				text-overflow: ellipsis;
 				
 				&.doc-index{
 					width: 0%;
@@ -178,6 +182,10 @@ circle {
 			span {
 				text-align: center;
 			}
+		}
+	
+		label {
+			color: #fff;
 		}
 	}
 }

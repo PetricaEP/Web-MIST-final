@@ -86,7 +86,7 @@ CREATE TRIGGER tsvector_aut_update BEFORE INSERT OR UPDATE
 CREATE OR REPLACE FUNCTION documents_trigger() RETURNS TRIGGER AS $documents_trigger$
 	BEGIN
   		new.tsv :=
-	     setweight(to_tsvector(new.language, coalesce(new.title,'')), 'D') ||
+	     setweight(to_tsvector(new.language, coalesce(new.title,'')), 'A') ||
 	     setweight(to_tsvector(new.language, coalesce(new.keywords,'')), 'B') ||
 	     setweight(to_tsvector(new.language, coalesce(new.abstract,'')), 'C');
   	return new;
@@ -99,7 +99,6 @@ CREATE TRIGGER tsvector_doc_update BEFORE INSERT OR UPDATE
  CREATE OR REPLACE FUNCTION documents_freqs() RETURNS TRIGGER AS $documents_freqs_trigger$
  	DECLARE
  		json_str	jsonb;
- 		sumFreqs int;
  	BEGIN 
 	 	
 	 	IF new.tsv IS NOT NULL THEN

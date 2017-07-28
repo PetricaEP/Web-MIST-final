@@ -54,6 +54,7 @@ $(document).ready(function() {
 
 	$("#step-btn").prop('disabled', true);
 	$("#reheat-btn").prop('disabled', true);
+	$("#show-list-btn").prop('disabled', true);
 	$("#reset-btn").click(resetVisualization);
 	$("#zoom-btn").click(zoomTool);
 });
