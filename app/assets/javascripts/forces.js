@@ -1,6 +1,8 @@
 //Initialize visualization
 successFn = function(data){
 
+	var currentTab = addNewTab();
+	
 	$('#loading').addClass('hidden');
 
 	//Enable step button
@@ -13,15 +15,12 @@ successFn = function(data){
 	$("#show-list-btn").prop('disabled', false);
 	$("#show-list-btn").click(showListTool);
 
-	//Disable click event onto table rows
-//	$(".documents-table table tbody tr").off();
-
 	var step = 0;
 
 	var margin = {top: 100, right: 100, bottom: 100, left: 100};
-	var svg = d3.select("svg"),
-	width = $("svg").width(),
-	height = $("svg").height();
+	var svg = d3.select("#" + currentTab + " svg"),
+	width = $("#" + currentTab + " svg").width(),
+	height = $("#" + currentTab + " svg").height();
 
 	svg.attr('width', width);
 	svg.attr('height', height);
@@ -29,7 +28,7 @@ successFn = function(data){
 	//Clear previous visualization
 	svg.selectAll('g').remove();
 	svg.selectAll('defs').remove();
-	$(".documents-table table tbody").empty();
+	$("#" + currentTab + " .documents-table table tbody").empty();
 
 	var padding = 3, // separation between same-color nodes
 	clusterPadding = 6; // separation between different-color nodes

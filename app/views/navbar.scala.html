@@ -14,18 +14,18 @@
   		<div class="collapse navbar-collapse" id="navbar-collapse">
     		<ul class="nav navbar-nav">
     		@menu_item(active, "home")<a href="@routes.HomeController.index">Home</a></li>
-      		@menu_item(active, "graph", "dropdown")
+      		@* @menu_item(active, "graph", "dropdown")
         			<a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" 
         				aria-haspopup="true" aria-expanded="false">Grafo<span class="caret"></span></a>
         			<ul class="dropdown-menu">
           			<li><a href="@routes.GraphController.graph("docs")">Documentos</a></li>
           			<li><a href="@routes.GraphController.graph("authors")">Autores</a></li>
         			</ul>
-      		</li>
+      		</li> *@
     		</ul>
     		
     		@if( active == "home"){
-    			<form id="searchForm" class="navbar-form">
+    			<form id="searchForm" class="navbar-form" >
     			<div class="row form-inline simple-search">
 	    			<div class="col-sm-4">
 	    				<input type="text" id="terms" name="terms" class="form-control">
@@ -47,13 +47,16 @@
 					</div>
 					
 					<div class="viz-options nav nav-bar col-sm-3">
-		    			<button type="button" id="reset-btn" class="btn btn-danger glyphicon glyphicon-erase"></button>
-		    			<button type="button" id="step-btn" class="btn btn-success glyphicon glyphicon-play"></button>
-		    			<button type="button" id="reheat-btn" class="btn btn-warning glyphicon glyphicon-fire"></button>
+		    			<button type="button" id="reset-btn" class="btn btn-danger glyphicon glyphicon-erase"
+		    			data-toggle="tooltip" data-placement="bottom" title="Reinicia visulização (esconde areas e seleções)."></button>
+		    			<button type="button" id="step-btn" class="btn btn-success glyphicon glyphicon-play"
+		    			data-toggle="tooltip" data-placement="bottom" title="Avançar (avança para próxima passo da visualização)"></button>
+		    			<button type="button" id="reheat-btn" class="btn btn-warning glyphicon glyphicon-fire"
+		    			data-toggle="tooltip" data-placement="bottom" title="Reaquece forças da visualização"></button>
 		    			<button type="button" id="zoom-btn" class="btn btn-primary glyphicon glyphicon-zoom-in" data-toggle="button" 
-	    					aria-pressed="false"></button>
+	    					data-tooltip="tooltip" aria-pressed="false" data-placement="bottom" title="Zoom através da QuadTree"></button>
 	    				<button type="button" id="show-list-btn" class="btn btn-info glyphicon glyphicon-list-alt" data-toggle="button"
-	    					aria-pressed="false"></button> 
+	    					data-tooltip="tooltip" data-placement="bottom" aria-pressed="false" title="Exibir lista de documentos"></button> 
     			</div>
     			
 				</div>

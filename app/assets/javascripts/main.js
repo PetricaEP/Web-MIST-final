@@ -1,7 +1,11 @@
-var simulation;
+var maxNumberOfTabs = 5;
 
 //Form submission handle
-$(document).ready(function() {
+$(function() {
+
+	$('[data-toggle="tooltip"]').tooltip();
+	$('[data-tooltip="tooltip"]').tooltip();
+	
 	$( "#searchForm" ).submit(function( e ) {
 		e.preventDefault();
 		ajaxSubmitForm();
@@ -12,13 +16,13 @@ $(document).ready(function() {
 			return value;
 		}
 	});
-	
+
 	$('#manybody-force').slider({
 		formatter: function(value) {
 			return value;
 		}
 	});
-	
+
 	$("#viz-settings-btn").click(function(e){
 		if ( $(".viz-settings").hasClass("enabled")){
 			$(".viz-settings").hide(400, function(){
@@ -31,7 +35,7 @@ $(document).ready(function() {
 			});
 		}
 	});
-	
+
 	$("#advanced-search-btn").click(function(e){
 		if ( $(".advanced-search").hasClass("enabled")){
 			$(".advanced-search").hide(400, function(){
@@ -51,12 +55,6 @@ $(document).ready(function() {
 
 	$(".advanced-search").hide();
 	$(".viz-settings").hide();
-
-	$("#step-btn").prop('disabled', true);
-	$("#reheat-btn").prop('disabled', true);
-	$("#show-list-btn").prop('disabled', true);
-	$("#reset-btn").click(resetVisualization);
-	$("#zoom-btn").click(zoomTool);
 });
 
 //Submission error 
@@ -66,28 +64,27 @@ errorFn = function(err){
 	console.debug(err);
 };
 
-//Reset visualization
-function resetVisualization(e){
-	d3.selectAll('path.link').classed('active', false);
-	$(".documents-table table tbody tr").removeClass('success');
-}
-
-function zoomTool(e){
-	$(".visualization-wrapper")
-		.toggleClass("zoom-cursor", !$(this).hasClass("active"));
-}
-
 //Ajax form submission
 function ajaxSubmitForm(){
+	
+	// Se o numero maximo de abas
+	// foi atingindo mostra aviso
+	// solicitando o fechamento de algumas
+	// abas
+	if ( tabCount >= maxNumberOfTabs ){
+		showMaxTabsAlert();
+		return;
+	}
+	
 	var t = $("#terms").val(),
 	op = $("#operator").val(),
 	author = $("#author").val(),
 	yearS = $("#year-start").val(),
 	yearE = $("#year-end").val(),
 	numClusters = $("#num-clusters").val(),
-	width = $("svg").width(),
-	height = $("svg").height(); 
-	
+	width = $(".tab-content").width(),
+	height = $(".tab-content").height(); 
+
 	var r = jsRoutes.controllers.HomeController.search();
 	$.ajax({url: r.url, type: r.type, data: {
 		terms: t, 
@@ -99,8 +96,10 @@ function ajaxSubmitForm(){
 		width: width,
 		height: height 
 	}, 
-	success: successFn, error: errorFn, dataType: "json"});
-	
+	success: createVisualization, error: errorFn, dataType: "json"});
+
 	//Waiting...
+	$('#viz-tabs').removeClass('hidden');
+	$('#title-text').remove();
 	$('#loading').removeClass('hidden');
 }

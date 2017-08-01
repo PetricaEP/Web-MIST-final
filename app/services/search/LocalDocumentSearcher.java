@@ -97,9 +97,6 @@ public class LocalDocumentSearcher implements DocumentSearcher {
 
 			if( docs.size() > 0){
 
-				// Ordena por relevancia (descrescente)
-//				docs.sort(Comparator.comparing((Document d) -> d.getRank()).reversed());
-
 				// Realiza interpolacão das relevancias 
 				// para obter  os raios de cada documento.
 				int index = interpolateRadii(docs, queryData.getWidth(), queryData.getHeight());
@@ -133,15 +130,18 @@ public class LocalDocumentSearcher implements DocumentSearcher {
 				result.put("documents", selected);
 				result.put("density", densities);
 				result.put("nclusters", numClusters);
+				result.put("op", "search");
 			}
 			else{
 				result.put("documents", new ArrayList<Document>(0));
 				result.put("nclusters", 0);
+				result.put("op", "search");
 			}
 		}catch (Exception e) {
 			Logger.error("Unkown error!", e);
 			result.put("documents", new ArrayList<Document>(0));
 			result.put("nclusters", 0);
+			result.put("op", "search");
 		}
 
 		ObjectMapper mapper = new ObjectMapper();
@@ -225,16 +225,19 @@ public class LocalDocumentSearcher implements DocumentSearcher {
 				result.put("documents", documents);
 				result.put("density", densities);
 				result.put("nclusters", numClusters);
+				result.put("op", "zoom");
 			}
 			else{
 				result.put("documents", new ArrayList<Document>(0));
 				result.put("nclusters", 0);
+				result.put("op", "zoom");
 			}
 
 		} catch( Exception e){
 			Logger.error("Unkown error!", e);
 			result.put("documents", new ArrayList<Document>(0));
 			result.put("nclusters", 0);
+			result.put("op", "zoom");
 		}
 
 		ObjectMapper mapper = new ObjectMapper();

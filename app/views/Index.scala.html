@@ -13,7 +13,10 @@
        	
        	<link rel="stylesheet" media="screen" href="@routes.Assets.versioned("stylesheets/main.css")">
        	
-		<script src="@routes.Assets.versioned("javascripts/forces.js")" type="text/javascript"></script>
+       	<script src="@routes.Assets.versioned("javascripts/tabData.js")" type="text/javascript"></script>
+       	<script src="@routes.Assets.versioned("javascripts/tab.js")" type="text/javascript"></script>
+       	<script src="@routes.Assets.versioned("javascripts/aux.js")" type="text/javascript"></script>
+		<script src="@routes.Assets.versioned("javascripts/visualization.js")" type="text/javascript"></script>
 		<script src="@routes.Assets.versioned("javascripts/main.js")" type="text/javascript"></script>
 
     </head>
@@ -22,28 +25,51 @@
     @navbar()
     
     <div id="loading" class="loading hidden"></div>
-    <div class="visualization-wrapper">
-		<svg id="visualization" class="visualization">
-       	</svg>
-	</div>
-	<div class="documents-list_wrapper">
-		<div class="documents-table">
-			<table class="table table-hover table-striped hidden">
-			<thead>
-				<tr>
-					<th class="doc-index"></th>
-					<th class="doc-title">Title</th>
-					<th class="doc-authors">Authors</th>
-					<th class="doc-year">Pub. Year</th>
-					<th class="doc-doi">DOI</th>
-					<th class="doc-relevance">Relevance</th>
-					<th class="doc-cluster">Cluster</th>
-				</tr>
-			</thead>
-			<tbody>
-			</tbody>
-			</table>
-		</div>
+    <div id="tabs-alert-wrapper" class="tabs-alert container"></div>
+    
+    <div id="title-text" class="container">
+    	<h1>Lorem Ipsum</h1>
+    	<p>Lorem Ipsum is simply dummy text of the printing and typesetting industry. 
+    	Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, 
+    	when an unknown printer took a galley of type and scrambled it to make a type specimen book. 
+    	It has survived not only five centuries, but also the leap into electronic typesetting, 
+    	remaining essentially unchanged. It was popularised in the 1960s with the release of 
+    	Letraset sheets containing Lorem Ipsum passages, and more recently with desktop publishing 
+    	software like Aldus PageMaker including versions of Lorem Ipsum.</p>
+    </div>
+    
+    <div>
+    	<ul class="nav nav-tabs hidden" role="tablist" id="viz-tabs">
+    		<!-- <li role="presentation" class="active"><a href="#main" aria-controls="main" role="tab" data-toggle="tab">Visualização</a></li> -->
+    	</ul>
+    </div>
+    
+    <div class="tab-content">
+    	<!-- <div role="tabpanel" class="tab-pane active" id="main">
+		    <div class="visualization-wrapper">
+				<svg id="visualization" class="visualization">
+		       	</svg>
+			</div>
+			<div class="documents-list_wrapper">
+				<div class="documents-table">
+					<table class="table table-hover table-striped hidden">
+					<thead>
+						<tr>
+							<th class="doc-index"></th>
+							<th class="doc-title">Title</th>
+							<th class="doc-authors">Authors</th>
+							<th class="doc-year">Pub. Year</th>
+							<th class="doc-doi">DOI</th>
+							<th class="doc-relevance">Relevance</th>
+							<th class="doc-cluster">Cluster</th>
+						</tr>
+					</thead>
+					<tbody>
+					</tbody>
+					</table>
+				</div>
+			</div>
+		</div> -->
 	</div>
     </body>
 </html>
