@@ -1,0 +1,28 @@
+@* main Template File *@
+ 
+ 
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+       <title>Welcome</title>
+       
+       	@head()
+       	
+       	<link rel="stylesheet" media="screen" href="@routes.Assets.versioned("stylesheets/main.css")">
+       	
+		<script src="@routes.Assets.versioned("javascripts/forces.js")" type="text/javascript"></script>
+		<script src="@routes.Assets.versioned("javascripts/main.js")" type="text/javascript"></script>
+
+    </head>
+    <body>	
+    <div class="container">
+    	<form action="@routes.HomeController.index()">
+    		<div class="row form-inline simple-search">
+	    		<div class="col-sm-12">
+	    			<input type="text" id="terms" name="terms" class="form-control">
+	    		</div>
+	    	</div>
+    	</form>
+    </div>
+    </body>
+</html>
