@@ -22,7 +22,9 @@ CREATE TABLE documents (
 	container_issn		varchar(100),
 	language			regconfig,
 	tsv					tsvector,
-	freqs				jsonb
+	freqs				jsonb,
+	path				varchar(300),
+	enabled				boolean default true
 );
 
 CREATE TABLE authors (
