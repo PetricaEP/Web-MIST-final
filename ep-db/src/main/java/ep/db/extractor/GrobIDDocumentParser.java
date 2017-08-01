@@ -218,7 +218,7 @@ public final class GrobIDDocumentParser implements DocumentParser{
 				ref.setPublicationDate( bib.getYear() );
 
 			// Set URL
-			ref.setURL(bib.getURL());
+			ref.setPath(bib.getURL());
 		}
 		return ref;
 	}

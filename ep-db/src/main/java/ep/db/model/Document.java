@@ -112,9 +112,9 @@ public class Document implements IDocument, Serializable{
 	private int cluster;
 
 	/**
-	 * URL para documento
+	 * Path para documento
 	 */
-	private String url;
+	private String path;
 	
 	/**
 	 * Número total de citações.
@@ -433,19 +433,21 @@ public class Document implements IDocument, Serializable{
 	}
 	
 	/**
-	 * Retorna URL para o documento
-	 * @return URL do documento
+	 * Retorna o caminho no sistema de arquivos
+	 * para o documento
+	 * @return {@link String} com o URI do documento. 
 	 */
-	public String getUrl() {
-		return url;
+	public String getPath() {
+		return path;
 	}
 	
 	/**
-	 * Atribu o URL para o documento.
-	 * @param url URL externo para o documento.
+	 * Atribui o caminho para o documento.
+	 * @param path {@link String} com o caminho 
+	 * para o documento no sistema de arquivos.
 	 */
-	public void setURL(String url) {
-		this.url = url;
+	public void setPath(String path) {
+		this.path = path;
 	}
 	
 	/**

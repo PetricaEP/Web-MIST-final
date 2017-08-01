@@ -26,11 +26,6 @@ public class RelevanceCalculator {
 	private static Logger logger = LoggerFactory.getLogger(RelevanceCalculator.class);
 
 	/**
-	 * Fator-C padrão
-	 */
-	private static final double C = 0.85;
-
-	/**
 	 * Serviço de manipulação do banco de dados.
 	 */
 	private final DatabaseService dbService;
@@ -46,7 +41,7 @@ public class RelevanceCalculator {
 	 * @param config configuração.
 	 */
 	public RelevanceCalculator( Configuration config ) {
-		this(config, C);
+		this(config, config.getPageRankAlpha());
 	}
 
 	/**

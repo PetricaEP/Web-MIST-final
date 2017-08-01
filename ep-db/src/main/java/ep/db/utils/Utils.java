@@ -8,6 +8,7 @@ import java.util.regex.Pattern;
 import org.apache.commons.lang3.text.WordUtils;
 
 import ep.db.model.Author;
+import ep.db.model.Document;
 import ep.db.utils.Utils;
 
 /**
@@ -94,5 +95,13 @@ public final class Utils {
 			return list;
 		}
 		return new ArrayList<>(0);
+	}
+
+	public static boolean isDocumentCompleted(Document doc) {
+		return notBlank(doc.getTitle()) || notBlank(doc.getKeywords()) || notBlank(doc.getAbstract());
+	}
+
+	private static boolean notBlank(String str) {
+		return str != null && !str.trim().isEmpty();
 	}
 }

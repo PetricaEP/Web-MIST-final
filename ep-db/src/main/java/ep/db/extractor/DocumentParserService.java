@@ -249,6 +249,7 @@ public class DocumentParserService {
 			doc.setVolume(documentParser.getVolume());
 			doc.setPublicationDate(documentParser.getPublicationDate());
 			doc.setLanguage(documentParser.getLanguage());
+			doc.setPath(filename.getAbsolutePath());
 
 			consolidator.consolidate(doc);
 

@@ -9,8 +9,6 @@ import java.util.Properties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import ep.db.database.DatabaseService;
-
 public class Configuration {
 
 	/**
@@ -29,8 +27,10 @@ public class Configuration {
 	private static final String MENDELEY_HOST = "mendeley.host";
 	private static final String MENDELEY_CLIENT_ID = "mendeley.client_id";
 	private static final String GROBID_HOME = "grobid.home";
-	private static final String MININUM_PERCENT_OF_TERMS = "minimumPercentOfTerms";
-	private static final String MAXIMUM_PERCENT_OF_TERMS = "maximumPercentOfTerms";
+	private static final String MININUM_PERCENT_OF_DOCUMENTS = "minimumPercentOfDocs";
+	private static final String MAXIMUM_PERCENT_OF_DOCUMENTS = "maximumPercentOfDocs";
+	private static final String MININUM_NUMBER_OF_TERMS = "minimumNumberOfTerms";
+	private static final String MAXIMUM_NUMBER_OF_TERMS = "maximumNumberOfTerms";
 	private static final String DOCUMENT_RELEVANCE_FACTOR = "relevance.documents";
 	private static final String AUTHORS_RELEVANCE_FACTOR = "relevance.authors";
 	private static final String QUADTREE_MAX_DEPTH = "quadtree.max_depth";
@@ -44,6 +44,9 @@ public class Configuration {
 	private static final String WEIGHT_D = "weight_D";
 	private static final String NORMALIZATION = "normalization";
 	private static final String USE_PRE_CALCULATED_FREQS = "use_pre_calculated_freqs";
+	private static final String RANDOM_CONTROL_POINTS = "random_control_points";
+	private static final String DISABLE_OUTLIERS = "disable_outliers";
+	private static final String PAGE_RANK_ALPHA = "page_rank_alpha";
 	
 	private static Logger logger = LoggerFactory.getLogger(Configuration.class);
 
@@ -73,9 +76,13 @@ public class Configuration {
 
 	private  String dbPassword;
 
-	private  float minimumPercentOfTerms;
+	private  float minimumPercentOfDocuments;
 	
-	private  float maximumPercentOfTerms;
+	private  float maximumPercentOfDocuments;
+	
+	private int minimumNumberOfTerms;
+	
+	private int maximumNumberOfTerms;
 
 	private  float documentRelevanceFactor;
 
@@ -96,6 +103,12 @@ public class Configuration {
 	private  String normalization;
 	
 	private boolean usePreCalculatedFreqs;
+	
+	private boolean randomControlPoints;
+	
+	private boolean disableOutliers;
+	
+	private float pageRankAlpha;
 	
 	private static Configuration instance;
 
@@ -134,7 +147,6 @@ public class Configuration {
 		dbPassword = properties.getProperty(DB_PASSWORD);
 		try {
 			dbBatchSize = Integer.parseInt(properties.getProperty(DB_BATCH_SIZE).trim());
-			DatabaseService.batchSize = dbBatchSize;
 		}catch (NumberFormatException e) {
 			logger.warn("Cannot parse database batch size value: " + properties.getProperty(DB_BATCH_SIZE), e);
 		}
@@ -146,23 +158,43 @@ public class Configuration {
 		mendeleyClientSecret = properties.getProperty(MENDELEY_CLIENT_SECRET);
 		mendeleyHost = properties.getProperty(MENDELEY_HOST);
 
-		String prop = properties.getProperty(MININUM_PERCENT_OF_TERMS);
+		String prop = properties.getProperty(MININUM_PERCENT_OF_DOCUMENTS);
 		if ( prop != null ){
 			try {
-				minimumPercentOfTerms = Float.parseFloat(prop.trim());	
+				minimumPercentOfDocuments = Float.parseFloat(prop.trim());	
 			} catch( NumberFormatException e){
-				logger.warn("Cannot parse minimum percente of terms value: " + prop, e);
+				logger.warn("Cannot parse minimum percent of documents value: " + prop, e);
 			}
 		}
 		
-		prop = properties.getProperty(MAXIMUM_PERCENT_OF_TERMS);
+		prop = properties.getProperty(MAXIMUM_PERCENT_OF_DOCUMENTS);
 		if ( prop != null ){
 			try {
-				maximumPercentOfTerms = Float.parseFloat(prop.trim());	
+				maximumPercentOfDocuments = Float.parseFloat(prop.trim());	
 			} catch( NumberFormatException e){
-				logger.warn("Cannot parse maximum percente of terms value: " + prop, e);
+				logger.warn("Cannot parse maximum percent of documents value: " + prop, e);
 			}
 		}
+		
+		prop = properties.getProperty(MININUM_NUMBER_OF_TERMS);
+		if ( prop != null ){
+			try {
+				minimumNumberOfTerms = Integer.parseInt(prop.trim());	
+			} catch( NumberFormatException e){
+				logger.warn("Cannot parse minimum number of terms value: " + prop, e);
+			}
+		}
+		
+		prop = properties.getProperty(MAXIMUM_NUMBER_OF_TERMS);
+		if ( prop != null ){
+			try {
+				maximumNumberOfTerms = Integer.parseInt(prop.trim());	
+			} catch( NumberFormatException e){
+				logger.warn("Cannot parse maximum number of terms value: " + prop, e);
+				maximumNumberOfTerms = Integer.MAX_VALUE;
+			}
+		}
+		
 
 		prop = properties.getProperty(DOCUMENT_RELEVANCE_FACTOR, "1");
 		try {
@@ -244,8 +276,19 @@ public class Configuration {
 			logger.warn("Cannot parse weight D value: " + prop, e);
 		}
 		
+		prop = properties.getProperty(PAGE_RANK_ALPHA);
+		if ( prop != null ){
+			try {
+				pageRankAlpha = Float.parseFloat(prop.trim());	
+			} catch( NumberFormatException e){
+				logger.warn("Cannot parse Page Rank alpha value: " + prop, e);
+			}
+		}
+		
 		normalization = properties.getProperty(NORMALIZATION);
 		usePreCalculatedFreqs = Boolean.parseBoolean(properties.getProperty(USE_PRE_CALCULATED_FREQS));
+		randomControlPoints  = Boolean.parseBoolean(properties.getProperty(RANDOM_CONTROL_POINTS));
+		disableOutliers  = Boolean.parseBoolean(properties.getProperty(DISABLE_OUTLIERS));
 		
 		return this;
 	}
@@ -265,8 +308,11 @@ public class Configuration {
 		properties.setProperty(MENDELEY_CLIENT_SECRET, mendeleyClientSecret);
 		properties.setProperty(MENDELEY_HOST, mendeleyHost);
 		
-		properties.setProperty(MININUM_PERCENT_OF_TERMS, Float.toString(minimumPercentOfTerms));
-		properties.setProperty(MAXIMUM_PERCENT_OF_TERMS, Float.toString(maximumPercentOfTerms));
+		properties.setProperty(MININUM_PERCENT_OF_DOCUMENTS, Float.toString(minimumPercentOfDocuments));
+		properties.setProperty(MAXIMUM_PERCENT_OF_DOCUMENTS, Float.toString(maximumPercentOfDocuments));
+		
+		properties.setProperty(MININUM_NUMBER_OF_TERMS, Integer.toString(minimumNumberOfTerms));
+		properties.setProperty(MAXIMUM_NUMBER_OF_TERMS, Integer.toString(maximumNumberOfTerms));
 		
 		properties.setProperty(DOCUMENT_RELEVANCE_FACTOR, Float.toString(documentRelevanceFactor));
 		properties.setProperty(AUTHORS_RELEVANCE_FACTOR, Float.toString(authorsRelevanceFactor));
@@ -284,7 +330,13 @@ public class Configuration {
 		properties.setProperty(WEIGHT_C, Float.toString(weights[2]));
 		properties.setProperty(WEIGHT_D, Float.toString(weights[3]));
 		
+		properties.setProperty(PAGE_RANK_ALPHA, Float.toString(pageRankAlpha));
+		
 		properties.setProperty(NORMALIZATION, normalization);
+		
+		properties.setProperty(USE_PRE_CALCULATED_FREQS, Boolean.toString(usePreCalculatedFreqs));
+		properties.setProperty(RANDOM_CONTROL_POINTS, Boolean.toString(randomControlPoints));
+		properties.setProperty(DISABLE_OUTLIERS, Boolean.toString(disableOutliers));
 		
 		properties.store(new FileOutputStream(configFile), null);
 	}
@@ -377,20 +429,36 @@ public class Configuration {
 		this.dbPassword = dbPassword;
 	}
 
-	public float getMinimumPercentOfTerms() {
-		return minimumPercentOfTerms;
+	public float getMinimumPercentOfDocuments() {
+		return minimumPercentOfDocuments;
 	}
 
-	public void setMinimumPercentOfTerms(float minimumPercentOfTerms) {
-		this.minimumPercentOfTerms = minimumPercentOfTerms;
+	public void setMinimumPercentOfDocuments(float minimumPercentOfTerms) {
+		this.minimumPercentOfDocuments = minimumPercentOfTerms;
 	}
 	
-	public float getMaximumPercentOfTerms() {
-		return maximumPercentOfTerms;
+	public float getMaximumPercentOfDocuments() {
+		return maximumPercentOfDocuments;
 	}
 	
-	public void setMaximumPercentOfTerms(float maximumPercentOfTerms) {
-		this.maximumPercentOfTerms = maximumPercentOfTerms;
+	public void setMaximumPercentOfDocuments(float maximumPercentOfTerms) {
+		this.maximumPercentOfDocuments = maximumPercentOfTerms;
+	}
+	
+	public int getMinimumNumberOfTerms() {
+		return minimumNumberOfTerms;
+	}
+	
+	public void setMinimumNumberOfTerms(int minimumNumberOfTerms) {
+		this.minimumNumberOfTerms = minimumNumberOfTerms;
+	}
+	
+	public int getMaximumNumberOfTerms() {
+		return maximumNumberOfTerms;
+	}
+	
+	public void setMaximumNumberOfTerms(int maximumNumberOfTerms) {
+		this.maximumNumberOfTerms = maximumNumberOfTerms;
 	}
 
 	public float getDocumentRelevanceFactor() {
@@ -472,4 +540,29 @@ public class Configuration {
 	public void setUsePreCalculatedFreqs(boolean usePreCalculatedFreqs) {
 		this.usePreCalculatedFreqs = usePreCalculatedFreqs;
 	}
+	
+	public boolean isRandomControlPoints() {
+		return randomControlPoints;
+	}
+	
+	public void setRandomControlPoints(boolean randomControlPoints) {
+		this.randomControlPoints = randomControlPoints;
+	}
+	
+	public boolean isDisableOutliers() {
+		return disableOutliers;
+	}
+	
+	public void setDisableOutliers(boolean disableOutliers) {
+		this.disableOutliers = disableOutliers;
+	}
+	
+	public float getPageRankAlpha() {
+		return pageRankAlpha;
+	}
+	
+	public void setPageRankAlpha(float pageRankAlpha) {
+		this.pageRankAlpha = pageRankAlpha;
+	}
+	
 }

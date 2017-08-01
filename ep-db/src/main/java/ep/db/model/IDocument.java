@@ -48,7 +48,7 @@ public interface IDocument extends Comparable<IDocument>{
     
     public void setCluster(int cluster);
     
-    public String getUrl();
+    public String getPath();
     
     public List<Long> getReferences();
     

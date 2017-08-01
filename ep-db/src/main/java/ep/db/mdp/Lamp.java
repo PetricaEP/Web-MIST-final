@@ -76,13 +76,17 @@ public class Lamp {
 	 * @param x matriz com valores a serem projetados (N x M).
 	 * @return matriz de projeção multimensional (N x 2).
 	 */
-	public FloatMatrix2D project(FloatMatrix2D x){
+	public FloatMatrix2D project(FloatMatrix2D x, boolean randomCPSelection){
 		FloatMatrix2D xs, ys;
 
 		// Seleciona control points aleatoriamente
 		int n = (int) Math.sqrt( x.rows() );
-		int[] cpoints = IntStream.range(0, x.rows()).distinct().sorted().limit(n).toArray();
-
+		int[] cpoints;
+		if ( randomCPSelection )
+			cpoints = IntStream.range(0, x.rows()).distinct().sorted().limit(n).toArray();
+		else
+			cpoints = IntStream.range(0, n).distinct().sorted().toArray(); 
+		
 		// Projeta control points usando MDS
 		ForceScheme forceScheme = new ForceScheme();
 		xs = x.viewSelection(cpoints, null).copy();
@@ -90,6 +94,7 @@ public class Lamp {
 
 		// Projeta restante dos pontos
 		return project(x, cpoints, ys);
+		
 	}
 
 	/**

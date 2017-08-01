@@ -18,6 +18,7 @@ import java.util.stream.Collectors;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import cern.colt.matrix.tfloat.FloatMatrix1D;
 import cern.colt.matrix.tfloat.FloatMatrix2D;
 import cern.colt.matrix.tfloat.impl.SparseFloatMatrix2D;
 import edu.uci.ics.jung.algorithms.scoring.PageRank;
@@ -54,16 +55,11 @@ public class DatabaseService {
 	public static final Pattern TSV_VALUE_PATTERN = Pattern.compile("\\d+(\\w?)");
 
 	/**
-	 * Tamanho do batch (para inserções)
-	 */
-	public static int batchSize = 50;
-
-	/**
 	 * SQL para inserção de um novo documento
 	 */
 	private static final String INSERT_DOC = "INSERT INTO documents AS d (title, doi, keywords, abstract, "
-			+ "publication_date, volume, pages, issue, container, container_issn, language ) "
-			+ "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::regconfig) ON CONFLICT (doi) DO UPDATE "
+			+ "publication_date, volume, pages, issue, container, container_issn, language, path, enabled ) "
+			+ "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::regconfig, ?, ?) ON CONFLICT (doi) DO UPDATE "
 			+ "SET title = coalesce(d.title, excluded.title),"
 			+ "keywords=coalesce(d.keywords, excluded.keywords), "
 			+ "abstract = coalesce(d.abstract, excluded.abstract),"
@@ -73,7 +69,9 @@ public class DatabaseService {
 			+ "issue = coalesce(d.issue, excluded.issue), "
 			+ "container = coalesce(d.container, excluded.container), "
 			+ "container_issn = coalesce(d.container_issn, excluded.container_issn), "
-			+ "language = coalesce(d.language, excluded.language) ";
+			+ "language = coalesce(d.language, excluded.language) "
+			+ "path = coalesce(d.path, excluded.path) "
+			+ "enabled = coalesce(d.enabled, excluded.enabled)";
 
 	/**
 	 * SQL para inserção de novo autor
@@ -122,19 +120,19 @@ public class DatabaseService {
 			+ "(SELECT doc_id, string_agg(a.aut_name,';') authors_name, sum(a.relevance) relevance "
 			+ "FROM document_authors da INNER JOIN authors a "
 			+ "ON da.aut_id = a.aut_id GROUP BY da.doc_id) a ON d.doc_id = a.doc_id, "
-			+ "to_tsquery(?) query WHERE query @@ tsv ORDER BY rank DESC, score DESC LIMIT ?";
+			+ "to_tsquery(?) query WHERE query @@ tsv AND d.enabled is TRUE ORDER BY rank DESC, score DESC LIMIT ?";
 
 	private static final String SEARCH_SQL_ALL = "SELECT " + SQL_SELECT_COLUMNS + ", dd.relevance score FROM documents d "
 			+ "INNER JOIN documents_data dd ON d.doc_id = dd.doc_id LEFT JOIN "
 			+ "(SELECT doc_id, string_agg(a.aut_name,';') authors_name, sum(a.relevance) relevance FROM document_authors da INNER JOIN authors a "
-			+ "ON da.aut_id = a.aut_id GROUP BY da.doc_id) a ON d.doc_id = a.doc_id "
+			+ "ON da.aut_id = a.aut_id GROUP BY da.doc_id) a ON d.doc_id = a.doc_id WHERE d.enabled is TRUE "
 			+ "ORDER BY rank DESC";
 
 	private static final String ADVANCED_SEARCH_SQL = "SELECT " + SQL_SELECT_COLUMNS + " %s FROM documents d "
 			+ "INNER JOIN documents_data dd ON d.doc_id = dd.doc_id LEFT JOIN "
 			+ "(SELECT doc_id, string_agg(a.aut_name,';') authors_name, sum(a.relevance) relevance, "
 			+ "array_to_tsvector2(array_agg(aut_name_tsv)) aut_name_tsv FROM document_authors da INNER JOIN authors a "
-			+ "ON da.aut_id = a.aut_id GROUP BY da.doc_id) a ON d.doc_id = a.doc_id "
+			+ "ON da.aut_id = a.aut_id GROUP BY da.doc_id) a ON d.doc_id = a.doc_id WHERE d.enabled is TRUE "
 			+ "%s ORDER BY rank DESC LIMIT ?";
 
 	private static final String DOCUMENTS_DATA_SQL = "SELECT " + SQL_SELECT_COLUMNS + ", dd.relevance score, dd.node_id "
@@ -143,13 +141,13 @@ public class DatabaseService {
 			+ "FROM documents_data dd) dd INNER JOIN documents d ON dd.doc_id = d.doc_id LEFT JOIN "
 			+ "(SELECT doc_id, string_agg(a.aut_name,';') authors_name, sum(a.relevance) relevance "
 			+ "FROM document_authors da INNER JOIN authors a "
-			+ "ON da.aut_id = a.aut_id GROUP BY da.doc_id) a ON d.doc_id = a.doc_id WHERE r <= ? "
+			+ "ON da.aut_id = a.aut_id GROUP BY da.doc_id) a ON d.doc_id = a.doc_id WHERE r <= ? AND d.enabled is TRUE "
 			+ "ORDER BY node_id,rank DESC";
 
 	private static final String DOCUMENTS_NODE_SQL = "SELECT " + SQL_SELECT_COLUMNS + ", d.relevance FROM (SELECT * FROM "
 			+ "documents_data dd WHERE dd.node_id = ? ) dd INNER JOIN documents d ON d.doc_id = dd.doc_id LEFT JOIN "
 			+ "(SELECT doc_id, string_agg(a.aut_name,';') authors_name, sum(a.relevance) relevance FROM document_authors da INNER JOIN authors a "
-			+ "ON da.aut_id = a.aut_id GROUP BY da.doc_id) a ON d.doc_id = a.doc_id ORDER BY rank "
+			+ "ON da.aut_id = a.aut_id GROUP BY da.doc_id) a ON d.doc_id = a.doc_id WHERE d.enabled is TRUE ORDER BY rank "
 			+ "DESC LIMIT ? OFFSET ?";
 
 	private static final String NODE_DATA_SQL = "SELECT *, (select count(*) as nDocuments FROM documents_data dn "
@@ -255,29 +253,30 @@ public class DatabaseService {
 		String where = sql.toString();
 		Configuration config = Configuration.getInstance();
 
-		int minNumOfTerms = (int) Math.ceil(numberOfDocuments * config.getMinimumPercentOfTerms());
-		int maxNumOfTerms = (int) Math.ceil(numberOfDocuments * config.getMaximumPercentOfTerms());
+		int minNumOfDocs = (int) Math.ceil(numberOfDocuments * config.getMinimumPercentOfDocuments());
+		int maxNumOfDocs = (int) Math.ceil(numberOfDocuments * config.getMaximumPercentOfDocuments());
 
 		// Recupera frequencia indiviual de cada termo na base de dados (todos os documentos)
-		final Map<String, Integer> termsCount = getTermsCounts(where, minNumOfTerms, maxNumOfTerms);
+		final Map<String, Integer> termsCount = getTermsCounts(where, minNumOfDocs, maxNumOfDocs);
 
 		// Mapeamento termo -> coluna na matriz (bag of words)
 		final Map<String, Integer> termsToColumnMap = new HashMap<>();
-		int c = 0;
+		int c = 1;
 		for(String key : termsCount.keySet()){
 			termsToColumnMap.put(key, c);
 			++c;
 		}
 
-		FloatMatrix2D matrix = new SparseFloatMatrix2D(numberOfDocuments, termsCount.size()); 
+		// No. de linhas = no. de documentos e no.de colunas = no. de termos + 1 (coluna de doc_id's)
+		FloatMatrix2D matrix = new SparseFloatMatrix2D(numberOfDocuments, termsCount.size()+1); 
 
 		tfidfCalc.setTermsCount(termsCount);
 
 		// Popula matriz com frequencia dos termos em cada documento
 		if ( config.isUsePreCalculatedFreqs() )
-			buildFrequencyMatrix(matrix, termsToColumnMap, where, true, tfidfCalc );
+			buildFrequencyMatrix(matrix, termsToColumnMap, where, tfidfCalc );
 		else
-			buildFrequencyMatrixFromTSV(matrix, termsToColumnMap, where, true, tfidfCalc );
+			buildFrequencyMatrixFromTSV(matrix, termsToColumnMap, where, tfidfCalc );
 
 		return matrix;
 	}
@@ -291,6 +290,9 @@ public class DatabaseService {
 	 */
 	public long addDocument(Document doc) throws Exception {
 		long docId = -1;
+		
+		boolean isCompleted = Utils.isDocumentCompleted(doc);
+		
 		try ( Connection conn = db.getConnection();){
 			PreparedStatement stmt = conn.prepareStatement(INSERT_DOC, Statement.RETURN_GENERATED_KEYS);
 			stmt.setString(1, doc.getTitle());
@@ -304,6 +306,8 @@ public class DatabaseService {
 			stmt.setString(9, doc.getContainer());
 			stmt.setString(10, doc.getISSN());
 			stmt.setString(11, doc.getLanguage());
+			stmt.setString(12, doc.getPath());
+			stmt.setBoolean(13, isCompleted);
 			stmt.executeUpdate();
 			ResultSet rs = stmt.getGeneratedKeys();
 			if (rs.next()){
@@ -345,6 +349,8 @@ public class DatabaseService {
 			int count = 0;
 
 			for( Document doc: documents ){
+				boolean isCompleted = Utils.isDocumentCompleted(doc);
+				
 				stmt.setString(1, doc.getTitle());
 				stmt.setString(2, doc.getDOI());
 				stmt.setString(3, doc.getKeywords());
@@ -356,9 +362,11 @@ public class DatabaseService {
 				stmt.setString(9, doc.getContainer());
 				stmt.setString(10, doc.getISSN());
 				stmt.setString(11, doc.getLanguage());
+				stmt.setString(12, doc.getPath());
+				stmt.setBoolean(13, isCompleted);
 				stmt.addBatch();
 
-				if (++count % batchSize == 0){
+				if (++count % Configuration.getInstance().getDbBatchSize() == 0){
 					stmt.executeBatch();
 					getGeneratedKeys(docIds, stmt.getGeneratedKeys());
 				}
@@ -402,7 +410,7 @@ public class DatabaseService {
 					stmt.setString(1, author.getName());
 					stmt.addBatch();
 
-					if(++count % batchSize == 0){
+					if(++count % Configuration.getInstance().getDbBatchSize() == 0){
 						stmt.executeBatch();
 						getGeneratedKeys(ids, stmt.getGeneratedKeys());
 					}
@@ -444,7 +452,7 @@ public class DatabaseService {
 					stmt.setLong(2,aut.getId());
 					stmt.addBatch();
 
-					if (++count % batchSize == 0){
+					if (++count % Configuration.getInstance().getDbBatchSize() == 0){
 						stmt.executeBatch();
 					}
 				}
@@ -541,13 +549,17 @@ public class DatabaseService {
 	 * @return mapa de termos ordenados pela contagem absoluta.
 	 * @throws Exception
 	 */
-	private Map<String, Integer> getTermsCounts(String where, int minNumberOfTerms, int maxNumberOfTerms) throws Exception {
+	private Map<String, Integer> getTermsCounts(String where, 
+			int minNumberOfDocs, int maxNumberOfDocs) throws Exception {
 		try ( Connection conn = db.getConnection();){
 
 			String sql = "SELECT word,ndoc FROM ts_stat('SELECT tsv FROM documents";
 			if ( where != null && !where.isEmpty() )
 				sql += where;
-			sql += String.format("') WHERE nentry > 1 AND ndoc > %d AND ndoc < %d", minNumberOfTerms, maxNumberOfTerms);
+			sql += String.format("') WHERE nentry > %d AND nentry < %d AND ndoc > %d AND ndoc < %d", 
+					Configuration.getInstance().getMinimumNumberOfTerms(), 
+					Configuration.getInstance().getMaximumNumberOfTerms(),
+					minNumberOfDocs, maxNumberOfDocs);
 
 			Statement stmt = conn.createStatement();
 			ResultSet rs = stmt.executeQuery(sql);
@@ -570,18 +582,18 @@ public class DatabaseService {
 	 * @param termsCount mapa com os termos ordenados por frequência. 
 	 * @param termsToColumnMap mapa de termos para indice da coluna na matrix de frequência.
 	 * @param where clause WHERE em SQL para filtragem de documentos por id's.
-	 * @param normalize se <code>true</code> a frequência de cada termo será normalizada,
 	 * caso contrário a frequência absoluta é considerada.
 	 * @throws Exception erro ao executar consulta.
 	 */
 	private void buildFrequencyMatrix(FloatMatrix2D matrix,Map<String, Integer> termsToColumnMap,
-			String where, boolean normalize, TFIDF tfidfCalc) throws Exception {
+			String where, TFIDF tfidfCalc) throws Exception {
 		try ( Connection conn = db.getConnection();){
 
-			String sql = "SELECT freqs FROM documents";
+			String sql = "SELECT d.doc_id, freqs FROM documents d INNER JOIN documents_data da "
+					+ "ON d.doc_id = da.doc_id";
 			if ( where != null)
 				sql += where;
-			sql += " ORDER BY doc_id";
+			sql += " ORDER BY da.relevance DESC, d.doc_id";
 
 			Statement stmt = conn.createStatement();
 			ResultSet rs = stmt.executeQuery(sql);
@@ -592,7 +604,10 @@ public class DatabaseService {
 			ObjectMapper mapper = new ObjectMapper();
 
 			while( rs.next() ){
-				String terms = rs.getString("freqs");
+				long docId = rs.getLong(1);
+				String terms = rs.getString(2);
+				matrix.set(doc, 0, docId); //Coloca docId na primeira coluna
+		
 				if ( terms != null && !terms.isEmpty() ){
 
 					List<Map<String,Object>> t = mapper.readValue(terms, 
@@ -628,18 +643,18 @@ public class DatabaseService {
 	 * @param termsCount mapa com os termos ordenados por frequência. 
 	 * @param termsToColumnMap mapa de termos para indice da coluna na matrix de frequência.
 	 * @param where clause WHERE em SQL para filtragem de documentos por id's.
-	 * @param normalize se <code>true</code> a frequência de cada termo será normalizada,
 	 * caso contrário a frequência absoluta é considerada.
 	 * @throws Exception erro ao executar consulta.
 	 */
 	private void buildFrequencyMatrixFromTSV(FloatMatrix2D matrix,Map<String, Integer> termsToColumnMap,
-			String where, boolean normalize, TFIDF tfidfCalc) throws Exception {
+			String where, TFIDF tfidfCalc) throws Exception {
 		try ( Connection conn = db.getConnection();){
 
-			String sql = "SELECT tsv::varchar tsv_str FROM documents";
+			String sql = "SELECT d.doc_id, tsv::varchar tsv_str FROM documents d INNER JOIN documents_data da "
+					+ "ON d.doc_id = da.doc_id";
 			if ( where != null)
 				sql += where;
-			sql += " ORDER BY doc_id";
+			sql += " ORDER BY da.relevance DESC, d.doc_id";
 
 			Statement stmt = conn.createStatement();
 			ResultSet rs = stmt.executeQuery(sql);
@@ -648,7 +663,9 @@ public class DatabaseService {
 			// Numero de documentos
 			long n = matrix.rows();
 			while( rs.next() ){
-				Map<String, String> terms = parseTSV(rs.getString("tsv_str"));
+				long docId = rs.getLong(1);
+				Map<String, String> terms = parseTSV(rs.getString(2));
+				matrix.set(doc, 0, docId); // Coloca docId na primeira coluna
 				if ( terms != null && !terms.isEmpty() ){
 					for(String term : terms.keySet()){
 						if ( termsToColumnMap.containsKey(term)){
@@ -709,29 +726,29 @@ public class DatabaseService {
 
 	/**
 	 * Atualiza projeção dos documentos
+	 * @param docIds matrix 1D (vetor) com docId's.
 	 * @param y matrix de projeção N x 2, onde N é o 
 	 * número de documentos.
 	 * @throws Exception erro ao executar atualização.
 	 */
-	public void updateXYProjections(FloatMatrix2D y) throws Exception {
+	public void updateXYProjections(FloatMatrix1D docIds, FloatMatrix2D y) throws Exception {
 		Connection conn = null;
 		try { 
 			conn = db.getConnection();
 			conn.setAutoCommit(false);
 
 			PreparedStatement pstmt = conn.prepareStatement(UPDATE_XY);
-			Statement stmt = conn.createStatement();
-			ResultSet rs = stmt.executeQuery("SELECT doc_id FROM documents ORDER BY doc_id");
+			
 			int doc = 0;
-			while( rs.next() ){
-				long id = rs.getLong("doc_id");
+			for(int i = 0; i < docIds.size(); i++){
+				long id = (long) docIds.getQuick(i);
 				pstmt.setDouble(1, y.get(doc, 0));
 				pstmt.setDouble(2, y.get(doc, 1));
 				pstmt.setLong(3, id);
 				pstmt.addBatch();
 				++doc;
 
-				if ( doc % 50 == 0)
+				if ( doc % Configuration.getInstance().getDbBatchSize() == 0)
 					pstmt.executeBatch();
 			}
 
@@ -1300,5 +1317,37 @@ public class DatabaseService {
 			System.out.println(e.getMessage());
 		}
 		return result;
+	}
+
+	public void disableDocuments(FloatMatrix1D docIds) throws SQLException {
+		Connection conn = null;
+		try { 
+			conn = db.getConnection();
+			conn.setAutoCommit(false);
+
+			PreparedStatement pstmt = conn.prepareStatement("UPDATE documents SET enabled = FALSE WHERE doc_id = ?");
+			
+			int doc = 0;
+			for(int i = 0; i < docIds.size(); i++){
+				long id = (long) docIds.getQuick(i);
+				pstmt.setDouble(1, id);
+				pstmt.addBatch();
+				++doc;
+
+				if ( doc % Configuration.getInstance().getDbBatchSize() == 0)
+					pstmt.executeBatch();
+			}
+
+			pstmt.executeBatch();
+			conn.commit();
+
+		}catch( Exception e){
+			if ( conn != null )
+				conn.rollback();
+			throw e;
+		}finally {
+			if ( conn != null )
+				conn.close();
+		}
 	}
 }
