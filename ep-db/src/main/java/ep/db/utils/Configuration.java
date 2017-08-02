@@ -100,7 +100,7 @@ public class Configuration {
 	
 	private  Float[] weights;
 
-	private  String normalization;
+	private  int normalization;
 	
 	private boolean usePreCalculatedFreqs;
 	
@@ -285,7 +285,15 @@ public class Configuration {
 			}
 		}
 		
-		normalization = properties.getProperty(NORMALIZATION);
+		prop = properties.getProperty(NORMALIZATION);
+		if ( prop != null ){
+			try {
+				normalization = Integer.parseInt(prop.trim());	
+			} catch( NumberFormatException e){
+				logger.warn("Cannot parse normalization value: " + prop, e);
+			}
+		}
+		
 		usePreCalculatedFreqs = Boolean.parseBoolean(properties.getProperty(USE_PRE_CALCULATED_FREQS));
 		randomControlPoints  = Boolean.parseBoolean(properties.getProperty(RANDOM_CONTROL_POINTS));
 		disableOutliers  = Boolean.parseBoolean(properties.getProperty(DISABLE_OUTLIERS));
@@ -332,7 +340,7 @@ public class Configuration {
 		
 		properties.setProperty(PAGE_RANK_ALPHA, Float.toString(pageRankAlpha));
 		
-		properties.setProperty(NORMALIZATION, normalization);
+		properties.setProperty(NORMALIZATION, Integer.toString(normalization));
 		
 		properties.setProperty(USE_PRE_CALCULATED_FREQS, Boolean.toString(usePreCalculatedFreqs));
 		properties.setProperty(RANDOM_CONTROL_POINTS, Boolean.toString(randomControlPoints));
@@ -525,11 +533,11 @@ public class Configuration {
 		this.weights = weights;
 	}
 	
-	public String getNormalization() {
+	public int getNormalization() {
 		return normalization;
 	}
 	
-	public void setNormalization(String normalization) {
+	public void setNormalization(int normalization) {
 		this.normalization = normalization;
 	}
 

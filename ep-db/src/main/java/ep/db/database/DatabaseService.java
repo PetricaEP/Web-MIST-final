@@ -1,5 +1,6 @@
 package ep.db.database;
 
+import java.sql.Array;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -985,8 +986,9 @@ public class DatabaseService {
 			PreparedStatement stmt = conn.prepareStatement(
 					String.format(SEARCH_SQL, config.getDocumentRelevanceFactor(), config.getAuthorsRelevanceFactor()));
 			
-			stmt.setObject(1, conn.createArrayOf("float4", config.getWeights()));
-			stmt.setString(2, config.getNormalization());
+			Array array = conn.createArrayOf("float4", config.getWeights());
+			stmt.setArray(1, array);
+			stmt.setInt(2, config.getNormalization());
 			stmt.setString(3, querySearch);
 			if ( limit > 0)
 				stmt.setInt(4, limit);
@@ -1076,19 +1078,19 @@ public class DatabaseService {
 			int index = 1;
 			if (querySearch != null){
 				stmt.setArray(index++, conn.createArrayOf("float4", config.getWeights())); // index = 2
-				stmt.setString(index++, config.getNormalization()); //index = 3
+				stmt.setInt(index++, config.getNormalization()); //index = 3
 				if ( authors.isEmpty() ){
 					stmt.setString(index++, querySearch); //index = 4
 				}
 				else{
-					stmt.setString(index++, config.getNormalization()); //index = 4
+					stmt.setInt(index++, config.getNormalization()); //index = 4
 					stmt.setString(index++, querySearch); //index = 5
 					stmt.setString(index++, authors); //index = 6
 				}
 				// index = 3 ou 4
 			}
 			else if ( !authors.isEmpty() ){
-				stmt.setString(index++, config.getNormalization()); //index = 2
+				stmt.setInt(index++, config.getNormalization()); //index = 2
 				stmt.setString(index++, authors); //index = 3
 			}
 
