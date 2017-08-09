@@ -20,7 +20,7 @@ CREATE TABLE documents (
 	issue				varchar(100),
 	container			varchar(255),
 	container_issn		varchar(100),
-	language			regconfig,
+	language			regconfig default 'english'::regconfig,
 	tsv					tsvector,
 	freqs				jsonb,
 	path				varchar(300),
