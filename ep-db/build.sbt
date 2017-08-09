@@ -32,5 +32,6 @@ libraryDependencies ++= Seq(
   "org.jfree" % "jfreechart" % "1.0.19",
   "net.sourceforge.parallelcolt" % "parallelcolt" % "0.10.1",
   "org.jsoup" % "jsoup" % "1.10.3",
-  "me.tongfei" % "progressbar" % "0.5.5"
+  "me.tongfei" % "progressbar" % "0.5.5",
+  "org.jbibtex" % "jbibtex" % "1.0.15"
 )
