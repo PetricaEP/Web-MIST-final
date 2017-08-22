@@ -48,8 +48,11 @@ createVisualization = function(jsonData){
 
 	var svg = d3.select("#" + currentTab.id + " svg"),
 	width = $("#" + currentTab.id + " svg").width(),
-	height = $("#" + currentTab.id + " svg").height();
+	height = width * 6 / 16; //$("#" + currentTab.id + " svg").height();
 
+	$("#" + currentTab.id + " svg").height(height);
+	$(".tab-content").height(height);
+	
 	svg.attr('width', width);
 	svg.attr('height', height);
 
@@ -66,10 +69,25 @@ createVisualization = function(jsonData){
 	if ( n === 0 ){
 		return;
 	}
+	
+	// Valores min/max das coordenadas x,y 
+	// dos documentos atuais
+	var minX = -1, 
+	maxX = 1,
+	minY = -1,
+	maxY = 1;
+	
+	if ( typeof jsonData.min_max !== "undefined" && jsonData.min_max.length == 4){
+		minX = jsonData.min_max[0];
+		maxX = jsonData.min_max[1];
+		minY = jsonData.min_max[2];
+		maxY = jsonData.min_max[3];
+	}
 
 	// Inicializa transformações 2D (x,y) 
 	// do intervalo [-1,1] para [0, width,height]
-	currentTab.xy(width, height);
+	currentTab.xy(width, height, minX, maxX, minY, maxY);
+	currentTab.xy_inverse(width, height);
 
 	// Criar contornos
 	var contours = d3.contourDensity()
@@ -139,7 +157,10 @@ createVisualization = function(jsonData){
 	.attr('fill', function(d) { return  selectedTab.clusterColor(d.cluster);})
 	.attr('stroke', 'black')
 	.attr('stroke-width', 1)
-	.attr('fill-opacity', 0.65);
+	.attr('fill-opacity', 0.65)
+	.on("mouseover", showTip)
+	.on("mouseout", hideTip)
+	.on("click", toggleLinks);
 
 	// Se há pontos de densidade, 
 	// então desenha na visualização.
@@ -168,43 +189,35 @@ createVisualization = function(jsonData){
 		.attr('stroke-width', 1.5)
 		.attr("marker-end", function(d) { return "url(#link)"; });
 	}
-
-	// Ferramenta de seleção (escondia por enquanto).
+	
+	// Ferramenta de seleção (escondida por enquanto).
 	var selection = svg.append("path")
 	.attr("class", "selection")
 	.attr("visibility", "hidden");
 
-	// Zoom: inicia seleção
-	var startSelection = function(start) {
-		selection.attr("d", rect(start[0], start[0], 0, 0))
-		.attr("visibility", "visible");
-	};
-	// Zoom: selecionando
-	var moveSelection = function(start, moved) {
-		selection.attr("d", rect(start[0], start[1], moved[0]-start[0], moved[1]-start[1]));
-	};
-	// Zoom: fim da seleção
-	var endSelection = function(start, end) {
-		selection.attr("visibility", "hidden");
-		selectArea(start,end);
-	};
-
+	var isActive = $("#zoom-btn").hasClass("active");
+	if ( isActive )
+		activeZoom( svg );
+	else
+		desactiveZoom ( svg );
+	
 	// Eventos de seleção (zoom)
-	svg.on("mousedown", function() {
-		var isActive = $("#zoom-btn").hasClass("active");
-		if ( isActive ){
-			var subject = d3.select(window), parent = this.parentNode,
-			start = d3.mouse(parent);
-			startSelection(start);
-			subject
-			.on("mousemove.selection", function() {
-				moveSelection(start, d3.mouse(parent));
-			}).on("mouseup.selection", function() {
-				endSelection(start, d3.mouse(parent));
-				subject.on("mousemove.selection", null).on("mouseup.selection", null);
-			});
-		}
-	});
+//	svg.on("mouseover", function() {
+//		var isActive = $("#zoom-btn").hasClass("active");
+//		if ( isActive ){
+//			var subject = svg, parent = this.parentNode,
+//			start = d3.mouse(parent);
+//			startSelection(start);
+//			subject
+////			.on("mousemove.selection", function() {
+////				moveSelection(start, d3.mouse(parent));
+////			})
+//			.on("click.selection", function() {
+//				endSelection(start, d3.mouse(parent));
+//				subject.on("mousemove.selection", null).on("mouseup.selection", null);
+//			});
+//		}
+//	});
 
 	// Mostra tooltips sobre os pontos de densidade,
 	// apenas coordenadas x,y.
@@ -260,28 +273,33 @@ function thirdStep(){
 	.strength(collideStrength)
 	.iterations(1); //somente 1 iteração (economia de memoria).
 
-	// Força entre links (citações)
-	// Circulos com alguma ligação serão posicionados 
-	// próximos caso strength != 0.
-	// Default strenght == 0 (somente exibe links/setas)
-	var forceLink = d3.forceLink()
-	.id(function(d) { return d.id; })
-	.links(selectedTab.links)
-	.strength(0)
-	.distance(0);
-
 	// Força de atração
 	// Evita dispersão
 	var forceGravity = d3.forceManyBody()
 	.strength( manyBodyStrength );
-
+	
 	// Inicializa simulação
 	selectedTab.simulation = d3.forceSimulation(selectedTab.nodes)
-	.force('link', forceLink)
+//	.force('link', forceLink)
 	.force("collide", forceCollide)
 	.force("gravity", forceGravity)
 	.on("tick", ticked)
 	.on("end", endSimulation);
+	
+	// Força entre links (citações)
+	// Circulos com alguma ligação serão posicionados 
+	// próximos caso strength != 0.
+	// Default strenght == 0 (somente exibe links/setas)
+	if ( selectedTab.links !== null ){
+		var forceLink = d3.forceLink()
+		.id(function(d) { return d.id; })
+		.links(selectedTab.links)
+		.strength(0)
+		.distance(0);
+		
+		selectedTab.simulation
+		.force("link", forceLink);
+	}
 
 	// Se a força de clusterização estiver selecionada,
 	// ativa a força na simulação.
@@ -295,9 +313,9 @@ function thirdStep(){
  * @param end posicao x,y final
  * @returns void
  **/
-function selectArea(start, end){
+function selectArea(p){
 	
-	if ( tabCount >= maxNumberOfTabs ){
+	if ( tabs.length >= maxNumberOfTabs ){
 		showMaxTabsAlert();
 		return;
 	}
@@ -305,14 +323,21 @@ function selectArea(start, end){
 	var numClusters = $("#num-clusters").val();
 	var r = jsRoutes.controllers.HomeController.zoom(),
 	width = $("#" + selectedTab.id + " svg").width(),
-	height = $("#" + selectedTab.id + " svg").height();
-
+	height = $("#" + selectedTab.id + " svg").height(),
+	selectionWidth = $(".selection").width(),
+	selectionHeight = $(".selection").height();
+	
+	// Transforma coordenada para espaço original
+	// no intervalo [-1,1]
+	var start = [ selectedTab.x_inv(p[0] - selectionWidth/2 ) , selectedTab.y_inv(p[1] - selectionHeight/2) ],
+	end = [ selectedTab.x_inv(p[0] + selectionWidth/2), selectedTab.y_inv(p[1] + selectionHeight/2)];
 	$.ajax({url: r.url, type: r.type, data: {
 		start: start,
 		end: end,
 		width: width,
 		height: height,
-		numClusters: numClusters
+		numClusters: numClusters,
+		zoomLevel: selectedTab.zoomLevel + 1
 	}, 
 	success: createVisualization, error: errorFn, dataType: "json"});
 }
@@ -324,10 +349,7 @@ function selectArea(start, end){
  */
 function endSimulation(){
 	selectedTab.circles
-	.attr("fill-opacity", 0.65)
-	.on("mouseover", showTip)
-	.on("mouseout", hideTip)
-	.on("click", toggleLinks);
+	.attr("fill-opacity", 0.65);
 
 	$("#reheat-btn").prop('disabled', false);
 }

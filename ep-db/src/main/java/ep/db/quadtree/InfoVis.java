@@ -67,7 +67,7 @@ public class InfoVis {
         desenha(qTree, panelSize.x, panelSize.y);
     }
 
-    public static void desenha(QuadTree quadTree, int panelWidth, int panelHeight) {
+    public static JFrame desenha(QuadTree quadTree, int panelWidth, int panelHeight) {
         Points points = new Points(quadTree, panelWidth, panelHeight);
         JFrame frame = new JFrame("Points");
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -115,7 +115,6 @@ public class InfoVis {
                     //Círculo
                     Point mouseClick = new Point((int) e.getPoint().getX() - 9, (int) e.getPoint().getY() - 31);
                     Vec2 pReal = new Vec2(mapX((int) mouseClick.getX()), mapY((int) mouseClick.getY()));
-                    System.out.println("Click -> Original: " + mouseClick.toString() + " Original: " + pReal.toString());
                     pReal.x = pReal.x - 0.2f;
                     pReal.y = pReal.y - 0.2f;
                     Bounds rectangle = new Bounds(pReal,new Vec2(0.4f,0.4f));
@@ -125,16 +124,14 @@ public class InfoVis {
 //                    quadTree.findNeighbors(pReal, radius, selectedList, selectedNodes, 0);
                     points.setSelectedList(selectedList);
                     points.setSelectedNodes(selectedNodes);
-                    for(int i = 0; i < selectedList.size(); i++){
-                    	System.out.println("Selected: " + selectedList.get(i).getX() + ", " + 
-                    			selectedList.get(i).getY());
-                    }
                     points.setP(mouseClick);
                     points.setRadius(radius);
                     points.repaint();
                 }
             }
         });
+        
+        return frame;
     }
 
     private static void clickedPointToLeftDownRightUp(Vec2 leftDown, Vec2 rightUp) {
@@ -171,7 +168,8 @@ public class InfoVis {
         return (qTreeSize.y * (0.5f - (y / (float) panelSize.y)));
     }
 
-    private static QuadTree testRandomPointTree(Vec2 p0, Vec2 size, int max_depth, int numberOfPoints) {
+    public static QuadTree testRandomPointTree(Vec2 p0, Vec2 size, int max_depth, int numberOfPoints, 
+    		List<IDocument> documents) {
         QuadTree qTree = new QuadTree(new Bounds(new Vec2(p0), new Vec2(size)), null);
 
         Random rand = new Random();
@@ -189,6 +187,7 @@ public class InfoVis {
                         rand.nextFloat() * (xMaxRegion - xMinRegion) + xMinRegion,
                         rand.nextFloat() * (yMaxRegion - yMinRegion) + yMinRegion);
                 qTree.addElement(d);
+                documents.add(d);
             }
             if (i >= numberOfPoints * 0.8f) {
                 break;
@@ -198,6 +197,7 @@ public class InfoVis {
         for (; i < numberOfPoints; i++) {
             IDocument d = new Document(i, rand.nextFloat(), rand.nextFloat() * size.x + p0.x, rand.nextFloat() * size.y + p0.y);
             qTree.addElement(d);
+            documents.add(d);
         }
 
         return qTree;

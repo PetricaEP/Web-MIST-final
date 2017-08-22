@@ -18,6 +18,12 @@ function Tab(id){
 	this.cluterColor = null;
 	this.x = null;
 	this.y = null;
+	this.x_inv = null;
+	this.y_inv = null;
+	this.minX = -1;
+	this.maxX = 1;
+	this.minY = -1;
+	this.maxY= 1;
 	this.zoomLevel = 0;
 }
 
@@ -36,12 +42,25 @@ Tab.prototype.initClusterColor = function(m){
  * @param w width do SVG
  * @param h height do SVG
  */
-Tab.prototype.xy = function(w,h){
+Tab.prototype.xy = function(w,h, minX, maxX, minY, maxY){
+	this.minX = minX;
+	this.maxX = maxX;
+	this.minY = minY;
+	this.maxY= maxY;
 	this.x = function(xx){
-		return w * ( xx / 2.0 + 0.5);
+		return w * ( xx - this.minX) / (this.maxX - this.minX);
 	};
 	this.y = function(yy){
-		return h * (0.5 - yy / 2.0);
+		return h * (yy - this.minY) / (this.maxY - this.minY);
+	};
+};
+
+Tab.prototype.xy_inverse = function(w,h){
+	this.x_inv = function(xx){
+		return xx * (this.maxX - this.minX) / w + this.minX;
+	};
+	this.y_inv = function(yy){
+		return yy * (this.maxY - this.minY) / h + this.minY;
 	};
 };
 

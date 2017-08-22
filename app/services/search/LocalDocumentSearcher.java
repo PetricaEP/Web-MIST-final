@@ -99,7 +99,7 @@ public class LocalDocumentSearcher implements DocumentSearcher {
 
 				// Realiza interpolacão das relevancias 
 				// para obter  os raios de cada documento.
-				int index = interpolateRadii(docs, queryData.getWidth(), queryData.getHeight());
+				int index = interpolateRadii(docs, queryData.getWidth(), queryData.getHeight(), 0);
 
 				// Somente documentos selecionados para exibição,
 				// demais documentos irão compor o mapa de densidade.
@@ -159,12 +159,17 @@ public class LocalDocumentSearcher implements DocumentSearcher {
 
 		try {
 			float x1, y1, x2, y2;
-
-			x1 = mapX(selectionData.getStart()[0], selectionData.getWidth()); // - 0.2f;
-			y1 = mapY(selectionData.getStart()[1], selectionData.getHeight()); // - 0.2f;
-
-			x2 = mapX(selectionData.getEnd()[0], selectionData.getWidth());
-			y2 = mapY(selectionData.getEnd()[1], selectionData.getHeight());
+			
+			x1 = selectionData.getStart()[0];
+			y1 = selectionData.getStart()[1];
+			x2 = selectionData.getEnd()[0];
+			y2 = selectionData.getEnd()[1];
+			
+//			x1 = mapX(x1, selectionData.getWidth()); // - 0.2f;
+//			y1 = mapY(y1, selectionData.getHeight()); // - 0.2f;
+//
+//			x2 = mapX(x2, selectionData.getWidth());
+//			y2 = mapY(y2, selectionData.getHeight());
 			
 			float aux;
 			if ( x1 > x2){
@@ -183,7 +188,7 @@ public class LocalDocumentSearcher implements DocumentSearcher {
 			List<IDocument> documents = new ArrayList<>();
 			List<QuadTreeNode> nodes = new ArrayList<>();
 			quadTree.findInRectangle(rectangle, documents, nodes);
-
+			
 			if ( documents.size() > 0){
 				// Ordena por relevancia (descrescente)
 				documents.sort(Comparator.comparing((IDocument d) -> d.getRank()).reversed());
@@ -213,19 +218,47 @@ public class LocalDocumentSearcher implements DocumentSearcher {
 
 				// Realiza interpolacão das relevancias 
 				// para obter  os raios de cada documento.
-				int index = interpolateRadii(documents, selectionData.getWidth(), selectionData.getHeight());
+				int index = interpolateRadii(documents, 
+						selectionData.getWidth(), 
+						selectionData.getHeight(),
+						selectionData.getZoomLevel());
 
+				// Valores min/max das coordenadas
+				// x,y para interpolação com as dimensões
+				// da tela
+				float minX = documents.get(0).getX(), 
+						maxX = minX, 
+						minY = documents.get(0).getY(), 
+						maxY = minY;
+				
 				double[][] densities = new double[documents.size()-index][2];
-				for(int i = index, j = 0; i < documents.size(); i++, j++){
-					densities[j][0] = documents.get(i).getX();
-					densities[j][1] = documents.get(i).getY();
+				for(int i = 0, j = 0; i < documents.size(); i++){
+					IDocument doc = documents.get(i);
+					float x = doc.getX();
+					float y = doc.getY();
+					
+					if ( i >= index){
+						densities[j][0] = x;
+						densities[j][1] = y;
+						++j;
+					}
+					
+					//Atualiza min/max
+					if ( x > maxX) maxX = x;
+					if ( x < minX) minX = x;
+					if ( y > maxY) maxY = y;
+					if ( y < minY) minY = y;
 				}
 
 
-				result.put("documents", documents);
+				// Somente documentos selecionados para exibição,
+				// demais documentos irão compor o mapa de densidade.
+				
+				result.put("documents", documents.subList(0, index));
 				result.put("density", densities);
 				result.put("nclusters", numClusters);
 				result.put("op", "zoom");
+				result.put("min_max", new float[]{minX, maxX, minY, maxY});
 			}
 			else{
 				result.put("documents", new ArrayList<Document>(0));
@@ -282,16 +315,16 @@ public class LocalDocumentSearcher implements DocumentSearcher {
 		quadTree.loadQuadTree();
 	}
 
-	private int interpolateRadii(List<? extends IDocument> docs, float width, float height) {
-		float maxRev = docs.get(0).getRank(),
-				minRev = docs.get(docs.size()-1).getRank(),
-				maxRadius = width * configuration.getMaxRadiusSizePercent(),
-				minRadius = width * configuration.getMinRadiusSizePercent();
+	private int interpolateRadii(List<? extends IDocument> docs, float width, float height, int zoomLevel) {
+		float maxRev = docs.get(0).getRank() * 1e5f,
+				minRev = docs.get(docs.size()-1).getRank() * 1e5f,
+				maxRadius = width * configuration.getMaxRadiusSizePercent(), //* (zoomLevel+1),
+				minRadius = width * configuration.getMinRadiusSizePercent(); // * (zoomLevel+1);
 		
 		UnivariateFunction f;
 
 		// Se todos documentos tem mesma relevancia então todos
-		// devem possuir mesmo raio
+		// irao possuir mesmo raio
 		if ( minRev == maxRev )
 			f = ((x) -> maxRadius);
 		else{
@@ -322,7 +355,7 @@ public class LocalDocumentSearcher implements DocumentSearcher {
 		int index = 0;
 		while ( area < maxArea && index < docs.size()){
 			IDocument d = docs.get(index);
-			double r = f.value(d.getRank());
+			double r = f.value(d.getRank() * 1e5f);
 			d.setRadius(r);
 			// Aprox. formas para quadrados de lado 2r + padding.
 			area += 4 * (r + PADDING) * (r + PADDING) ;
@@ -333,13 +366,15 @@ public class LocalDocumentSearcher implements DocumentSearcher {
 
 	private static double[] generateInterpolationXY(float start, float stop, int count) {
 		float step = (stop - start) / Math.max(1, count);
-		float end = stop;
+		float end = stop,
+				ini = start;
 		start = (float) Math.ceil(start / step);
 		stop = (float) Math.floor(stop / step);
 
 		int n = (int) Math.ceil(stop - start + 1);
 		double[] ticks = new double[n];
 		int i = 0;
+		ticks[0] = ini;
 		while (++i < n) ticks[i] = (start + i) * step;
 
 		if ( ticks[n-1] < end ){

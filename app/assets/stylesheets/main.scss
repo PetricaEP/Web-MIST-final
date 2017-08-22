@@ -1,7 +1,9 @@
-.visualization,
-.tab-content {
-	min-width: 95vw;
-	min-height: 80vh;
+.visualization {
+	width: 100vw;
+	min-width: 100vw;
+// 	min-height: 10vh;
+	max-height: 100vh;
+	margin: auto;
 }
 
 .visualization-wrapper {
@@ -228,4 +230,6 @@ circle {
   stroke-opacity: 0.7;
   stroke-width: 2;
   stroke-dasharray: 5, 5;
+  width: 200px;
+  height: 75px;
 }

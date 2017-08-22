@@ -16,24 +16,28 @@ public class SelectionData {
 	@Required
 	protected float height;
 
+	protected int zoomLevel;
+	
 	private int numClusters = 10; 
 	
 	public SelectionData() {
 	
 	}
 
-	public SelectionData(float[] start, float[] end, float width, float height, int numClusters) {
+	public SelectionData(float[] start, float[] end, float width, float height, int numClusters, int zoomLevel) {
 		super();
 		this.start = start;
 		this.end = end;
 		this.width = width;
 		this.height = height;
 		this.numClusters = numClusters;
+		this.zoomLevel = zoomLevel;
 	}
 	
 	public SelectionData(float[] start, float[] end, float width, float height){
-		this(start, end, width, height, 10);
+		this(start, end, width, height, 10, 1);
 	}
+
 
 	public float[] getStart() {
 		return start;
@@ -46,11 +50,11 @@ public class SelectionData {
 	public float[] getEnd() {
 		return end;
 	}
-
+	
 	public void setEnd(float[] end) {
 		this.end = end;
 	}
-
+	
 	public float getWidth() {
 		return width;
 	}
@@ -73,5 +77,13 @@ public class SelectionData {
 	
 	public void setNumClusters(int numClusters) {
 		this.numClusters = numClusters;
+	}
+	
+	public int getZoomLevel() {
+		return zoomLevel;
+	}
+	
+	public void setZoomLevel(int zoomLevel) {
+		this.zoomLevel = zoomLevel;
 	}
 }

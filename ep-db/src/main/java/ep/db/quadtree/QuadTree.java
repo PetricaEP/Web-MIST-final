@@ -73,6 +73,10 @@ public class QuadTree {
 		QuadTree.dbService = dbService;
 	}
 	
+	public QuadTree(Bounds b, int maxDepth, DatabaseService dbService) {
+		this(b, maxDepth, DEFAULT_MAX_ELEMENT_PER_BUNCH, DEFAULT_MAX_ELEMENTS_PER_LEAF, dbService);
+	}
+	
 	public QuadTree(Bounds b, DatabaseService dbService) {
 		this(b, DEFAULT_QUADTREE_MAX_DEPTH, DEFAULT_MAX_ELEMENT_PER_BUNCH, DEFAULT_MAX_ELEMENTS_PER_LEAF, dbService);
 	}

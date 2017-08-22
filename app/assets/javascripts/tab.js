@@ -112,6 +112,31 @@ function addTab(id, title, op){
 		$(".visualization-wrapper")
 			.toggleClass("zoom-cursor", $("#zoom-btn").hasClass("active"));
 		
+		var isZoomActive = $('#zoom-btn').hasClass('active');
+		if ( isZoomActive ){
+			var svg = d3.select("#" + selectedTabId + " svg");
+			svg.on('mousemove', function(){
+				var start = d3.mouse(this);
+				startSelection(start, svg);
+			})
+			.on("click.selection", function() {
+				d3.select(this).on("mousemove", null);
+	//			$("#zoom-btn").click();
+				endSelection(d3.mouse(this));
+			});
+			
+			svg.select('.selection')
+			.attr("visibility", "visible");
+		}
+	})
+	.on('hide.bs.tab', function(e){
+		var prevTabId = $(e.target).attr('aria-controls');
+		d3.select("#" + prevTabId + " svg")
+		.on('mousemove', null)
+		.on('click.selection', null)
+		.select('.selection')
+		.attr("visibility", "hidden");
+		
 	});
 	
 	// Exibe nova aba adicionada
@@ -128,7 +153,6 @@ function addTab(id, title, op){
 function deleteTab(tabId){
 	tabs[tabId].deleteTab();
 	delete tabs[tabId];
-	--tabCount;
 }
 
 /**

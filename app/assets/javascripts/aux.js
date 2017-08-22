@@ -215,7 +215,7 @@ function forceCluster(){
  * @returns objeto SVG para desenhar retângulo.
  */
 function rect(x, y, w, h) {
-	return "M"+[x,y]+" l"+[w,0]+" l"+[0,h]+" l"+[-w,0]+"z";
+	return "M"+[x-w/2,y-h/2]+" l"+[w,0]+" l"+[0,h]+" l"+[-w,0]+"z";
 }
 
 /**
@@ -344,8 +344,62 @@ function resetVisualization(e){
  * @returns void
  */
 function zoomTool(e){
+	var isActive = !$(this).hasClass("active");
 	$(".visualization-wrapper")
-	.toggleClass("zoom-cursor", !$(this).hasClass("active"));
+	.toggleClass("zoom-cursor", isActive);
+	var svg = d3.select("#" + selectedTab.id + " svg");
+	if ( isActive ){
+		activeZoom(svg);
+	}
+	else{
+		desactiveZoom(svg);
+	}
+}
+
+/**
+ * Ativa zoom
+ * @param svg svg da aba atual
+ * @returns void
+ */
+function activeZoom(svg){
+	svg
+	.on('mousemove', function(){
+		var start = d3.mouse(this);
+		startSelection(start, svg);
+	})
+	.on("click.selection", function() {
+		d3.select(this).on("mousemove", null);
+		endSelection(d3.mouse(this));
+	});
+	
+	d3.selectAll('.selection')
+	.attr("visibility", "visible");
+}
+
+/**
+ * Desativa zoom
+ * @param svg svg da aba atual
+ * @returns void
+ */
+function desactiveZoom(svg){
+	svg.on('mouseover', null);
+	svg.on('click.selection', null);
+	d3.selectAll('.selection')
+	.attr("visibility", "hidden");
+}
+
+//Zoom: inicia seleção
+function startSelection(start, svg) {
+	var selectionWidth = $(".selection").width(),
+	selectionHeight = $(".selection").height();
+	
+	svg.select('.selection')
+	.attr("d", rect(start[0], start[1], selectionWidth, selectionHeight));
+}
+
+// Zoom: fim da seleção
+function endSelection(end) {
+	selectArea(end);
 }
 
 /**
