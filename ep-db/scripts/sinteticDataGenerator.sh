@@ -8,4 +8,4 @@ echo $max_depth
 echo $number_of_points
 echo $output_file
 
-sbt "runMain ep.db.utils.SinteticDataGenerator ${max_depth} ${number_of_points} ${output_file} 
+sbt "runMain ep.db.utils.SinteticDataGenerator ${max_depth} ${number_of_points} ${output_file}" 
