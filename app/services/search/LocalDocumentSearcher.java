@@ -121,8 +121,10 @@ public class LocalDocumentSearcher implements DocumentSearcher {
 					selected.get(i).setCluster(clusters.get(i));
 				});
 
+				long[] densityDocIds = new long[docs.size()-index];
 				double[][] densities = new double[docs.size()-index][2];
 				for(int i = index, j = 0; i < docs.size() && j < densities.length; i++, j++){
+					densityDocIds[j] = docs.get(i).getId();
 					densities[j][0] = docs.get(i).getX();
 					densities[j][1] = docs.get(i).getY();
 				}
@@ -131,6 +133,7 @@ public class LocalDocumentSearcher implements DocumentSearcher {
 				result.put("density", densities);
 				result.put("nclusters", numClusters);
 				result.put("op", "search");
+				result.put("ids", densityDocIds);
 			}
 			else{
 				result.put("documents", new ArrayList<Document>(0));
@@ -165,12 +168,6 @@ public class LocalDocumentSearcher implements DocumentSearcher {
 			x2 = selectionData.getEnd()[0];
 			y2 = selectionData.getEnd()[1];
 			
-//			x1 = mapX(x1, selectionData.getWidth()); // - 0.2f;
-//			y1 = mapY(y1, selectionData.getHeight()); // - 0.2f;
-//
-//			x2 = mapX(x2, selectionData.getWidth());
-//			y2 = mapY(y2, selectionData.getHeight());
-			
 			float aux;
 			if ( x1 > x2){
 				aux = x1;
@@ -187,7 +184,10 @@ public class LocalDocumentSearcher implements DocumentSearcher {
 			
 			List<IDocument> documents = new ArrayList<>();
 			List<QuadTreeNode> nodes = new ArrayList<>();
-			quadTree.findInRectangle(rectangle, documents, nodes);
+			long[] selectedDocIds = selectionData.getHiddenDocIds();
+			Arrays.sort(selectedDocIds);
+		
+			quadTree.findInRectangle(rectangle, documents, nodes, selectedDocIds);
 			
 			if ( documents.size() > 0){
 				// Ordena por relevancia (descrescente)

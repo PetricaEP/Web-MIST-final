@@ -52,14 +52,9 @@ createVisualization = function(jsonData){
 
 	$("#" + currentTab.id + " svg").height(height);
 	$(".tab-content").height(height);
-	
+
 	svg.attr('width', width);
 	svg.attr('height', height);
-
-//	//Clear previous visualization
-//	svg.selectAll('g').remove();
-//	svg.selectAll('defs').remove();
-//	$("#" + currentTab.id + " .documents-table table tbody").empty();
 
 	var n = currentTab.data.documents.length, // no. total de documentos
 	m = currentTab.data.nclusters; // no. de clusters
@@ -69,14 +64,14 @@ createVisualization = function(jsonData){
 	if ( n === 0 ){
 		return;
 	}
-	
+
 	// Valores min/max das coordenadas x,y 
 	// dos documentos atuais
 	var minX = -1, 
 	maxX = 1,
 	minY = -1,
 	maxY = 1;
-	
+
 	if ( typeof jsonData.min_max !== "undefined" && jsonData.min_max.length == 4){
 		minX = jsonData.min_max[0];
 		maxX = jsonData.min_max[1];
@@ -85,7 +80,7 @@ createVisualization = function(jsonData){
 	}
 
 	// Inicializa transformações 2D (x,y) 
-	// do intervalo [-1,1] para [0, width,height]
+	// do intervalo [-1,1] para [0, width/height]
 	currentTab.xy(width, height, minX, maxX, minY, maxY);
 	currentTab.xy_inverse(width, height);
 
@@ -189,7 +184,7 @@ createVisualization = function(jsonData){
 		.attr('stroke-width', 1.5)
 		.attr("marker-end", function(d) { return "url(#link)"; });
 	}
-	
+
 	// Ferramenta de seleção (escondida por enquanto).
 	var selection = svg.append("path")
 	.attr("class", "selection")
@@ -200,24 +195,6 @@ createVisualization = function(jsonData){
 		activeZoom( svg );
 	else
 		desactiveZoom ( svg );
-	
-	// Eventos de seleção (zoom)
-//	svg.on("mouseover", function() {
-//		var isActive = $("#zoom-btn").hasClass("active");
-//		if ( isActive ){
-//			var subject = svg, parent = this.parentNode,
-//			start = d3.mouse(parent);
-//			startSelection(start);
-//			subject
-////			.on("mousemove.selection", function() {
-////				moveSelection(start, d3.mouse(parent));
-////			})
-//			.on("click.selection", function() {
-//				endSelection(start, d3.mouse(parent));
-//				subject.on("mousemove.selection", null).on("mouseup.selection", null);
-//			});
-//		}
-//	});
 
 	// Mostra tooltips sobre os pontos de densidade,
 	// apenas coordenadas x,y.
@@ -245,8 +222,13 @@ createVisualization = function(jsonData){
 		.on("mouseout", hideTip);
 	}
 
-//	++currentTab.step;
-
+	if ( currentTab.parentId === null ){
+		createMiniMap(svg, currentTab);
+	}
+	else{
+		copyMiniMapFromParent(svg, currentTab, minX, minY, maxX, maxY);
+	}
+	
 	// ###### Fim do primeiro passo: criar visualização ######
 };
 
@@ -277,7 +259,7 @@ function thirdStep(){
 	// Evita dispersão
 	var forceGravity = d3.forceManyBody()
 	.strength( manyBodyStrength );
-	
+
 	// Inicializa simulação
 	selectedTab.simulation = d3.forceSimulation(selectedTab.nodes)
 //	.force('link', forceLink)
@@ -285,7 +267,7 @@ function thirdStep(){
 	.force("gravity", forceGravity)
 	.on("tick", ticked)
 	.on("end", endSimulation);
-	
+
 	// Força entre links (citações)
 	// Circulos com alguma ligação serão posicionados 
 	// próximos caso strength != 0.
@@ -296,7 +278,7 @@ function thirdStep(){
 		.links(selectedTab.links)
 		.strength(0)
 		.distance(0);
-		
+
 		selectedTab.simulation
 		.force("link", forceLink);
 	}
@@ -314,19 +296,19 @@ function thirdStep(){
  * @returns void
  **/
 function selectArea(p){
-	
+
 	if ( tabs.length >= maxNumberOfTabs ){
 		showMaxTabsAlert();
 		return;
 	}
-	
+
 	var numClusters = $("#num-clusters").val();
 	var r = jsRoutes.controllers.HomeController.zoom(),
 	width = $("#" + selectedTab.id + " svg").width(),
 	height = $("#" + selectedTab.id + " svg").height(),
 	selectionWidth = $(".selection").width(),
 	selectionHeight = $(".selection").height();
-	
+
 	// Transforma coordenada para espaço original
 	// no intervalo [-1,1]
 	var start = [ selectedTab.x_inv(p[0] - selectionWidth/2 ) , selectedTab.y_inv(p[1] - selectionHeight/2) ],
@@ -337,7 +319,8 @@ function selectArea(p){
 		width: width,
 		height: height,
 		numClusters: numClusters,
-		zoomLevel: selectedTab.zoomLevel + 1
+		zoomLevel: selectedTab.zoomLevel + 1,
+		hiddenDocIds: selectedTab.ids
 	}, 
 	success: createVisualization, error: errorFn, dataType: "json"});
 }

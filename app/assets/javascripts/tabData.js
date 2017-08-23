@@ -4,7 +4,7 @@
  * @param id html id da aba (content)
  * @returns uma nova Tab
  */
-function Tab(id){
+function Tab(id, parentId){
 	this.id = id;
 	this.data = null;
 	this.links = null;
@@ -25,6 +25,7 @@ function Tab(id){
 	this.minY = -1;
 	this.maxY= 1;
 	this.zoomLevel = 0;
+	this.parentId = parentId;
 }
 
 /**

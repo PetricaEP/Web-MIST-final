@@ -20,24 +20,28 @@ import ep.db.quadtree.Vec2;
 public class SinteticDataGenerator {
 
 	public static void main(String[] args) {
-		int max_depth, numberOfPoints;
+		int max_depth, numberOfPoints, numberOfRegionsX, numberOfRegionsY;
 		String outputfile;
-		if ( args.length != 3 ){
+		
+		if ( args.length != 5 ){
 			System.err.println("Wrong number of parameters!!!");
-			System.err.println("Usage: SinteticDataGenerator maxDepth numberOfPoints outputFile.csv");
+			System.err.println("Usage: SinteticDataGenerator maxDepth totalNumberOfPoints numberOfRegionsX numberofRegionsY outputFile.csv");
 			return;
 		}
 		else{
 			max_depth = Integer.parseInt(args[0]);
 			numberOfPoints = Integer.parseInt(args[1]);
-			outputfile = args[2];
+			numberOfRegionsX = Integer.parseInt(args[2]);
+			numberOfRegionsY = Integer.parseInt(args[3]);
+			outputfile = args[4];
 		}
 
 		Vec2 p0 = new Vec2(-1, -1);
 		Vec2 size = new Vec2(2,2);
 		List<IDocument> documents = new ArrayList<>();
 
-		QuadTree quadTree = InfoVis.testRandomPointTree(p0, size, max_depth, numberOfPoints, documents);
+		QuadTree quadTree = InfoVis.testRandomPointTree(p0, size, max_depth, numberOfPoints, documents, 
+				numberOfRegionsX, numberOfRegionsY);
 
 		File documentsData = new File(outputfile);
 		try( BufferedWriter bw = new BufferedWriter(new FileWriter(documentsData))){
@@ -63,8 +67,8 @@ public class SinteticDataGenerator {
 			exception.printStackTrace();
 		}
 		
-		frame.dispose();
-		System.exit(0);
+//		frame.dispose();
+//		System.exit(0);
 	}
 
 }

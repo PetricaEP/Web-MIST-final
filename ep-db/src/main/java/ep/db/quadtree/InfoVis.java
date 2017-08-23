@@ -120,7 +120,7 @@ public class InfoVis {
                     Bounds rectangle = new Bounds(pReal,new Vec2(0.4f,0.4f));
                     List<IDocument> selectedList = new ArrayList<>();
                     List<QuadTreeNode> selectedNodes = new ArrayList<>();
-                    quadTree.findInRectangle(rectangle, selectedList, selectedNodes);
+                    quadTree.findInRectangle(rectangle, selectedList, selectedNodes, null);
 //                    quadTree.findNeighbors(pReal, radius, selectedList, selectedNodes, 0);
                     points.setSelectedList(selectedList);
                     points.setSelectedNodes(selectedNodes);
@@ -168,19 +168,38 @@ public class InfoVis {
         return (qTreeSize.y * (0.5f - (y / (float) panelSize.y)));
     }
 
-    public static QuadTree testRandomPointTree(Vec2 p0, Vec2 size, int max_depth, int numberOfPoints, 
-    		List<IDocument> documents) {
-        QuadTree qTree = new QuadTree(new Bounds(new Vec2(p0), new Vec2(size)), null);
+    public static QuadTree testRandomPointTree(Vec2 p0, Vec2 size, int maxDepth, int numberOfPoints, 
+    		List<IDocument> documents, int numberOfRegionsX, int numberOfRegionsY) {
+        QuadTree qTree = new QuadTree(new Bounds(new Vec2(p0), new Vec2(size)), maxDepth, null);
 
         Random rand = new Random();
-        int i = 0;
+        float stepX = 2.0f / numberOfRegionsX, 
+        		stepY = 2.0f / numberOfRegionsY;
+        int pointsPerRegions = (int) Math.ceil(numberOfPoints / ( numberOfRegionsX * numberOfRegionsY ) );
+        
+        for(float regionX = -1; regionX < 1; regionX += stepX){
+        	for( float regionY = -1; regionY < 1; regionY += stepY){
+        		randomPointsTree(p0, size, pointsPerRegions, 
+        				regionX, regionX + stepX,
+        				regionY, regionY + stepY,
+        				rand, qTree, documents);
+        	}
+        }
+        
+        return qTree;
+    }
 
-        while (true) {
-            int nPointsLocal = rand.nextInt(numberOfPoints) / 8;
-            float xMinRegion = rand.nextFloat() * (size.x - 0.5f) + p0.x;
-            float yMinRegion = rand.nextFloat() * (size.y - 0.5f) + p0.y;
-            float xMaxRegion = xMinRegion + rand.nextFloat() * 0.5f;
-            float yMaxRegion = yMinRegion + rand.nextFloat() * 0.5f;
+    private static void randomPointsTree(Vec2 p0, Vec2 size, int pointsPerRegions, 
+    		float startX, float endX, float startY, float endY, 
+    		Random rand, QuadTree qTree, List<IDocument> documents) {
+    	int i = documents.size();
+    	int count = 0;
+    	while (count < pointsPerRegions ) {
+            int nPointsLocal = rand.nextInt(pointsPerRegions) / 8;
+            float xMinRegion = startX; 
+            float yMinRegion = startY;
+            float xMaxRegion = endX;
+            float yMaxRegion = endY;
 
             for (int j = 0; j < nPointsLocal; j++) {
                 IDocument d = new Document(i++, rand.nextFloat(),
@@ -188,22 +207,13 @@ public class InfoVis {
                         rand.nextFloat() * (yMaxRegion - yMinRegion) + yMinRegion);
                 qTree.addElement(d);
                 documents.add(d);
-            }
-            if (i >= numberOfPoints * 0.8f) {
-                break;
+                ++count;
             }
         }
+		
+	}
 
-        for (; i < numberOfPoints; i++) {
-            IDocument d = new Document(i, rand.nextFloat(), rand.nextFloat() * size.x + p0.x, rand.nextFloat() * size.y + p0.y);
-            qTree.addElement(d);
-            documents.add(d);
-        }
-
-        return qTree;
-    }
-
-    private static QuadTree testStaticTree(Vec2 P0, Vec2 size, int max_depth) {
+	private static QuadTree testStaticTree(Vec2 P0, Vec2 size, int max_depth) {
     	
         QuadTree qTree = new QuadTree(new Bounds(new Vec2(P0), new Vec2(size)), null);
 

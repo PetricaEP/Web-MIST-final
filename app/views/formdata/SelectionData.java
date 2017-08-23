@@ -20,11 +20,14 @@ public class SelectionData {
 	
 	private int numClusters = 10; 
 	
+	protected long[] hiddenDocIds;
+	
 	public SelectionData() {
 	
 	}
 
-	public SelectionData(float[] start, float[] end, float width, float height, int numClusters, int zoomLevel) {
+	public SelectionData(float[] start, float[] end, float width, float height, 
+			int numClusters, int zoomLevel, long[] hiddenDocIds) {
 		super();
 		this.start = start;
 		this.end = end;
@@ -32,12 +35,20 @@ public class SelectionData {
 		this.height = height;
 		this.numClusters = numClusters;
 		this.zoomLevel = zoomLevel;
+		this.hiddenDocIds = hiddenDocIds;
 	}
 	
 	public SelectionData(float[] start, float[] end, float width, float height){
-		this(start, end, width, height, 10, 1);
+		this(start, end, width, height, 10, 1, null);
 	}
 
+	public long[] getHiddenDocIds() {
+		return hiddenDocIds;
+	}
+
+	public void setHiddenDocIds(long[] hiddenDocIds) {
+		this.hiddenDocIds = hiddenDocIds;
+	}
 
 	public float[] getStart() {
 		return start;

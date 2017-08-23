@@ -7,6 +7,7 @@ package ep.db.quadtree;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import ep.db.database.Database;
@@ -237,10 +238,13 @@ public class QuadTree {
 		}
 	}
 
-	public int findInRectangle(Bounds rectangle, List<IDocument> documents, List<QuadTreeNode> nodes) {
+	public int findInRectangle(Bounds rectangle, List<IDocument> documents, List<QuadTreeNode> nodes, long[] selectedDocIds) {
 		documents.clear();
 		nodes.clear();
-		rectangleSearchAll(rectangle, new QuadTreeKey(0), getRoot(), documents, nodes);
+		if ( selectedDocIds == null || selectedDocIds.length == 0)
+			rectangleSearchAll(rectangle, new QuadTreeKey(0), getRoot(), documents, nodes);
+		else
+			rectangleSearchByDocId(rectangle, new QuadTreeKey(0), getRoot(), documents, nodes, selectedDocIds);
 		return documents.size();
 	}
 
@@ -301,9 +305,9 @@ public class QuadTree {
 		return documents;
 	}
 
-	public void rectangleSearchAll(Bounds rectangle, QuadTreeKey key, QuadTreeBranchNode branch, List<IDocument> documentList, List<QuadTreeNode> nodes) {
+	public void rectangleSearchAll(Bounds rectangle, QuadTreeKey key, QuadTreeBranchNode branch, 
+			List<IDocument> documentList, List<QuadTreeNode> nodes) {
 		int depth = branch.getDepth() + 1;
-
 		for (int i = 0; i < 4; i++) {
 			if (branch.hasChild(i)) {
 				QuadTreeNode child = branch.getChild(i);
@@ -324,6 +328,40 @@ public class QuadTree {
 						for (int j = 0; j < leaf.size(); j++) {
 							IDocument d = leaf.getDocument(j);
 							if (rectangle.contains(d.getPos())) {
+								documentList.add(d);
+							}
+						}
+						addNodeAndChildrenInList(nodes, child);
+					}
+				}
+			}
+		}
+	}
+	
+	public void rectangleSearchByDocId(Bounds rectangle, QuadTreeKey key, QuadTreeBranchNode branch, 
+			List<IDocument> documentList, List<QuadTreeNode> nodes, long[] selectedDocIds) {
+		int depth = branch.getDepth() + 1;
+		for (int i = 0; i < 4; i++) {
+			if (branch.hasChild(i)) {
+				QuadTreeNode child = branch.getChild(i);
+				QuadTreeKey childKey = key.pushChild(i);
+
+				Bounds bChild = boundingBox(childKey, depth);
+				int inter = rectangle.intersect(bChild);
+
+				if (inter == 2) {
+					child.getDocuments(documentList);
+					addNodeAndChildrenInList(nodes, child);
+				} else if (inter == 1) { //Test if point intersects the Rect
+					if (!child.isLeaf()) {
+						rectangleSearchByDocId(rectangle, childKey, (QuadTreeBranchNode) child, documentList, nodes, selectedDocIds);
+					} else {
+						QuadTreeLeafNode leaf = (QuadTreeLeafNode) child;
+
+						for (int j = 0; j < leaf.size(); j++) {
+							IDocument d = leaf.getDocument(j);
+							int index = Arrays.binarySearch(selectedDocIds, d.getId());
+							if (rectangle.contains(d.getPos()) && index >= 0) {
 								documentList.add(d);
 							}
 						}

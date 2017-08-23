@@ -369,9 +369,33 @@ function activeZoom(svg){
 	})
 	.on("click.selection", function() {
 		d3.select(this).on("mousemove", null);
+		d3.select(this).on("wheel", null);
 		endSelection(d3.mouse(this));
+	})
+	.on("wheel", function(){
+		var delta = d3.event.deltaY,
+		newWidth, newHeight;
+		
+		var selectionWidth = $(".selection").width(),
+			svgWidth = svg.attr('width');
+		
+		if ( delta > 0 ){
+			newWidth = Math.min(svgWidth, selectionWidth * 1.1);
+			newHeight = newWidth * 6 / 16;
+		}
+		else{
+			newWidth = Math.max(200, selectionWidth * 0.9);
+			newHeight = newWidth * 6 / 16;
+		}
+		
+		$(".selection").width(newWidth);
+		$(".selection").height(newHeight);
+		
+		var start = d3.mouse(this);
+		svg.select('.selection')
+		.attr("d", rect(start[0], start[1], newWidth, newHeight));
 	});
-	
+
 	d3.selectAll('.selection')
 	.attr("visibility", "visible");
 }
@@ -392,12 +416,12 @@ function desactiveZoom(svg){
 function startSelection(start, svg) {
 	var selectionWidth = $(".selection").width(),
 	selectionHeight = $(".selection").height();
-	
+
 	svg.select('.selection')
 	.attr("d", rect(start[0], start[1], selectionWidth, selectionHeight));
 }
 
-// Zoom: fim da seleção
+//Zoom: fim da seleção
 function endSelection(end) {
 	selectArea(end);
 }
@@ -408,9 +432,53 @@ function endSelection(end) {
  */
 function showMaxTabsAlert(){
 	var alertHtml = '<div id="tabs-alert" class="alert alert-danger alert-dismissible" role="alert">' +
-		'<button type="button" class="close" data-dismiss="alert" aria-label="Close">' +
-		'<span aria-hidden="true">&times;</span></button>' +
-		'<strong>Warning!</strong> Too may tabs opened. Please, close some of the tabs before continue.</div>';	
+	'<button type="button" class="close" data-dismiss="alert" aria-label="Close">' +
+	'<span aria-hidden="true">&times;</span></button>' +
+	'<strong>Warning!</strong> Too may tabs opened. Please, close some of the tabs before continue.</div>';	
 	$('#tabs-alert-wrapper').append(alertHtml);
 	$('#tabs-alert').alert();
+}
+
+function createMiniMap(svg, tab){
+//	serialize our SVG XML to a string.
+	var source = (new XMLSerializer()).serializeToString(svg.node());
+//	Put the svg into an image tag so that the Canvas element can read it in.
+	var img = new Image();
+
+	img.src = 'data:image/svg+xml;base64,'+window.btoa(source);
+
+	img.onload = function(){
+		// Now that the image has loaded, put the image into a canvas element.
+		var canvas = d3.select('#' + tab.id).insert('canvas', ':first-child')
+		.classed('minimap', true).node();
+		canvas.width = $("#" + tab.id + " canvas").width();
+		canvas.height = canvas.width * 6 / 16;
+		var ctx = canvas.getContext('2d');
+		ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+	};
+}
+
+function copyMiniMapFromParent(svg, tab, minX, minY, maxX, maxY){
+	
+	var canvas = d3.select('#' + tab.id).insert('canvas', ':first-child')
+		.classed('minimap', true).node(),
+	parentCanvas = $('#' + tab.parentId).children('canvas');
+	
+	canvas.width = $("#" + tab.id + " canvas").width();
+	canvas.height = canvas.width * 6 / 16;
+	var ctx = canvas.getContext('2d');
+	ctx.drawImage(parentCanvas[0], 0, 0, canvas.width, canvas.height);
+	
+	// Acha posicoes x,y da selecao
+	if ( minX > -1 && minY > -1 && maxX < 1 && maxY < 1){
+		var xx = canvas.width * ( minX + 1) / 2,
+		yy = canvas.height * (minY + 1) / 2,
+		sx = canvas.width * ( maxX + 1) / 2 - xx,
+		sy = canvas.height * (maxY + 1) / 2 - yy;
+		ctx.beginPath();
+		ctx.rect(xx,yy, sx, sy);
+		ctx.fillStyle = "rgba(147,215,237,0.7)";
+		ctx.fill();
+	}
+	
 }

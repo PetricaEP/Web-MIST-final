@@ -140,7 +140,6 @@ public class Points extends JPanel {
                 QuadTreeLeafNode leaf = (QuadTreeLeafNode) node;
                 for (int i = 0; i < leaf.size(); i++) {
                     IDocument d = leaf.getDocument(i);
-                    System.out.println("Selected: " + d.getX() + ", " + d.getY());
                     g2d.setColor(Color.red);
 
                     if (selectedList != null) {
