@@ -133,7 +133,8 @@
 	}
 }
 
-div.node-tooltip {
+div.node-tooltip,
+div.fixed-tooltip {
 	position: absolute;
 	text-align: center;
 	width: 350px;

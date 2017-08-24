@@ -8,7 +8,9 @@ GET     	/                           	controllers.HomeController.index()
 
 GET			/search							controllers.HomeController.search()
 
-GET			/zoom							controllers.HomeController.zoom()
+POST		/zoom							controllers.HomeController.zoom()
+
+POST		/references						controllers.HomeController.references()
 
 GET     	/javascriptRoutes      			controllers.HomeController.javascriptRoutes
 

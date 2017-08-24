@@ -1,7 +1,6 @@
 package services.search;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -11,9 +10,6 @@ import java.util.regex.Pattern;
 import java.util.stream.IntStream;
 
 import javax.inject.Inject;
-
-import org.apache.commons.math3.analysis.UnivariateFunction;
-import org.apache.commons.math3.analysis.interpolation.LinearInterpolator;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -42,10 +38,6 @@ import views.formdata.SelectionData;
 public class LocalDocumentSearcher implements DocumentSearcher {
 
 	private static final Pattern TERM_PATTERN = Pattern.compile(".*(\".*?\").*");
-
-	private static final double PADDING = 6.0f;
-
-	private static final float INC = 0.001f;
 	
 	private static Configuration configuration;
 
@@ -97,43 +89,18 @@ public class LocalDocumentSearcher implements DocumentSearcher {
 
 			if( docs.size() > 0){
 
-				// Realiza interpolacão das relevancias 
-				// para obter  os raios de cada documento.
-				int index = interpolateRadii(docs, queryData.getWidth(), queryData.getHeight(), 0);
-
-				// Somente documentos selecionados para exibição,
-				// demais documentos irão compor o mapa de densidade.
-				List<Document> selected = docs.subList(0, index);
-
-				// Coleta doc_ids
-				long docIds[] = selected.parallelStream().mapToLong((doc) -> doc.getId()).toArray();
-
-				// References
-				Map<Long, List<Long>> references = dbService.getReferences(docIds);
-
 				//Clustering
 				final int numClusters = queryData.getNumClusters();
-				IntMatrix1D clusters = clustering(selected, numClusters);
+				IntMatrix1D clusters = clustering(docs, numClusters);
 
 				//Atribui id cluster e referencias
-				IntStream.range(0, selected.size()).parallel().forEach( (i) -> {
-					selected.get(i).setReferences(references.get(selected.get(i).getId()));
-					selected.get(i).setCluster(clusters.get(i));
+				IntStream.range(0, docs.size()).parallel().forEach( (i) -> {
+					docs.get(i).setCluster(clusters.get(i));
 				});
 
-				long[] densityDocIds = new long[docs.size()-index];
-				double[][] densities = new double[docs.size()-index][2];
-				for(int i = index, j = 0; i < docs.size() && j < densities.length; i++, j++){
-					densityDocIds[j] = docs.get(i).getId();
-					densities[j][0] = docs.get(i).getX();
-					densities[j][1] = docs.get(i).getY();
-				}
-
-				result.put("documents", selected);
-				result.put("density", densities);
+				result.put("documents", docs);
 				result.put("nclusters", numClusters);
 				result.put("op", "search");
-				result.put("ids", densityDocIds);
 			}
 			else{
 				result.put("documents", new ArrayList<Document>(0));
@@ -184,10 +151,8 @@ public class LocalDocumentSearcher implements DocumentSearcher {
 			
 			List<IDocument> documents = new ArrayList<>();
 			List<QuadTreeNode> nodes = new ArrayList<>();
-			long[] selectedDocIds = selectionData.getHiddenDocIds();
-			Arrays.sort(selectedDocIds);
 		
-			quadTree.findInRectangle(rectangle, documents, nodes, selectedDocIds);
+			quadTree.findInRectangle(rectangle, documents, nodes, null);
 			
 			if ( documents.size() > 0){
 				// Ordena por relevancia (descrescente)
@@ -196,32 +161,10 @@ public class LocalDocumentSearcher implements DocumentSearcher {
 				final int numClusters = selectionData.getNumClusters();
 				IntMatrix1D clusters = clustering(documents, numClusters);
 
-				// Coleta doc_ids
-				long docIds[] = documents.parallelStream().mapToLong((doc) -> doc.getId()).toArray();
-
-				// References
-				final Map<Long, List<Long>> references;
-				Map<Long, List<Long>> ref;
-				try {
-					ref = dbService.getReferences(docIds);
-				} catch (Exception e) {
-					Logger.error("Can't get references for documents", e);
-					ref = new HashMap<>(0);
-				}
-				references = ref;
-
 				//Atribui id cluster e referencias
 				IntStream.range(0, documents.size()).parallel().forEach( (i) -> {
-					documents.get(i).setReferences(references.get(documents.get(i).getId()));
 					documents.get(i).setCluster(clusters.get(i));
 				});
-
-				// Realiza interpolacão das relevancias 
-				// para obter  os raios de cada documento.
-				int index = interpolateRadii(documents, 
-						selectionData.getWidth(), 
-						selectionData.getHeight(),
-						selectionData.getZoomLevel());
 
 				// Valores min/max das coordenadas
 				// x,y para interpolação com as dimensões
@@ -231,18 +174,11 @@ public class LocalDocumentSearcher implements DocumentSearcher {
 						minY = documents.get(0).getY(), 
 						maxY = minY;
 				
-				double[][] densities = new double[documents.size()-index][2];
-				for(int i = 0, j = 0; i < documents.size(); i++){
+				for(int i = 0; i < documents.size(); i++){
 					IDocument doc = documents.get(i);
 					float x = doc.getX();
 					float y = doc.getY();
-					
-					if ( i >= index){
-						densities[j][0] = x;
-						densities[j][1] = y;
-						++j;
-					}
-					
+
 					//Atualiza min/max
 					if ( x > maxX) maxX = x;
 					if ( x < minX) minX = x;
@@ -254,8 +190,7 @@ public class LocalDocumentSearcher implements DocumentSearcher {
 				// Somente documentos selecionados para exibição,
 				// demais documentos irão compor o mapa de densidade.
 				
-				result.put("documents", documents.subList(0, index));
-				result.put("density", densities);
+				result.put("documents", documents);
 				result.put("nclusters", numClusters);
 				result.put("op", "zoom");
 				result.put("min_max", new float[]{minX, maxX, minY, maxY});
@@ -281,13 +216,29 @@ public class LocalDocumentSearcher implements DocumentSearcher {
 			return "";
 		}
 	}
-
-	private static float mapX(float x, float width) {
-		return (quadTree.boundingBox().size().x * ((x / width) - 0.5f));
-	}
-
-	private static float mapY(float y, float height) {
-		return (quadTree.boundingBox().size().y * (0.5f - (y / height)));
+	
+	public String getDocumentsReferences(long[] docIds){
+		// References
+		final Map<Long, List<Long>> references;
+		Map<Long, List<Long>> ref;
+		try {
+			ref = dbService.getReferences(docIds);
+		} catch (Exception e) {
+			Logger.error("Can't get references for documents", e);
+			ref = new HashMap<>(0);
+		}
+		references = ref;
+		
+		
+		Map<String, Object> result = new HashMap<>();
+		result.put("references", references);
+		ObjectMapper mapper = new ObjectMapper();
+		try {
+			return mapper.writeValueAsString(result);
+		} catch (JsonProcessingException e) {
+			Logger.error("JSON processing error: " + result.toString(), e);
+			return "";
+		}
 	}
 
 	private IntMatrix1D clustering(List<? extends IDocument> documents, int numClusters) {
@@ -313,75 +264,6 @@ public class LocalDocumentSearcher implements DocumentSearcher {
 				configuration.getQuadTreeMaxElementsPerBunch(), 
 				configuration.getQuadTreeMaxElementsPerLeaf(), dbService);
 		quadTree.loadQuadTree();
-	}
-
-	private int interpolateRadii(List<? extends IDocument> docs, float width, float height, int zoomLevel) {
-		float maxRev = docs.get(0).getRank() * 1e5f,
-				minRev = docs.get(docs.size()-1).getRank() * 1e5f,
-				maxRadius = width * configuration.getMaxRadiusSizePercent(), //* (zoomLevel+1),
-				minRadius = width * configuration.getMinRadiusSizePercent(); // * (zoomLevel+1);
-		
-		UnivariateFunction f;
-
-		// Se todos documentos tem mesma relevancia então todos
-		// irao possuir mesmo raio
-		if ( minRev == maxRev )
-			f = ((x) -> maxRadius);
-		else{
-			double[] x = generateInterpolationXY(minRev, maxRev, 10);
-			double[] y = generateInterpolationXY(minRadius, maxRadius, 10);
-			
-			// Ajusta x e y para que ambos possuam mesmo tamanho 
-			int diffSize = Math.abs(x.length - y.length);
-			if ( diffSize != 0){
-				if ( x.length > y.length){
-					y = Arrays.copyOf(y, x.length);
-					for(int i = y.length - diffSize, j = 1; i < y.length; i++, j++)
-						y[i] = maxRadius + (j * INC);
-				}
-				else{
-					x = Arrays.copyOf(x, y.length);
-					for(int i = x.length - diffSize, j = 1; i < x.length; i++, j++)
-						x[i] = maxRev + (j * INC);
-				}
-			}
-			
-			LinearInterpolator radiusInterpolator = new LinearInterpolator();
-			f = radiusInterpolator.interpolate(x, y);
-		}
-
-		final double maxArea = width * height;
-		double area = 0.0;
-		int index = 0;
-		while ( area < maxArea && index < docs.size()){
-			IDocument d = docs.get(index);
-			double r = f.value(d.getRank() * 1e5f);
-			d.setRadius(r);
-			// Aprox. formas para quadrados de lado 2r + padding.
-			area += 4 * (r + PADDING) * (r + PADDING) ;
-			++index;
-		}
-		return index;
-	}
-
-	private static double[] generateInterpolationXY(float start, float stop, int count) {
-		float step = (stop - start) / Math.max(1, count);
-		float end = stop,
-				ini = start;
-		start = (float) Math.ceil(start / step);
-		stop = (float) Math.floor(stop / step);
-
-		int n = (int) Math.ceil(stop - start + 1);
-		double[] ticks = new double[n];
-		int i = 0;
-		ticks[0] = ini;
-		while (++i < n) ticks[i] = (start + i) * step;
-
-		if ( ticks[n-1] < end ){
-			ticks = Arrays.copyOf(ticks, ticks.length+1);
-			ticks[ticks.length-1] = end;
-		}
-		return ticks;
 	}
 
 	@Override

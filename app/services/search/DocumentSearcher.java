@@ -14,6 +14,8 @@ public interface DocumentSearcher {
 	public String search(QueryData queryData, boolean fetchNumberOfCitations, int count) throws Exception;
 	
 	public String zoom(SelectionData selectionData);
+	
+	public String getDocumentsReferences(long[] docIds);
 
 	public String getAuthorsGraph();
 

@@ -1,4 +1,4 @@
-var maxNumberOfTabs = 5;
+var maxNumberOfTabs = 10;
 
 //Form submission handle
 $(function() {

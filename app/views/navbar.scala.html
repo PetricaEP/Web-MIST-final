@@ -61,33 +61,45 @@
     			
 				</div>
 				
-				<div class="viz-settings form-horizontal">
-					<div class="form-group">
-						<label for="collision-force" class="col-sm-3">Collision force:</label>
-						<div class="col-sm-9">
-							<input id="collision-force" data-slider-id='collision-force-slider' type="text" data-slider-min="0" data-slider-max="1" data-slider-step="0.1" data-slider-value="0.5"/>							
+				<div class="viz-settings form-horizontal row">
+					<div class="row">
+						<div class="form-group col-sm-3">
+							<label for="collision-force" class="col-sm-6">Collision force:</label>
+							<div class="col-sm-6">
+								<input id="collision-force" data-slider-id='collision-force-slider' type="text" data-slider-min="0" data-slider-max="1" data-slider-step="0.1" data-slider-value="0.5"/>							
+							</div>
+						</div>
+						<div class="form-group col-sm-3">
+							<label for="manybody-force" class="col-sm-6">Attraction force:</label>
+							<div class="col-sm-6">
+								<input id="manybody-force" data-slider-id='manybody-force-slider' type="text" data-slider-min="0" data-slider-max="50" data-slider-step="5" data-slider-value="1"/>							
+							</div>
 						</div>
 					</div>
-					<div class="form-group">
-						<label for="manybody-force" class="col-sm-3">Attraction force:</label>
-						<div class="col-sm-9">
-							<input id="manybody-force" data-slider-id='manybody-force-slider' type="text" data-slider-min="0" data-slider-max="50" data-slider-step="5" data-slider-value="1"/>							
+					<div class="row">
+						<div class="form-group col-sm-3">
+							<label for="clustering-force" class="col-sm-6">Clustering force:</label>
+							<div class="col-sm-6">
+								<label>
+	      							<input type="checkbox" id="clustering-force" value="1"> On/Off
+	    						</label>							
+							</div>
 						</div>
-					</div>
-					<div class="form-group">
-						<label for="clustering-force" class="col-sm-5">Clustering force:</label>
-						<div class="col-sm-7">
-							<label>
-      							<input type="checkbox" id="clustering-force" value="1"> On/Off
-    						</label>							
-						</div>
-					</div>
-					<div class="form-group">
-						<label for="show-density-points" class="col-sm-5">Show density points:</label>
-						<div class="col-sm-7">
-							<label>
-      							<input type="checkbox" id="show-density-points" value="1"> On/Off
-    						</label>							
+						<div class="form-group col-sm-3">
+							<label for="show-density-points" class="col-sm-5">Show density points:</label>
+							<div class="col-sm-7">
+								<label>
+	      							<input type="checkbox" id="show-density-points" value="1"> On/Off
+	    						</label>							
+							</div>
+						</div>	
+						<div class="form-group col-sm-4">
+							<label for="color-schema" class="col-sm-5">Coloring by relevance:</label>
+							<div class="col-sm-7">
+								<label>
+	      							<input type="checkbox" id="color-schema" value="1" checked> On/Off
+	    						</label>							
+							</div>
 						</div>
 					</div>					
 				</div>

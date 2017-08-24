@@ -1,3 +1,5 @@
+var padding = 6.0;
+
 /** Protótio da classe Tab
  * Essa classe armazenada informações
  * sobre a visualização na respectiva aba.
@@ -6,7 +8,9 @@
  */
 function Tab(id, parentId){
 	this.id = id;
-	this.data = null;
+	this.documents = null;
+	this.densities = null;
+	this.nclusters = 0;
 	this.links = null;
 	this.circles = []; 
 	this.points = null;
@@ -15,7 +19,8 @@ function Tab(id, parentId){
 	this.clusters = null;
 	this.step = 0;
 	this.simulation = null;
-	this.cluterColor = null;
+	this.color = null;
+	this.isColorByRelevance = true;
 	this.x = null;
 	this.y = null;
 	this.x_inv = null;
@@ -28,13 +33,68 @@ function Tab(id, parentId){
 	this.parentId = parentId;
 }
 
+Tab.prototype.loadData = function(data, interpolator, maxArea){
+	var area = 0, index = 0;
+	this.documents = {};
+	var pDocuments = {};
+	if ( this.parentId !== null )
+		pDocuments = tabs[this.parentId].documents;
+
+	while ( area < maxArea && index < data.documents.length ){
+		var doc = data.documents[index];
+		if ( pDocuments[doc.id] === undefined ){
+			var r = interpolator(doc.rank);
+			doc.radius = r;
+			area += 4 * (r + padding) * (r + padding);
+			this.documents[doc.id] = doc;
+		}
+		++index;
+	}
+
+	this.densities = [];
+	for( var i = index; i < data.documents.length; i++){
+		if ( pDocuments[ data.documents[i].id] === undefined )
+			this.densities.push(data.documents[i]);
+	}
+
+	this.ncluster = data.nclusters;
+};
+
 /**
  * Inicializa função de coloração dos clusters
  * @param m numero de clusters.
  */
-Tab.prototype.initClusterColor = function(m){
-	this.clusterColor = d3.scaleSequential(d3.interpolateRainbow)
+Tab.prototype.initClusteringColorSchema = function(m){
+	this.color = d3.scaleSequential(d3.interpolateRainbow)
 	.domain([0, m]);
+};
+
+/**
+ * Inicializa função de coloração dos nós.
+ * @param isColorByRelevance usa esquema de cores por relevancia
+ * @param a valor minimo 
+ * @param b valor maximo
+ */
+Tab.prototype.initColorSchema = function(isColorByRelevance, a, b){
+	this.isColorByRelevance  = isColorByRelevance;
+	if ( isColorByRelevance )
+		this.color = d3.scaleSequential(d3.interpolateRdYlGn)
+		.domain([a, b]);
+	else{
+		this.color = d3.scaleSequential(d3.interpolateRainbow)
+		.domain([a, b]);
+	}
+};
+
+/**
+ * Aplica esquema de cor em um nó
+ * @param d nó.
+ */
+Tab.prototype.coloring = function(d){
+	if ( this.isColorByRelevance ){
+		return this.color(d.data.rank);
+	}
+	return this.color(d.cluster);
 };
 
 /**
@@ -77,7 +137,7 @@ Tab.prototype.deleteTab = function(){
 	delete this.path;
 	delete this.clusters;
 	delete this.step;
-	
+
 	if ( this.simulation )
 		this.simulation.stop();
 	delete this.simulation;

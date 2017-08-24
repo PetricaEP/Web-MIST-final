@@ -1,5 +1,3 @@
-var tip;
-
 var margin = {top: 100, right: 100, bottom: 100, left: 100},
 padding = 3, // separation between same-color nodes
 clusterPadding = 6, // separation between different-color nodes
@@ -26,7 +24,7 @@ $(function(){
 	$("#show-list-btn").click(showListTool);
 
 	// Tooltip on mouse over
-	tip = d3.select("body").append("div")
+	var tip = d3.select("body").append("div")
 	.attr("class", "node-tooltip")
 	.style("opacity", 0);
 
@@ -37,9 +35,6 @@ createVisualization = function(jsonData){
 
 	// Cria nova aba
 	var	currentTab = addNewTab(jsonData.op);
-
-	//Adiciona data ao vetor de dados de cada aba
-	currentTab.data = jsonData;
 	currentTab.step = 1;
 
 	$('#loading').addClass('hidden');
@@ -55,15 +50,38 @@ createVisualization = function(jsonData){
 
 	svg.attr('width', width);
 	svg.attr('height', height);
+	
+	svg.on('click', function(){
+		d3.select('.fixed-tooltip')
+		.transition()
+		.duration(500)
+		.style('opacity', 0)
+		.style('display', 'none')
+		.remove();
+	});
 
-	var n = currentTab.data.documents.length, // no. total de documentos
-	m = currentTab.data.nclusters; // no. de clusters
+	var n = jsonData.documents.length, // no. total de documentos
+	m = jsonData.nclusters; // no. de clusters
 
 	// Se não houver nenhum documento, 
 	// não há nada que desenhar
 	if ( n === 0 ){
 		return;
 	}
+
+	var isColoringByRelevance = $('#color-schema').prop('checked');
+	var minRank, maxRank, minRadius, maxRadius;
+	maxRank = jsonData.documents[0].rank;
+	minRank = jsonData.documents[n-1].rank;
+	maxRadius = width * 0.05;
+	minRadius = width * 0.005;
+
+	//Adiciona data ao vetor de dados de cada aba
+	var radiiInterpolator = d3.scaleLinear()
+	.domain([minRank, maxRank])
+	.range([minRadius, maxRadius]);
+
+	currentTab.loadData(jsonData, radiiInterpolator, width * height);
 
 	// Valores min/max das coordenadas x,y 
 	// dos documentos atuais
@@ -86,14 +104,20 @@ createVisualization = function(jsonData){
 
 	// Criar contornos
 	var contours = d3.contourDensity()
-	.x(function(d){ return selectedTab.x(d[0]);})
-	.y(function(d){ return selectedTab.y(d[1]);})
+	.x(function(d){ return selectedTab.x(d.x);})
+	.y(function(d){ return selectedTab.y(d.y);})
 	.size([width,height])
 	.bandwidth(40)
-	(currentTab.data.density);
+	(currentTab.densities);
 
 	// Inicializa coloração dos clusters
-	currentTab.initClusterColor(m);
+	if ( isColoringByRelevance ){
+		currentTab.initColorSchema(true, minRank, maxRank);
+	}
+	else{
+		currentTab.initColorSchema(false, 0, m);
+	}
+	
 
 	// Coloração dos contornos
 	var contourColor = d3.scaleSequential(d3.interpolateOranges)
@@ -103,18 +127,18 @@ createVisualization = function(jsonData){
 	currentTab.clusters = new Array(m);
 
 	//Cria nós
-	currentTab.nodes = createNodes(currentTab.data.documents);
+	currentTab.nodes = createNodes(currentTab.documents);
 
 	// Se pontos do contorno devem ser mostrados na
 	// visualizaçã, cria pontos.
 	var showPoints = $("#show-density-points").prop('checked');
 	if ( showPoints ){
-		currentTab.points = createPoints(currentTab.data.density);
+		currentTab.points = createPoints(currentTab.densities);
 	}
 
 	// Marcadores dos links (setas)
 	svg.append("defs").selectAll("marker")
-	.data(["link"])
+	.data(["link" + currentTab.id])
 	.enter().append("marker")
 	.attr("id", function(d) { return d; })
 	.attr("viewBox", "0 -5 10 10")
@@ -149,7 +173,7 @@ createVisualization = function(jsonData){
 	.attr('r', function(d) { return fixRadius; })
 	.attr('cx', function(d) { return d.x;})
 	.attr('cy', function(d) { return  d.y;})
-	.attr('fill', function(d) { return  selectedTab.clusterColor(d.cluster);})
+	.attr('fill', function(d) { return  selectedTab.coloring(d);})
 	.attr('stroke', 'black')
 	.attr('stroke-width', 1)
 	.attr('fill-opacity', 0.65)
@@ -169,20 +193,9 @@ createVisualization = function(jsonData){
 		.attr('r', function(d) { return d.r; })
 		.attr('cx', function(d) { return d.x;})
 		.attr('cy', function(d) { return  d.y;})
-		.attr('fill', function(d) { return  selectedTab.clusterColor(d.cluster);})
+		.attr('fill', function(d) { return  selectedTab.coloring(d);})
 		.attr('stroke', 'black')
 		.attr('stroke-width', 1);
-	}
-
-	// Desenha links entre circulos
-	if ( currentTab.links !== null ){
-		currentTab.path = g
-		.selectAll("path")
-		.data(currentTab.links)
-		.enter().append("path")
-		.attr("class", "link")
-		.attr('stroke-width', 1.5)
-		.attr("marker-end", function(d) { return "url(#link)"; });
 	}
 
 	// Ferramenta de seleção (escondida por enquanto).
@@ -198,29 +211,29 @@ createVisualization = function(jsonData){
 
 	// Mostra tooltips sobre os pontos de densidade,
 	// apenas coordenadas x,y.
-	if ( showPoints ){
-		point
-		.on("mouseover", function(p){
-			var d = p.data;
-			var html = "<p>x = " + d.x + ", y = " + d.y + "<p>";
-
-			tip.transition()
-			.duration(500)
-			.style("opacity", 0);
-
-			tip.transition()
-			.duration(200)
-			.style("opacity", 0.9)
-			.style("display", "block");
-
-			tip.html(html)
-			.style("left", "150px")
-			.style("top", "150px");
-			d3.select(this).style("stroke-opacity", 1);
-
-		})
-		.on("mouseout", hideTip);
-	}
+//	if ( showPoints ){
+//		point
+//		.on("mouseover", function(p){
+//			var d = p.data;
+//			var html = "<p>x = " + d.x + ", y = " + d.y + "<p>";
+//
+//			tip.transition()
+//			.duration(500)
+//			.style("opacity", 0);
+//
+//			tip.transition()
+//			.duration(200)
+//			.style("opacity", 0.9)
+//			.style("display", "block");
+//
+//			tip.html(html)
+//			.style("left", "150px")
+//			.style("top", "150px");
+//			d3.select(this).style("stroke-opacity", 1);
+//
+//		})
+//		.on("mouseout", hideTip);
+//	}
 
 	if ( currentTab.parentId === null ){
 		createMiniMap(svg, currentTab);
@@ -228,7 +241,7 @@ createVisualization = function(jsonData){
 	else{
 		copyMiniMapFromParent(svg, currentTab, minX, minY, maxX, maxY);
 	}
-	
+
 	// ###### Fim do primeiro passo: criar visualização ######
 };
 
@@ -262,7 +275,6 @@ function thirdStep(){
 
 	// Inicializa simulação
 	selectedTab.simulation = d3.forceSimulation(selectedTab.nodes)
-//	.force('link', forceLink)
 	.force("collide", forceCollide)
 	.force("gravity", forceGravity)
 	.on("tick", ticked)
@@ -319,9 +331,8 @@ function selectArea(p){
 		width: width,
 		height: height,
 		numClusters: numClusters,
-		zoomLevel: selectedTab.zoomLevel + 1,
-		hiddenDocIds: selectedTab.ids
-	}, 
+		zoomLevel: selectedTab.zoomLevel + 1
+	},
 	success: createVisualization, error: errorFn, dataType: "json"});
 }
 

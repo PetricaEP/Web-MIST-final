@@ -5,7 +5,9 @@
  * @returns nós da visualização.
  */
 function createNodes(documents){
-	return $.map(documents, function(doc, index){
+	var docIds = [],
+	nodes;
+	nodes = $.map(documents, function(doc, index){
 		if (doc.x !== undefined && doc.y !== undefined ){
 			// Cria nova nó
 			d = {
@@ -17,18 +19,8 @@ function createNodes(documents){
 					data: doc
 			};
 
-			// Citações
-			if ( doc.references ){
-				var i;
-				var references = doc.references;
-				selectedTab.links = [];
-				for(i = 0; i < references.length; i++){
-					selectedTab.links.push({	
-						source: doc.id,
-						target: references[i]
-					});
-				}
-			}
+			// Adiciona docID para busca por referencias
+			docIds.push(doc.id);
 
 			// Atualiza centroide do cluster
 			if (!selectedTab.clusters[ doc.cluster ] || (d.r > selectedTab.clusters[ doc.cluster ].r)) 
@@ -36,6 +28,53 @@ function createNodes(documents){
 			return d;
 		}
 	});
+
+	fetchReferencesAjax(docIds);
+
+	return nodes;
+}
+
+/**
+ * Consulta referencias somente para os documentos
+ * com os ID's especificados.
+ * @param docIds
+ * @returns
+ */
+function fetchReferencesAjax(docIds){
+	var r = jsRoutes.controllers.HomeController.references();
+
+	$.ajax({url: r.url, type: r.type, 
+		data: JSON.stringify(docIds),
+		contentType: "application/json",
+		success: processReferences, error: errorFn, dataType: "json"});
+}
+
+function processReferences(data){	
+	// Citações
+	if ( data.references ){
+		var i,j, docId, refId;
+		var references = data.references;
+		selectedTab.links = [];
+		$.each(references, function(docId){
+			references[docId].forEach(function(refId){
+				selectedTab.links.push({	
+					source: docId,
+					target: refId
+				});
+			});
+		});
+	}
+
+	// Desenha links entre circulos
+	if ( selectedTab.links !== null ){
+		selectedTab.path = d3.select("#" + selectedTab.id + " svg g")
+		.selectAll("path")
+		.data(selectedTab.links)
+		.enter().append("path")
+		.attr("class", "link")
+		.attr('stroke-width', 1.5)
+		.attr("marker-end", function(d) { return "url(#link" + selectedTab.id + ")"; });
+	}
 }
 
 /**
@@ -50,9 +89,9 @@ function createPoints(density){
 				id: i,
 				cluster: 1,
 				r: 3,
-				x: selectedTab.x(density[i][0]),
-				y: selectedTab.y(density[i][1]),
-				data: {x: density[i][0], y: density[i][1]}
+				x: selectedTab.x(density[i].x),
+				y: selectedTab.y(density[i].y),
+				data: {x: density[i].x, y: density[i].y}
 		};
 		points.push(d);
 	}
@@ -64,15 +103,33 @@ function createPoints(density){
  * estiver sobre um nó.
  */
 function showTip(n){
-	tip.transition()
-	.duration(500)
-	.style("opacity", 0);
+	var tip = d3.select('.node-tooltip');
 
 	tip.transition()
 	.duration(200)
 	.style("opacity", 0.9)
 	.style("display", "block");
 
+	tipHtml = createToolTip(n);
+	tip.html(tipHtml);
+	
+	var svg = $('#' + selectedTab.id + " svg");
+	var x = d3.event.clientX, 
+	y = d3.event.clientY;
+	var tipW = $('.node-tooltip').width(),
+	tipH = $('.node-tooltip').height();
+	
+	if ( x + tipW >= svg.width())
+		x -= tipW + 10;
+	if ( y + tipH >= svg.height())
+		y -= tipH + 10;
+	tip
+	.style("left", (x) + "px")
+	.style("top", (y) + "px");
+	d3.select(this).style("stroke-opacity", 1);
+}
+
+function createToolTip(n){
 	var d = n.data;
 	var tipHtml = '<a href="https://dx.doi.org/' + d.doi + '" target="_blank"><p>';
 	if (d.title)
@@ -86,10 +143,7 @@ function showTip(n){
 	if ( d.publicationDate )
 		tipHtml +=  ", " + d.publicationDate;
 	tipHtml += "</p></a>";
-	tip.html(tipHtml)
-	.style("left", (d3.event.clientX + n.r/2) + "px")
-	.style("top", (d3.event.clientY + n.r/2) + "px");
-	d3.select(this).style("stroke-opacity", 1);
+	return tipHtml;
 }
 
 /**
@@ -99,15 +153,19 @@ function showTip(n){
  */
 function hideTip(d){
 	d3.select(this).style("stroke-opacity", 0);
-	// Mouse foi movido para fora da visualização e da tooltip
-	tip.on("mouseover", function (t) {
-		tip.on("mouseleave", function (t) {
-			tip.transition().duration(500)
-			.style("opacity", 0)
-			.style("display", "none");
-
-		});
-	});
+	var tip = d3.select('.node-tooltip');
+	tip.transition()
+	.duration(500)
+	.style("opacity", 0);
+// Mouse foi movido para fora da visualização e da tooltip
+//	tip.on("mouseover", function (t) {
+//		tip.on("mouseleave", function (t) {
+//			tip.transition().duration(500)
+//			.style("opacity", 0)
+//			.style("display", "none");
+//
+//		});
+//	});
 }
 
 /**
@@ -118,17 +176,63 @@ function hideTip(d){
  */
 function toggleLinks(d,index){
 	if ( !selectedTab.links ) return;
+	
+	d3.event.stopPropagation();
+	
 	var i;
-	var paths = d3.selectAll('#' + selectedTab.id + ' path.link').nodes();
+	var paths = d3.selectAll('#' + selectedTab.id + ' path.link');
+	var nodes = paths.nodes();
+	var edges = paths.data();
 
-	var edges = selectedTab.links;
 	for(i = 0; i < edges.length; i++){
 		if (edges[i].source == d){
-			var l = d3.select(paths[edges[i].index]);
+			var l = d3.select(nodes[i]);
 			l.classed('active', !l.classed('active'));
 		}
 	}
+	
+	// Remove tooltip
+	d3.select('.node-tooltip')
+	.transition()
+	.duration(500)
+	.style('opacity', 0)
+	.style('display', 'none');
+	
+	d3.select('.fixed-tooltip')
+	.transition()
+	.duration(500)
+	.style('opacity', 0)
+	.style('display', 'none')
+	.remove();
+	
+	// Cria tooltip fixa
+	var tip = d3.select("body").append("div")
+	.attr('class', 'fixed-tooltip')
+	.style("opacity", 0);
+	
+	tip.transition()
+	.duration(200)
+	.style("opacity", 0.9)
+	.style("display", "block");
 
+	tipHtml = createToolTip(d);
+	tip.html(tipHtml);
+	
+	var svg = $('#' + selectedTab.id + " svg");
+	var x = d3.event.clientX, 
+	y = d3.event.clientY;
+	var tipW = $('.node-tooltip').width(),
+	tipH = $('.node-tooltip').height();
+	
+	if ( x + tipW >= svg.width())
+		x -= tipW + 10;
+	if ( y + tipH >= svg.height())
+		y -= tipH + 10;
+	tip
+	.style("left", (x) + "px")
+	.style("top", (y) + "px");
+	d3.select(this).style("stroke-opacity", 1);
+	
 	// Marca linhas na lista de documentos como ativas
 	var row = $("#" + selectedTab.id + " .documents-table table tbody tr")[index];
 	$(row).toggleClass('success');
@@ -320,7 +424,7 @@ function addDocumentToTable(index, node){
 		doc.doi + '</a>';
 
 	row += '</td><td class="doc-relevance">' + (doc.rank * 100 ).toFixed(3) + '</td><td class="doc-cluster">' + 
-	'<svg><circle cx="15" cy="15" r="10" stroke-width="0" fill="' + selectedTab.clusterColor(doc.cluster) + '"/></svg>'  +
+	'<svg><circle cx="15" cy="15" r="10" stroke-width="0" fill="' + selectedTab.coloring(doc) + '"/></svg>'  +
 	'</td></tr>';
 	$('#' + selectedTab.id + ' .documents-table .table tbody').append(row);
 }
@@ -375,10 +479,10 @@ function activeZoom(svg){
 	.on("wheel", function(){
 		var delta = d3.event.deltaY,
 		newWidth, newHeight;
-		
+
 		var selectionWidth = $(".selection").width(),
-			svgWidth = svg.attr('width');
-		
+		svgWidth = svg.attr('width');
+
 		if ( delta > 0 ){
 			newWidth = Math.min(svgWidth, selectionWidth * 1.1);
 			newHeight = newWidth * 6 / 16;
@@ -387,10 +491,10 @@ function activeZoom(svg){
 			newWidth = Math.max(200, selectionWidth * 0.9);
 			newHeight = newWidth * 6 / 16;
 		}
-		
+
 		$(".selection").width(newWidth);
 		$(".selection").height(newHeight);
-		
+
 		var start = d3.mouse(this);
 		svg.select('.selection')
 		.attr("d", rect(start[0], start[1], newWidth, newHeight));
@@ -459,16 +563,16 @@ function createMiniMap(svg, tab){
 }
 
 function copyMiniMapFromParent(svg, tab, minX, minY, maxX, maxY){
-	
+
 	var canvas = d3.select('#' + tab.id).insert('canvas', ':first-child')
-		.classed('minimap', true).node(),
+	.classed('minimap', true).node(),
 	parentCanvas = $('#' + tab.parentId).children('canvas');
-	
+
 	canvas.width = $("#" + tab.id + " canvas").width();
 	canvas.height = canvas.width * 6 / 16;
 	var ctx = canvas.getContext('2d');
 	ctx.drawImage(parentCanvas[0], 0, 0, canvas.width, canvas.height);
-	
+
 	// Acha posicoes x,y da selecao
 	if ( minX > -1 && minY > -1 && maxX < 1 && maxY < 1){
 		var xx = canvas.width * ( minX + 1) / 2,
@@ -480,5 +584,5 @@ function copyMiniMapFromParent(svg, tab, minX, minY, maxX, maxY){
 		ctx.fillStyle = "rgba(147,215,237,0.7)";
 		ctx.fill();
 	}
-	
+
 }
