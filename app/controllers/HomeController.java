@@ -1,7 +1,6 @@
 package controllers;
 
 import java.util.Iterator;
-import java.util.Map;
 
 import javax.inject.Inject;
 import javax.inject.Named;
@@ -9,7 +8,6 @@ import javax.inject.Named;
 import com.fasterxml.jackson.databind.JsonNode;
 
 import play.Logger;
-import play.data.DynamicForm;
 import play.data.Form;
 import play.data.FormFactory;
 import play.mvc.BodyParser;
@@ -17,7 +15,6 @@ import play.mvc.Controller;
 import play.mvc.Result;
 import play.routing.JavaScriptReverseRouter;
 import services.search.DocumentSearcher;
-import views.formdata.DocIdData;
 import views.formdata.QueryData;
 import views.formdata.SelectionData;
 import views.html.Index;
