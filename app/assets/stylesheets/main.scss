@@ -1,3 +1,7 @@
+.navbar{
+	margin-bottom: 5px !important;
+}
+	
 .visualization {
 	width: 100vw;
 	min-width: 100vw;
@@ -172,6 +176,10 @@ circle {
 	visibility: visible !important;
 }
 
+.operator-input{
+	padding: 0 5px 0 5px;
+}
+
 #searchForm {
 	.simple-search {
 		&.form-inline {
@@ -182,7 +190,7 @@ circle {
 	
 		.search-buttons{
 // 			text-align: right;
-			width: 14%;
+// 			width: 14%;
 		}
 	}
 

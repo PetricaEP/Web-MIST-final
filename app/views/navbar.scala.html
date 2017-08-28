@@ -26,7 +26,7 @@
     		
     		@if( active == "home"){
     			<form id="searchForm" class="navbar-form" >
-    			<div class="row form-inline simple-search">
+    			<div class="row form-inline simple-search col-sm-10">
 	    			<div class="col-sm-4">
 	    				<input type="text" id="terms" name="terms" class="form-control">
 	    			</div>
@@ -36,7 +36,7 @@
 		                	<option value="and">AND</option>
 		        		</select>
 	        		 </div>
-	        		 <div class="col-sm-2 search-buttons">
+	        		 <div class="col-sm-3 search-buttons">
 		        			<button type="submit" id="search" class="btn btn-primary">Search</button>
 		        			<button id="advanced-search-btn" type="button" class="btn btn-default" aria-label="Left Align">
 		  						<span class="glyphicon glyphicon-chevron-down" aria-hidden="true"></span>
@@ -46,7 +46,7 @@
 							</button>
 					</div>
 					
-					<div class="viz-options nav nav-bar col-sm-3">
+					<div class="viz-options nav nav-bar col-sm-4">
 		    			<button type="button" id="reset-btn" class="btn btn-danger glyphicon glyphicon-erase"
 		    			data-toggle="tooltip" data-placement="bottom" title="Reinicia visulização (esconde areas e seleções)."></button>
 		    			<button type="button" id="step-btn" class="btn btn-success glyphicon glyphicon-play"

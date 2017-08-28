@@ -123,6 +123,10 @@ function showTip(n){
 		x -= tipW + 10;
 	if ( y + tipH >= svg.height())
 		y -= tipH + 10;
+	
+	y = Math.max(0, y);
+	x = Math.max(0, x);
+	
 	tip
 	.style("left", (x) + "px")
 	.style("top", (y) + "px");
@@ -138,6 +142,10 @@ function createToolTip(n){
 		tipHtml +=", " + d.authors[0].name;
 		for(var i = 1; i < d.authors.length; i++){
 			tipHtml += "; " + d.authors[i].name;
+			if (i == 3){
+				tipHtml += "; et al.";
+				break;
+			}
 		}
 	}
 	if ( d.publicationDate )

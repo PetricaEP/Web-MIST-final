@@ -92,7 +92,9 @@ Tab.prototype.initColorSchema = function(isColorByRelevance, a, b){
  */
 Tab.prototype.coloring = function(d){
 	if ( this.isColorByRelevance ){
-		return this.color(d.data.rank);
+		if ( d.data !== undefined )
+			return this.color(d.data.rank);
+		return this.color(d.rank);
 	}
 	return this.color(d.cluster);
 };
@@ -129,7 +131,8 @@ Tab.prototype.xy_inverse = function(w,h){
  * Deleta Tab e para simulação.
  */
 Tab.prototype.deleteTab = function(){
-	delete this.data; 
+	delete this.documents;
+	delete this.densities;
 	delete this.links;
 	delete this.circles; 
 	delete this.points;
