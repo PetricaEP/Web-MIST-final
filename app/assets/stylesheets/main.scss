@@ -181,7 +181,8 @@ circle {
 		}
 	
 		.search-buttons{
-			text-align: right;
+// 			text-align: right;
+			width: 14%;
 		}
 	}
 
@@ -206,6 +207,10 @@ circle {
 
 .slider-selection {
 	background: #BABABA;
+}
+
+.slider-horizontal {
+	width: 100% !important;
 }
 
 .result {

@@ -66,6 +66,7 @@ createVisualization = function(jsonData){
 	// Se não houver nenhum documento, 
 	// não há nada que desenhar
 	if ( n === 0 ){
+		noDocumentsFound(svg);
 		return;
 	}
 
@@ -240,6 +241,17 @@ createVisualization = function(jsonData){
 	}
 	else{
 		copyMiniMapFromParent(svg, currentTab, minX, minY, maxX, maxY);
+	}
+	
+	// Exibe/Esconde circuls?
+	var showCircles = $('#show-circles-btn').hasClass('glyphicon-eye-close');
+	if ( showCircles ){
+		d3.selectAll('circle')
+		.style('opacity', 0.65);
+	}
+	else{
+		d3.selectAll('circle')
+		.style('opacity', 0);
 	}
 
 	// ###### Fim do primeiro passo: criar visualização ######

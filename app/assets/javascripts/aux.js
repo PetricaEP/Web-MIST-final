@@ -586,3 +586,36 @@ function copyMiniMapFromParent(svg, tab, minX, minY, maxX, maxY){
 	}
 
 }
+
+/**
+ * Exibe mensagem de aerta sobre
+ * nenhum resultado encontrado
+ * @param svg elemento svg da aba atual.
+ * @returns
+ */
+function noDocumentsFound(svg){
+	var g = svg.append("g");
+	var width = svg.attr('width'),
+	height = svg.attr('height');
+	
+	var text = g.selectAll('text')
+	.data( [ {
+		'cx': width/2,
+		'cy': height/2,
+		'text': 'No documents found!',
+		'color':  '#1a1a1a'
+		} ] )
+	.enter()
+	.append('text');
+	
+	
+	text
+	.attr('x', function(d){  return d.cx - 100; })
+	.attr('y', function(d){  return d.cy; })
+	.text(function(d){  return d.text; })
+	.attr('font-family', 'sans-serif')
+	.attr('font-size', '5em')
+	.attr('fill', function(d){  return d.color; });
+	
+	
+}

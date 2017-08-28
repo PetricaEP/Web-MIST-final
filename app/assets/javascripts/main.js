@@ -55,6 +55,18 @@ $(function() {
 
 	$(".advanced-search").hide();
 	$(".viz-settings").hide();
+	
+	$("#show-circles-btn").click(function(e){
+		var closed = $('#show-circles-btn').hasClass('glyphicon-eye-close');
+		if ( closed ){
+			d3.selectAll('circle').style('opacity', 0);
+		}
+		else{
+			d3.selectAll('circle').style('opacity', 0.65);
+		}
+		$('#show-circles-btn').toggleClass('glyphicon-eye-close', !closed);
+		$('#show-circles-btn').toggleClass('glyphicon-eye-open', closed);
+	});
 });
 
 //Submission error 

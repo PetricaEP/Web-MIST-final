@@ -78,7 +78,7 @@ Tab.prototype.initClusteringColorSchema = function(m){
 Tab.prototype.initColorSchema = function(isColorByRelevance, a, b){
 	this.isColorByRelevance  = isColorByRelevance;
 	if ( isColorByRelevance )
-		this.color = d3.scaleSequential(d3.interpolateRdYlGn)
+		this.color = d3.scaleSequential(d3.interpolateRdYlBu)
 		.domain([a, b]);
 	else{
 		this.color = d3.scaleSequential(d3.interpolateRainbow)
