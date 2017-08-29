@@ -16,6 +16,10 @@ import cern.jet.stat.tfloat.quantile.FloatQuantileFinder;
 import cern.jet.stat.tfloat.quantile.FloatQuantileFinderFactory;
 import ep.db.database.DatabaseService;
 import ep.db.database.DefaultDatabase;
+import ep.db.tfidf.LogaritmicInverseDocumentFrequencyTFIDF;
+import ep.db.tfidf.LogaritmicTFIDF;
+import ep.db.tfidf.RawInverseDocumentFrequencyTFIDF;
+import ep.db.tfidf.TFIDF;
 import ep.db.utils.Configuration;
 
 /**
@@ -43,6 +47,11 @@ public class MultidimensionalProjection {
 	private  boolean normalize;
 
 	/**
+	 * Configuracao.
+	 */
+	private Configuration config;
+
+	/**
 	 * Cria novo objeto para projeção multidimensional
 	 * com a configuração dada.
 	 * @param config configuração.
@@ -59,6 +68,7 @@ public class MultidimensionalProjection {
 	public MultidimensionalProjection( Configuration config, boolean normalize ) {
 		this.dbService = new DatabaseService(new DefaultDatabase(config));
 		this.normalize = normalize;
+		this.config = config;
 	}
 
 	/**
@@ -72,9 +82,12 @@ public class MultidimensionalProjection {
 		// ordenada decrescentemente pela relevancia.
 		// Primeira coluna contém docIds.
 		FloatMatrix2D matrix = null;
+		
+		TFIDF tfidf = getTFIDFWeightingScheme();
+		
 		try {
 			System.out.println("Building frequency matrix (bag of words)...");
-			 matrix = dbService.buildFrequencyMatrix(null);
+			 matrix = dbService.buildFrequencyMatrix(null, tfidf);
 		} catch (Exception e) {
 			logger.error("Error building frequency matrix", e);
 			throw e;
@@ -118,6 +131,25 @@ public class MultidimensionalProjection {
 		updateProjections(matrix.viewColumn(0), y, outliers);
 	}
 	
+	private TFIDF getTFIDFWeightingScheme() {
+		TFIDF tfidf;
+		switch (config.getTfidfWeightingScheme()) {
+		case 1:
+			tfidf = new RawInverseDocumentFrequencyTFIDF();
+			break;
+		case 2:
+			tfidf = new LogaritmicInverseDocumentFrequencyTFIDF();
+			break;
+		case 3: 
+			tfidf = new LogaritmicTFIDF();
+			break;
+		default:
+			tfidf = new LogaritmicInverseDocumentFrequencyTFIDF();
+			break;
+		}
+		return tfidf;
+	}
+
 	private List<Integer> disableOutliers(FloatMatrix2D y) {
 		FloatMatrix1D distances = FloatFactory1D.dense.make(y.rows());
 		

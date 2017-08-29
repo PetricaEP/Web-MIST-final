@@ -47,6 +47,7 @@ public class Configuration {
 	private static final String RANDOM_CONTROL_POINTS = "random_control_points";
 	private static final String DISABLE_OUTLIERS = "disable_outliers";
 	private static final String PAGE_RANK_ALPHA = "page_rank_alpha";
+	private static final String TFIDF_WEIGHTING_SCHEME = "tfidf_weighting_scheme";
 	
 	private static Logger logger = LoggerFactory.getLogger(Configuration.class);
 
@@ -109,6 +110,8 @@ public class Configuration {
 	private boolean disableOutliers;
 	
 	private float pageRankAlpha;
+	
+	private int tfidfWeightingScheme;
 	
 	private static Configuration instance;
 
@@ -195,7 +198,6 @@ public class Configuration {
 			}
 		}
 		
-
 		prop = properties.getProperty(DOCUMENT_RELEVANCE_FACTOR, "1");
 		try {
 			documentRelevanceFactor = Float.parseFloat(prop.trim());	
@@ -294,6 +296,15 @@ public class Configuration {
 			}
 		}
 		
+		prop = properties.getProperty(TFIDF_WEIGHTING_SCHEME);
+		if ( prop != null ){
+			try {
+				tfidfWeightingScheme = Integer.parseInt(prop.trim());	
+			} catch( NumberFormatException e){
+				logger.warn("Cannot parse TF-IDF weighting scheme: " + prop, e);
+			}
+		}
+		
 		usePreCalculatedFreqs = Boolean.parseBoolean(properties.getProperty(USE_PRE_CALCULATED_FREQS));
 		randomControlPoints  = Boolean.parseBoolean(properties.getProperty(RANDOM_CONTROL_POINTS));
 		disableOutliers  = Boolean.parseBoolean(properties.getProperty(DISABLE_OUTLIERS));
@@ -341,6 +352,8 @@ public class Configuration {
 		properties.setProperty(PAGE_RANK_ALPHA, Float.toString(pageRankAlpha));
 		
 		properties.setProperty(NORMALIZATION, Integer.toString(normalization));
+		
+		properties.setProperty(TFIDF_WEIGHTING_SCHEME, Integer.toString(tfidfWeightingScheme));
 		
 		properties.setProperty(USE_PRE_CALCULATED_FREQS, Boolean.toString(usePreCalculatedFreqs));
 		properties.setProperty(RANDOM_CONTROL_POINTS, Boolean.toString(randomControlPoints));
@@ -573,4 +586,11 @@ public class Configuration {
 		this.pageRankAlpha = pageRankAlpha;
 	}
 	
+	public int getTfidfWeightingScheme() {
+		return tfidfWeightingScheme;
+	}
+	
+	public void setTfidfWeightingScheme(int tfidfWeightingScheme) {
+		this.tfidfWeightingScheme = tfidfWeightingScheme;
+	}
 }
