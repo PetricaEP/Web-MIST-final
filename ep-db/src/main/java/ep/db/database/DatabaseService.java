@@ -70,8 +70,8 @@ public class DatabaseService {
 			+ "issue = coalesce(d.issue, excluded.issue), "
 			+ "container = coalesce(d.container, excluded.container), "
 			+ "container_issn = coalesce(d.container_issn, excluded.container_issn), "
-			+ "language = coalesce(d.language, excluded.language) "
-			+ "path = coalesce(d.path, excluded.path) "
+			+ "language = coalesce(d.language, excluded.language), "
+			+ "path = coalesce(d.path, excluded.path), "
 			+ "enabled = coalesce(d.enabled, excluded.enabled)";
 
 	/**
