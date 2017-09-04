@@ -3,8 +3,8 @@ var maxNumberOfTabs = 10;
 //Form submission handle
 $(function() {
 
-	$('[data-toggle="tooltip"]').tooltip();
-	$('[data-tooltip="tooltip"]').tooltip();
+	$('[data-toggle="tooltip"]').tooltip({container: 'body'});
+	$('[data-tooltip="tooltip"]').tooltip({container: 'body', trigger : 'hover'});
 	
 	$( "#searchForm" ).submit(function( e ) {
 		e.preventDefault();
@@ -62,7 +62,7 @@ $(function() {
 			d3.selectAll('circle').style('opacity', 0);
 		}
 		else{
-			d3.selectAll('circle').style('opacity', 0.65);
+			d3.selectAll('circle').style('opacity', 0.80);
 		}
 		$('#show-circles-btn').toggleClass('glyphicon-eye-close', !closed);
 		$('#show-circles-btn').toggleClass('glyphicon-eye-open', closed);

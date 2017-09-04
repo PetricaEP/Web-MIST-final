@@ -6,15 +6,17 @@ fixRadius = 5;
 //Inicializa visualização
 $(function(){
 
+	$("#reset-btn").prop('disabled', true);
 	$("#step-btn").prop('disabled', true);
 	$("#reheat-btn").prop('disabled', true);
 	$("#show-list-btn").prop('disabled', true);
-
+	$("#zoom-btn").prop('disabled', true);
+	
 	$("#reset-btn").click(resetVisualization);
 	$("#zoom-btn").click(zoomTool);
-	$("#zoom-btn").on( "mouseleave", function(){
-		$(this).tooltip('hide');
-	} );
+//	$("#zoom-btn").on( "mouseleave", function(){
+//		$(this).tooltip('hide');
+//	} );
 	$("#show-list-btn").on( "mouseleave", function(){
 		$(this).tooltip('hide');
 	} );
@@ -38,8 +40,10 @@ createVisualization = function(jsonData){
 	currentTab.step = 1;
 
 	$('#loading').addClass('hidden');
+	$("#reset-btn").prop('disabled', false);
 	$("#step-btn").prop('disabled', false);
 	$("#show-list-btn").prop('disabled', false);
+	$("#zoom-btn").prop('disabled', false);
 
 	var svg = d3.select("#" + currentTab.id + " svg"),
 	width = $("#" + currentTab.id + " svg").width(),
