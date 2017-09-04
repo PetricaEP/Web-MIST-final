@@ -33,14 +33,14 @@ function Tab(id, parentId){
 	this.parentId = parentId;
 }
 
-Tab.prototype.loadData = function(data, interpolator, maxArea){
+Tab.prototype.loadData = function(data, interpolator, maxArea, maxDocs){
 	var area = 0, index = 0;
 	this.documents = {};
 	var pDocuments = {};
 	if ( this.parentId !== null )
 		pDocuments = tabs[this.parentId].documents;
 
-	while ( area < maxArea && index < data.documents.length ){
+	while ( (area < maxArea || index < maxDocs) && index < data.documents.length ){
 		var doc = data.documents[index];
 		if ( pDocuments[doc.id] === undefined ){
 			var r = interpolator(doc.rank);

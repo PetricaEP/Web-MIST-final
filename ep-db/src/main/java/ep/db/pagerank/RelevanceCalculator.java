@@ -9,6 +9,7 @@ import ep.db.database.DatabaseService;
 import ep.db.database.DefaultDatabase;
 import ep.db.utils.Configuration;
 import me.tongfei.progressbar.ProgressBar;
+import me.tongfei.progressbar.ProgressBarStyle;
 
 /**
  * Classe para cálculo das relevâncias de cada
@@ -89,7 +90,8 @@ public class RelevanceCalculator {
 		}
 
 		PageRank<Long, Long> pageRank = new PageRank<>(graph, c);
-		ProgressBar pb = new ProgressBar("Page Rank", pageRank.getMaxIterations()).start();
+		ProgressBar pb = new ProgressBar("Page Rank", pageRank.getMaxIterations(), 
+				1000, System.out, ProgressBarStyle.UNICODE_BLOCK).start();
 
 		do{
 			pageRank.step();

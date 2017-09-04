@@ -95,7 +95,7 @@ function ajaxSubmitForm(){
 	yearE = $("#year-end").val(),
 	numClusters = $("#num-clusters").val(),
 	width = $(".tab-content").width(),
-	height = width * 6 / 16; //$(".tab-content").height(); 
+	height = width * 6 / 16; //$(".tab-content").height();
 
 	var r = jsRoutes.controllers.HomeController.search();
 	$.ajax({url: r.url, type: r.type, data: {
@@ -106,7 +106,7 @@ function ajaxSubmitForm(){
 		yearEnd: yearE,
 		numClusters: numClusters,
 		width: width,
-		height: height 
+		height: height
 	}, 
 	success: createVisualization, error: errorFn, dataType: "json"});
 

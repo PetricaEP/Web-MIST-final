@@ -507,6 +507,10 @@ function activeZoom(svg){
 		svg.select('.selection')
 		.attr("d", rect(start[0], start[1], newWidth, newHeight));
 	});
+	
+	selectedTab.circles
+	.on("mouseover", null)
+	.on("mouseout", null);
 
 	d3.selectAll('.selection')
 	.attr("visibility", "visible");
@@ -522,6 +526,10 @@ function desactiveZoom(svg){
 	svg.on('click.selection', null);
 	d3.selectAll('.selection')
 	.attr("visibility", "hidden");
+	
+	selectedTab.circles
+	.on("mouseover", showTip)
+	.on("mouseout", hideTip);
 }
 
 //Zoom: inicia seleção

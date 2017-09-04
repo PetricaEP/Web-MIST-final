@@ -82,7 +82,8 @@ createVisualization = function(jsonData){
 	.domain([minRank, maxRank])
 	.range([minRadius, maxRadius]);
 
-	currentTab.loadData(jsonData, radiiInterpolator, width * height);
+	var maxDocs = $("#max-number-of-docs").val();
+	currentTab.loadData(jsonData, radiiInterpolator, width * height, maxDocs);
 
 	// Valores min/max das coordenadas x,y 
 	// dos documentos atuais
@@ -177,7 +178,7 @@ createVisualization = function(jsonData){
 	.attr('fill', function(d) { return  selectedTab.coloring(d);})
 	.attr('stroke', 'black')
 	.attr('stroke-width', 1)
-	.attr('fill-opacity', 0.65)
+	.attr('fill-opacity', 0.80)
 	.on("mouseover", showTip)
 	.on("mouseout", hideTip)
 	.on("click", toggleLinks);
@@ -247,7 +248,7 @@ createVisualization = function(jsonData){
 	var showCircles = $('#show-circles-btn').hasClass('glyphicon-eye-close');
 	if ( showCircles ){
 		d3.selectAll('circle')
-		.style('opacity', 0.65);
+		.style('opacity', 0.80);
 	}
 	else{
 		d3.selectAll('circle')
@@ -355,7 +356,7 @@ function selectArea(p){
  */
 function endSimulation(){
 	selectedTab.circles
-	.attr("fill-opacity", 0.65);
+	.attr("fill-opacity", 0.80);
 
 	$("#reheat-btn").prop('disabled', false);
 }

@@ -27,6 +27,7 @@ import cern.colt.matrix.tfloat.algo.decomposition.DenseFloatSingularValueDecompo
 import cern.colt.matrix.tfloat.impl.DenseFloatMatrix2D;
 import cern.jet.math.tfloat.FloatFunctions;
 import me.tongfei.progressbar.ProgressBar;
+import me.tongfei.progressbar.ProgressBarStyle;
 
 /**
  * Implmentação do algoritmo LAMP para
@@ -120,7 +121,7 @@ public class Lamp {
 
 		assert dim == a;
 
-		ProgressBar pb = new ProgressBar("MDP", ninst).start();
+		ProgressBar pb = new ProgressBar("MDP", ninst, 1000, System.out, ProgressBarStyle.UNICODE_BLOCK).start();
 		
 		FloatMatrix2D Y = FloatFactory2D.dense.make(ninst, p, 0.0f);
 
