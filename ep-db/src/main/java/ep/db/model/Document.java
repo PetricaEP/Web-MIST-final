@@ -101,6 +101,10 @@ public class Document implements IDocument, Serializable{
 	 */
 	private float relevance;
 	
+	private float documentRank;
+	
+	private float authorsRank;
+	
 	/**
 	 * Score relativo a consulta (PostgreSQL rank)
 	 */
@@ -413,6 +417,22 @@ public class Document implements IDocument, Serializable{
 	 */
 	public void setRank(float relevance) {
 		this.relevance = relevance;
+	}
+	
+	public float getDocumentRank() {
+		return documentRank;
+	}
+	
+	public void setDocumentRank(float documentRank) {
+		this.documentRank = documentRank;
+	}
+	
+	public float getAuthorsRank() {
+		return authorsRank;
+	}
+	
+	public void setAuthorsRank(float authorsRank) {
+		this.authorsRank = authorsRank;
 	}
 
 	/**

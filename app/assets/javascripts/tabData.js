@@ -10,6 +10,7 @@ function Tab(id, parentId){
 	this.id = id;
 	this.documents = null;
 	this.densities = null;
+	this.n = 0;
 	this.nclusters = 0;
 	this.links = null;
 	this.circles = []; 
@@ -36,6 +37,7 @@ function Tab(id, parentId){
 Tab.prototype.loadData = function(data, interpolator, maxArea, maxDocs){
 	var area = 0, index = 0;
 	this.documents = {};
+	this.n = data.documents.length;
 	var pDocuments = {};
 	if ( this.parentId !== null )
 		pDocuments = tabs[this.parentId].documents;

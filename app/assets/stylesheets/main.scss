@@ -75,21 +75,20 @@
 				}
 			
 				&.doc-title{
-					width: 35%;
+					width: 37%;
 				}
 			
 				&.doc-authors{
-					width: 32%;
+					width: 36%;
 				}
 			
+				&.doc-relevance{
+					width: 15%;
+				}
+				
 				&.doc-year,
-				&.doc-relevance,
 				&.doc-cluster{
 					width: 6%;
-				}
-			
-				&.doc-doi{
-					width: 15%;
 				}
 			}
 		}
@@ -112,29 +111,35 @@
 				}
 			
 				&.doc-title{
-					width: 35%;
+					width: 37%;
 				}
 			
 				&.doc-authors{
-					width: 32%;
+					width: 36%;
+				}
+			
+				&.doc-relevance{
+					width: 15%;
 				}
 			
 				&.doc-year,
-				&.doc-relevance,
 				&.doc-cluster{
 					width: 6%;
+					text-align: center;
 				}
 			
 				&.doc-cluster{
 					padding: 0;
-				}
-			
-				&.doc-doi{
-					width: 15%;
 				}	
 			}
 		}
 	}
+}
+
+.total-documents-info{
+	padding-left: 10px;
+	font-size: 1.2em;
+	font-weight: 800;
 }
 
 div.node-tooltip,

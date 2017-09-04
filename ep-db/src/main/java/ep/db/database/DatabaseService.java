@@ -114,7 +114,8 @@ public class DatabaseService {
 	private static final String UPDATE_RELEVANCE_AUTHORS = "UPDATE authors SET relevance = ? WHERE aut_id = ?";
 
 	private static final String SQL_SELECT_COLUMNS = "d.doc_id, d.doi, d.title, d.keywords, d.publication_date, "
-			+ "dd.x, dd.y, (%f * dd.relevance + %f * coalesce(a.relevance,0)) rank, a.authors_name";
+			+ "dd.x, dd.y, (%f * dd.relevance + %f * coalesce(a.relevance,0)) rank, dd.relevance doc_rank, "
+			+ "coalesce(a.relevance,0) aut_rank, a.authors_name";
 
 	private static final String SEARCH_SQL = "SELECT " + SQL_SELECT_COLUMNS + ", ts_rank(?, tsv, query, ?) score FROM documents d "
 			+ "INNER JOIN documents_data dd ON d.doc_id = dd.doc_id LEFT JOIN "
@@ -925,13 +926,14 @@ public class DatabaseService {
 
 			PreparedStatement pstmt = conn.prepareStatement(sql);
 			int i = 0;
+			final int batchSize = Configuration.getInstance().getDbBatchSize();
 			for(Long docId : graph.getVertices()){
 				pstmt.setDouble(1, pageRank.getVertexScore(docId));
 				pstmt.setLong(2, docId);
 				pstmt.addBatch();
 				++i;
 
-				if (i % 50 == 0)
+				if (i % batchSize == 0)
 					pstmt.executeBatch();
 			}
 
@@ -1055,7 +1057,7 @@ public class DatabaseService {
 			else
 				rankSql.append(", dd.relevance score");
 
-			sql.append(" WHERE ");
+			sql.append(" AND ");
 			if ( querySearch != null )
 				sql.append("query @@ tsv AND ");
 			if ( !authors.isEmpty() )
@@ -1074,6 +1076,8 @@ public class DatabaseService {
 							rankSql.toString(),
 							sql.toString())
 					);
+			
+			
 
 			int index = 1;
 			if (querySearch != null){
@@ -1121,7 +1125,8 @@ public class DatabaseService {
 
 	private Document newSimpleDocument(ResultSet rs) throws SQLException {
 		// d.doc_id, d.doi, d.title, d.keywords, d.publication_date, "
-		// dd.x, dd.y, (%f * dd.relevance + %f * a.relevance) rank, a.authors_name,
+		// dd.x, dd.y, (%f * dd.relevance + %f * a.relevance) rank, doc_rank, 
+		// aut_rank, a.authors_name,
 		// score (mutable)
 		Document doc = new Document();
 		doc.setId( rs.getLong(1) );
@@ -1132,8 +1137,10 @@ public class DatabaseService {
 		doc.setX(rs.getFloat(6));
 		doc.setY(rs.getFloat(7));
 		doc.setRank(rs.getFloat(8));
-		doc.setAuthors(Utils.getAuthors(rs.getString(9)));
-		doc.setScore(rs.getDouble(10));
+		doc.setDocumentRank(rs.getFloat(9));
+		doc.setAuthorsRank(rs.getFloat(10));
+		doc.setAuthors(Utils.getAuthors(rs.getString(11)));
+		doc.setScore(rs.getDouble(12));
 
 		return doc;
 	}

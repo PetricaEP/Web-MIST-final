@@ -393,6 +393,8 @@ function showListTool(){
  * @returns void
  */
 function showDocumentList(){
+	var info = '<p>Total number of documents: ' + selectedTab.n + '</p>';
+	$('#' + selectedTab.id + ' .total-documents-info').append(info);
 	selectedTab.nodes.forEach(function(d, ind){
 		//Add to documents table
 		addDocumentToTable(ind, d);
@@ -405,6 +407,7 @@ function showDocumentList(){
  */
 function hideDocumentList(){
 	$('#' + selectedTab.id + ' .documents-table .table tbody').empty();
+	$('#' + selectedTab.id + ' .total-documents-info').empty();
 }
 
 /**
@@ -415,8 +418,18 @@ function hideDocumentList(){
  */
 function addDocumentToTable(index, node){
 	var doc = node.data;
-	var row = '<tr><td class="doc-index">' + index + '</td><td class="doc-title">' + doc.title +
+	var title;
+	
+	if ( doc.doi )
+		title = '<a href="https://dx.doi.org/' + doc.doi + '" target="_blank">' + 
+		doc.title + '</a>';
+	else
+		title = doc.title;
+	
+	var row = '<tr><td class="doc-index">' + index + '</td><td class="doc-title">' + title +
 	'</td><td class="doc-authors">';
+	
+	
 	if ( doc.authors && doc.authors.length > 0){
 		row += doc.authors[0].name;
 		for(var i = 1; i < doc.authors.length; i++){
@@ -426,12 +439,11 @@ function addDocumentToTable(index, node){
 	row += '</td><td class="doc-year">';
 	if ( doc.publicationDate )
 		row += doc.publicationDate;
-	row += '</td><td class="doc-doi">';
-	if ( doc.doi )
-		row += '<a href="https://dx.doi.org/' + d.doi + '" target="_blank">' + 
-		doc.doi + '</a>';
-
-	row += '</td><td class="doc-relevance">' + (doc.rank * 100 ).toFixed(3) + '</td><td class="doc-cluster">' + 
+	row += '</td>';
+	
+	var rank = (doc.documentRank * 100).toFixed(3) + " / " + (doc.authorsRank * 100).toFixed(3) + " = " + (doc.rank * 100 ).toFixed(3);
+	
+	row += '<td class="doc-relevance">' + rank + '</td><td class="doc-cluster">' + 
 	'<svg><circle cx="15" cy="15" r="10" stroke-width="0" fill="' + selectedTab.coloring(doc) + '"/></svg>'  +
 	'</td></tr>';
 	$('#' + selectedTab.id + ' .documents-table .table tbody').append(row);
