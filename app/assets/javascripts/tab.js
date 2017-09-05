@@ -10,7 +10,7 @@ var tabCount, selectedTab, tabs;
 $(function(){
 	tabs = [];
 	tabCount = 0;
-	selectedTabIndex = null;
+	selectedTab = null;
 });
 
 /**
@@ -116,41 +116,7 @@ function addTab(id, title, parentId){
 		var isZoomActive = $('#zoom-btn').hasClass('active');
 		if ( isZoomActive ){
 			var svg = d3.select("#" + selectedTabId + " svg");
-			svg.on('mousemove', function(){
-				var start = d3.mouse(this);
-				startSelection(start, svg);
-			})
-			.on("click.selection", function() {
-				d3.select(this).on("mousemove", null);
-				//			$("#zoom-btn").click();
-				endSelection(d3.mouse(this));
-			})
-			.on("wheel", function(){
-				var delta = d3.event.deltaY,
-				newWidth, newHeight;
-
-				var selectionWidth = $(".selection").width(),
-				svgWidth = svg.attr('width');
-
-				if ( delta > 0 ){
-					newWidth = Math.min(svgWidth, selectionWidth * 1.1);
-					newHeight = newWidth * 6 / 16;
-				}
-				else{
-					newWidth = Math.max(200, selectionWidth * 0.9);
-					newHeight = newWidth * 6 / 16;
-				}
-
-				$(".selection").width(newWidth);
-				$(".selection").height(newHeight);
-
-				var start = d3.mouse(this);
-				svg.select('.selection')
-				.attr("d", rect(start[0], start[1], newWidth, newHeight));
-			});
-
-			svg.select('.selection')
-			.attr("visibility", "visible");
+			activeZoom(svg);
 		}
 	})
 	.on('hide.bs.tab', function(e){

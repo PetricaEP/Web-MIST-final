@@ -5,6 +5,7 @@ $(function() {
 
 	$('[data-toggle="tooltip"]').tooltip({container: 'body'});
 	$('[data-tooltip="tooltip"]').tooltip({container: 'body', trigger : 'hover'});
+	$('.modal').modal({show: false});
 	
 	$( "#searchForm" ).submit(function( e ) {
 		e.preventDefault();

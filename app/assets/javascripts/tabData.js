@@ -38,28 +38,24 @@ Tab.prototype.loadData = function(data, interpolator, maxArea, maxDocs){
 	var area = 0, index = 0;
 	this.documents = {};
 	this.n = data.documents.length;
-	var pDocuments = {};
-	if ( this.parentId !== null )
-		pDocuments = tabs[this.parentId].documents;
 
-	while ( (area < maxArea || index < maxDocs) && index < data.documents.length ){
+	while ( area < maxArea && index < data.documents.length ){
 		var doc = data.documents[index];
-		if ( pDocuments[doc.id] === undefined ){
-			var r = interpolator(doc.rank);
-			doc.radius = r;
-			area += 4 * (r + padding) * (r + padding);
-			this.documents[doc.id] = doc;
-		}
+		var r = interpolator(doc.rank);
+		doc.radius = r;
+		area += 4 * (r + padding) * (r + padding);
+		this.documents[doc.id] = doc;
 		++index;
 	}
 
 	this.densities = [];
 	for( var i = index; i < data.documents.length; i++){
-		if ( pDocuments[ data.documents[i].id] === undefined )
-			this.densities.push(data.documents[i]);
+		this.densities.push(data.documents[i]);
 	}
 
 	this.ncluster = data.nclusters;
+	
+	return index;
 };
 
 /**
@@ -79,9 +75,9 @@ Tab.prototype.initClusteringColorSchema = function(m){
  */
 Tab.prototype.initColorSchema = function(isColorByRelevance, a, b){
 	this.isColorByRelevance  = isColorByRelevance;
-	if ( isColorByRelevance )
-		this.color = d3.scaleSequential(d3.interpolateRdYlBu)
-		.domain([a, b]);
+	if ( isColorByRelevance ){
+		this.color = palette(a,b);
+	}
 	else{
 		this.color = d3.scaleSequential(d3.interpolateRainbow)
 		.domain([a, b]);

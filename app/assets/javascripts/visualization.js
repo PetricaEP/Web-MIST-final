@@ -35,6 +35,34 @@ $(function(){
 //Criar uma visualização em uma nova aba
 createVisualization = function(jsonData){
 
+	var svg;
+//	var n = jsonData.documents.length; // no. total de documentos
+//	if ( n === 0 ){
+//		noDocumentsFound();
+//		return;
+//	}
+	
+	// Verifica se há pontos a serem exibidos
+	if ( selectedTab !== null && selectedTab.parentId !== undefined){
+		var parentDocs = selectedTab.documents;
+		jsonData.documents = jsonData.documents.filter(function(element, index, array){
+			return parentDocs[ element.id ] === undefined;
+		});
+	}
+	
+	// Se não houver nenhum documento, 
+	// não há nada que desenhar
+	var n = jsonData.documents.length;
+	if ( n === 0 ){
+		noDocumentsFound();
+		var isZoomActive = $('#zoom-btn').hasClass('active');
+		if ( isZoomActive ){
+			svg = d3.select("#" + selectedTabId + " svg");
+			activeZoom(svg);
+		}
+		return;
+	}
+	
 	// Cria nova aba
 	var	currentTab = addNewTab(jsonData.op);
 	currentTab.step = 1;
@@ -45,8 +73,8 @@ createVisualization = function(jsonData){
 	$("#show-list-btn").prop('disabled', false);
 	$("#zoom-btn").prop('disabled', false);
 
-	var svg = d3.select("#" + currentTab.id + " svg"),
-	width = $("#" + currentTab.id + " svg").width(),
+	svg = d3.select("#" + currentTab.id + " svg");
+	var width = $("#" + currentTab.id + " svg").width(),
 	height = width * 6 / 16; //$("#" + currentTab.id + " svg").height();
 
 	$("#" + currentTab.id + " svg").height(height);
@@ -64,16 +92,9 @@ createVisualization = function(jsonData){
 		.remove();
 	});
 
-	var n = jsonData.documents.length, // no. total de documentos
-	m = jsonData.nclusters; // no. de clusters
+	var m = jsonData.nclusters; // no. de clusters
 
-	// Se não houver nenhum documento, 
-	// não há nada que desenhar
-	if ( n === 0 ){
-		noDocumentsFound(svg);
-		return;
-	}
-
+	var maxDocs = $("#max-number-of-docs").val();
 	var isColoringByRelevance = $('#color-schema').prop('checked');
 	var minRank, maxRank, minRadius, maxRadius;
 	maxRank = jsonData.documents[0].rank;
@@ -86,7 +107,7 @@ createVisualization = function(jsonData){
 	.domain([minRank, maxRank])
 	.range([minRadius, maxRadius]);
 
-	var maxDocs = $("#max-number-of-docs").val();
+	
 	currentTab.loadData(jsonData, radiiInterpolator, width * height, maxDocs);
 
 	// Valores min/max das coordenadas x,y 

@@ -492,8 +492,10 @@ function activeZoom(svg){
 		startSelection(start, svg);
 	})
 	.on("click.selection", function() {
+		// Remove event listeners
 		d3.select(this).on("mousemove", null);
 		d3.select(this).on("wheel", null);
+		d3.select(this).on("click.selection", null);
 		endSelection(d3.mouse(this));
 	})
 	.on("wheel", function(){
@@ -520,9 +522,11 @@ function activeZoom(svg){
 		.attr("d", rect(start[0], start[1], newWidth, newHeight));
 	});
 	
-	selectedTab.circles
-	.on("mouseover", null)
-	.on("mouseout", null);
+	if ( selectedTab.circles.length > 0 ){
+		selectedTab.circles
+		.on("mouseover", null)
+		.on("mouseout", null);
+	}
 
 	d3.selectAll('.selection')
 	.attr("visibility", "visible");
@@ -615,35 +619,19 @@ function copyMiniMapFromParent(svg, tab, minX, minY, maxX, maxY){
 
 }
 
+function noDocumentsFound(){
+	$('.modal').modal('show');
+}
+
 /**
- * Exibe mensagem de aerta sobre
- * nenhum resultado encontrado
- * @param svg elemento svg da aba atual.
- * @returns
+ * Cria paleta de cores para documentos
+ * @param a valor minimo
+ * @param b valor maximo
+ * @returns d3.scaleThreshold
  */
-function noDocumentsFound(svg){
-	var g = svg.append("g");
-	var width = svg.attr('width'),
-	height = svg.attr('height');
-	
-	var text = g.selectAll('text')
-	.data( [ {
-		'cx': width/2,
-		'cy': height/2,
-		'text': 'No documents found!',
-		'color':  '#1a1a1a'
-		} ] )
-	.enter()
-	.append('text');
-	
-	
-	text
-	.attr('x', function(d){  return d.cx - 100; })
-	.attr('y', function(d){  return d.cy; })
-	.text(function(d){  return d.text; })
-	.attr('font-family', 'sans-serif')
-	.attr('font-size', '5em')
-	.attr('fill', function(d){  return d.color; });
-	
-	
+function palette(a, b) {
+	var d = (b-a)/7;
+	return d3.scaleThreshold()
+	.range(['#556b2f','#6f7d22','#7f921e','#8ca722','#95bf2b','#e8c219','#ffd700'])
+	.domain([a+1*d,a+2*d,a+3*d,a+4*d,a+5*d,a+6*d,a+7*d]);
 }
