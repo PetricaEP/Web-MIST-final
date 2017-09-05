@@ -502,7 +502,7 @@ function activeZoom(svg){
 		var delta = d3.event.deltaY,
 		newWidth, newHeight;
 
-		var selectionWidth = $(".selection").width(),
+		var selectionWidth = $(".selection")[0].style.width.replace("px", ""),
 		svgWidth = svg.attr('width');
 
 		if ( delta > 0 ){
@@ -514,8 +514,8 @@ function activeZoom(svg){
 			newHeight = newWidth * 6 / 16;
 		}
 
-		$(".selection").width(newWidth);
-		$(".selection").height(newHeight);
+		$(".selection")[0].style.width = newWidth + 'px';
+		$(".selection")[0].style.height = newHeight + 'px';
 
 		var start = d3.mouse(this);
 		svg.select('.selection')
@@ -550,9 +550,19 @@ function desactiveZoom(svg){
 
 //Zoom: inicia seleção
 function startSelection(start, svg) {
-	var selectionWidth = $(".selection").width(),
-	selectionHeight = $(".selection").height();
-
+	var selectionWidth = $(".selection")[0].style.width,
+	selectionHeight = $(".selection")[0].style.height;
+	
+	if ( selectionWidth === "" || selectionHeight === ""){
+		$(".selection")[0].style.width = "200px";
+		$(".selection")[0].style.height = "75px";
+		selectionWidth = "200px";
+		selectionHeight = "75px";
+	}
+	
+	selectionWidth = selectionWidth.replace("px", "");
+	selectionHeight = selectionHeight.replace("px", "");
+	
 	svg.select('.selection')
 	.attr("d", rect(start[0], start[1], selectionWidth, selectionHeight));
 }

@@ -356,8 +356,8 @@ function selectArea(p){
 	var r = jsRoutes.controllers.HomeController.zoom(),
 	width = $("#" + selectedTab.id + " svg").width(),
 	height = $("#" + selectedTab.id + " svg").height(),
-	selectionWidth = $(".selection").width(),
-	selectionHeight = $(".selection").height();
+	selectionWidth = $(".selection")[0].style.width.replace("px", ""),
+	selectionHeight = $(".selection")[0].style.height.replace("px","");
 
 	// Transforma coordenada para espaço original
 	// no intervalo [-1,1]
