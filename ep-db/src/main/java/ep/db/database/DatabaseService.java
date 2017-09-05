@@ -1241,7 +1241,7 @@ public class DatabaseService {
 					//d.doc_id, d.doi, d.title, d.keywords, d.publication_date, 
 					//dd.x, dd.y, dd.relevance, a.authors_name, dd.node_id
 					Document doc = newSimpleDocument(rs);  
-					int node_id = rs.getInt(11);
+					int node_id = rs.getInt(13);
 
 					((QuadTreeLeafNode) nodes.get(node_id)).addElement(doc);
 				}
