@@ -39,7 +39,7 @@ Tab.prototype.loadData = function(data, interpolator, maxArea, maxDocs){
 	this.documents = {};
 	this.n = data.documents.length;
 
-	while ( area < maxArea && index < data.documents.length ){
+	while ( ( area < maxArea || index < maxDocs) && index < data.documents.length ){
 		var doc = data.documents[index];
 		var r = interpolator(doc.rank);
 		doc.radius = r;

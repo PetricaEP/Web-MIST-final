@@ -43,7 +43,7 @@ createVisualization = function(jsonData){
 //	}
 	
 	// Verifica se há pontos a serem exibidos
-	if ( selectedTab !== null && selectedTab.parentId !== undefined){
+	if ( selectedTab !== null && jsonData.op === "zoom" ){
 		var parentDocs = selectedTab.documents;
 		jsonData.documents = jsonData.documents.filter(function(element, index, array){
 			return parentDocs[ element.id ] === undefined;
@@ -57,7 +57,7 @@ createVisualization = function(jsonData){
 		noDocumentsFound();
 		var isZoomActive = $('#zoom-btn').hasClass('active');
 		if ( isZoomActive ){
-			svg = d3.select("#" + selectedTabId + " svg");
+			svg = d3.select("#" + selectedTabId + " svg.visualization");
 			activeZoom(svg);
 		}
 		return;
@@ -73,11 +73,11 @@ createVisualization = function(jsonData){
 	$("#show-list-btn").prop('disabled', false);
 	$("#zoom-btn").prop('disabled', false);
 
-	svg = d3.select("#" + currentTab.id + " svg");
-	var width = $("#" + currentTab.id + " svg").width(),
+	svg = d3.select("#" + currentTab.id + " svg.visualization");
+	var width = $("#" + currentTab.id + " svg.visualization").width(),
 	height = width * 6 / 16; //$("#" + currentTab.id + " svg").height();
 
-	$("#" + currentTab.id + " svg").height(height);
+	$("#" + currentTab.id + " svg.visualization").height(height);
 	$(".tab-content").height(height);
 
 	svg.attr('width', width);
@@ -108,8 +108,9 @@ createVisualization = function(jsonData){
 	.range([minRadius, maxRadius]);
 
 	
-	currentTab.loadData(jsonData, radiiInterpolator, width * height, maxDocs);
-
+	var index = currentTab.loadData(jsonData, radiiInterpolator, width * height, maxDocs);
+	var minRankView = jsonData.documents[index-1].rank;
+	
 	// Valores min/max das coordenadas x,y 
 	// dos documentos atuais
 	var minX = -1, 
@@ -134,12 +135,12 @@ createVisualization = function(jsonData){
 	.x(function(d){ return selectedTab.x(d.x);})
 	.y(function(d){ return selectedTab.y(d.y);})
 	.size([width,height])
-	.bandwidth(40)
+	.bandwidth(50)
 	(currentTab.densities);
 
 	// Inicializa coloração dos clusters
 	if ( isColoringByRelevance ){
-		currentTab.initColorSchema(true, minRank, maxRank);
+		currentTab.initColorSchema(true, minRankView, maxRank);
 	}
 	else{
 		currentTab.initColorSchema(false, 0, m);
@@ -164,7 +165,9 @@ createVisualization = function(jsonData){
 	}
 
 	// Marcadores dos links (setas)
-	svg.append("defs").selectAll("marker")
+	var defs = svg.append("defs");
+	
+	defs.selectAll("marker")
 	.data(["link" + currentTab.id])
 	.enter().append("marker")
 	.attr("id", function(d) { return d; })
@@ -176,7 +179,15 @@ createVisualization = function(jsonData){
 	.attr("orient", "auto")
 	.append("path")
 	.attr("d", "M0,-5L10,0L0,5");
-
+	
+	var legend = defs.append("linearGradient")
+		.attr("id", "legend-"+currentTab.id)
+		.selectAll("stop")
+		.data(currentTab.color.range())
+		.enter().append('stop')
+		.attr("offset", function(d,i){ return i/(selectedTab.color.range().length-1); })
+		.attr("stop-color", function(d){ return d; });	
+	
 	// Contornos
 	svg.insert("g", "g")
 	.attr("fill", "none")
@@ -280,6 +291,40 @@ createVisualization = function(jsonData){
 		.style('opacity', 0);
 	}
 
+	// Adiciona legenda
+	var legendsvg = d3.select("#" + currentTab.id + " svg.legend")
+	.attr('width', 350);
+	
+	var legendWrapper = legendsvg.append("g")
+	.attr("class", "legendWrapper");
+	
+	legendWrapper.append("rect")
+	.attr("class", "legendRect")
+	.attr("width", 300)
+	.attr("height", 20)
+	.attr("x", 30)
+	.style("fill", "url(#legend-"+currentTab.id+")");
+	
+	var rankFactor = 10e4;
+	var xScale = d3.scaleLinear()
+	.range([0, 300])
+	.domain([minRankView * rankFactor,maxRank * rankFactor] );
+	
+	var xAxis = d3.axisBottom(xScale)
+	.ticks(1);
+	
+	legendWrapper.append("text")
+	.attr("class", "axis")
+	.attr("x", 30)
+	.attr("y", 30)
+	.text( Math.round(minRank * rankFactor ) );
+	
+	legendWrapper.append("text")
+	.attr("class", "axis")
+	.attr("x", 320)
+	.attr("y", 30)
+	.text( Math.round(maxRank * rankFactor ) );
+	
 	// ###### Fim do primeiro passo: criar visualização ######
 };
 
@@ -354,8 +399,8 @@ function selectArea(p){
 
 	var numClusters = $("#num-clusters").val();
 	var r = jsRoutes.controllers.HomeController.zoom(),
-	width = $("#" + selectedTab.id + " svg").width(),
-	height = $("#" + selectedTab.id + " svg").height(),
+	width = $("#" + selectedTab.id + " svg.visualization").width(),
+	height = $("#" + selectedTab.id + " svg.visualization").height(),
 	selectionWidth = $(".selection")[0].style.width.replace("px", ""),
 	selectionHeight = $(".selection")[0].style.height.replace("px","");
 
@@ -395,8 +440,8 @@ function endSimulation(){
  */
 function ticked(){
 
-	var width = $('#' + selectedTab.id + " svg").width();
-	var height = $('#' + selectedTab.id + " svg").height();
+	var width = $('#' + selectedTab.id + " svg.visualization").width();
+	var height = $('#' + selectedTab.id + " svg.visualization").height();
 
 	selectedTab.circles
 	.attr("cx", function(d) { return (d.x = Math.max(d.r, Math.min(width - d.r, d.x)));})

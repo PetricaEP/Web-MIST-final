@@ -153,7 +153,8 @@ function deleteTab(tabId){
 function newTabContent(id){
 	return '<div role="tabpanel" class="tab-pane" id="' + id + '">' + 
 	'<div class="visualization-wrapper">' + 
-	'<svg id="visualization" class="visualization"></svg></div>' +
+	'<svg id="visualization" class="visualization"></svg>' + 
+	'<svg id="visualization-legend" class="legend"></svg></div>' +
 	'<div class="documents-list_wrapper">' +
 	'<div class="documents-table">' +
 	'<div class="total-documents-info"></div>' +

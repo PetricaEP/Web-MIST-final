@@ -265,3 +265,14 @@ circle {
   width: 200px;
   height: 75px;
 }
+
+.axis{ 
+	font-size: 10px;
+	
+	path,
+	tick,
+	line {
+		fill: none;
+		stroke: none;
+	}
+}
