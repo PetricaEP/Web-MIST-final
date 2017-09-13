@@ -101,6 +101,8 @@ public class LocalDocumentSearcher implements DocumentSearcher {
 				result.put("documents", docs);
 				result.put("nclusters", numClusters);
 				result.put("op", "search");
+				result.put("minRadiusPerc", configuration.getMinRadiusSizePercent());
+				result.put("maxRadiusPerc", configuration.getMaxRadiusSizePercent());
 			}
 			else{
 				result.put("documents", new ArrayList<Document>(0));
@@ -194,6 +196,8 @@ public class LocalDocumentSearcher implements DocumentSearcher {
 				result.put("nclusters", numClusters);
 				result.put("op", "zoom");
 				result.put("min_max", new float[]{minX, maxX, minY, maxY});
+				result.put("minRadiusPerc", configuration.getMinRadiusSizePercent());
+				result.put("maxRadiusPerc", configuration.getMaxRadiusSizePercent());
 			}
 			else{
 				result.put("documents", new ArrayList<Document>(0));

@@ -99,8 +99,8 @@ createVisualization = function(jsonData){
 	var minRank, maxRank, minRadius, maxRadius;
 	maxRank = jsonData.documents[0].rank;
 	minRank = jsonData.documents[n-1].rank;
-	maxRadius = width * 0.05;
-	minRadius = width * 0.005;
+	maxRadius = width * jsonData.maxRadiusPerc;
+	minRadius = width * jsonData.minRadiusPerc;
 
 	//Adiciona data ao vetor de dados de cada aba
 	var radiiInterpolator = d3.scaleLinear()
