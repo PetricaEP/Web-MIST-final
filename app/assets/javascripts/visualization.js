@@ -42,6 +42,9 @@ createVisualization = function(jsonData){
 //		return;
 //	}
 	
+	// Esconde loading...
+	$('#loading').addClass('hidden');
+	
 	// Verifica se há pontos a serem exibidos
 	if ( selectedTab !== null && jsonData.op === "zoom" ){
 		var parentDocs = selectedTab.documents;
@@ -67,7 +70,6 @@ createVisualization = function(jsonData){
 	var	currentTab = addNewTab(jsonData.op);
 	currentTab.step = 1;
 
-	$('#loading').addClass('hidden');
 	$("#reset-btn").prop('disabled', false);
 	$("#step-btn").prop('disabled', false);
 	$("#show-list-btn").prop('disabled', false);
@@ -293,7 +295,7 @@ createVisualization = function(jsonData){
 
 	// Adiciona legenda
 	var legendsvg = d3.select("#" + currentTab.id + " svg.legend")
-	.attr('width', 350);
+	.attr('width', 400);
 	
 	var legendWrapper = legendsvg.append("g")
 	.attr("class", "legendWrapper");
@@ -323,7 +325,11 @@ createVisualization = function(jsonData){
 	.attr("class", "axis")
 	.attr("x", 320)
 	.attr("y", 30)
-	.text( Math.round(maxRank * rankFactor ) );
+	.append("tspan")
+	.text( Math.round(maxRank * rankFactor ) + "  x 10")
+	.append("tspan")
+	.attr("dy", "-5")
+	.text(" 4" );
 	
 	// ###### Fim do primeiro passo: criar visualização ######
 };

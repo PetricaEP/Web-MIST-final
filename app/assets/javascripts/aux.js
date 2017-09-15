@@ -31,6 +31,9 @@ function createNodes(documents){
 
 	fetchReferencesAjax(docIds);
 
+	nodes.sort(function(a,b){
+		return b.data.rank - a.data.rank; 
+	});
 	return nodes;
 }
 
@@ -161,7 +164,7 @@ function createToolTip(n){
  */
 function hideTip(d){
 	d3.select(this).style("stroke-opacity", 0);
-	var tip = d3.select('.node-tooltip');
+	var tip = d3.selectAll('.node-tooltip');
 	tip.transition()
 	.duration(500)
 	.style("opacity", 0);
@@ -183,6 +186,9 @@ function hideTip(d){
  * @param index indice do nó selecionado.
  */
 function toggleLinks(d,index){
+	
+	removeToolTip();
+	
 	if ( !selectedTab.links ) return;
 	
 	d3.event.stopPropagation();
@@ -198,20 +204,6 @@ function toggleLinks(d,index){
 			l.classed('active', !l.classed('active'));
 		}
 	}
-	
-	// Remove tooltip
-	d3.select('.node-tooltip')
-	.transition()
-	.duration(500)
-	.style('opacity', 0)
-	.style('display', 'none');
-	
-	d3.select('.fixed-tooltip')
-	.transition()
-	.duration(500)
-	.style('opacity', 0)
-	.style('display', 'none')
-	.remove();
 	
 	// Cria tooltip fixa
 	var tip = d3.select("body").append("div")
@@ -244,6 +236,22 @@ function toggleLinks(d,index){
 	// Marca linhas na lista de documentos como ativas
 	var row = $("#" + selectedTab.id + " .documents-table table tbody tr")[index];
 	$(row).toggleClass('success');
+}
+
+function removeToolTip(){
+	// Remove tooltip
+	d3.selectAll('.node-tooltip')
+	.transition()
+	.duration(500)
+	.style('opacity', 0)
+	.style('display', 'none');
+	
+	d3.selectAll('.fixed-tooltip')
+	.transition()
+	.duration(500)
+	.style('opacity', 0)
+	.style('display', 'none')
+	.remove();
 }
 
 /**

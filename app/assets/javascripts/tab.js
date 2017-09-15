@@ -20,17 +20,25 @@ $(function(){
  * @returns nova aba (objeto Tab).
  */
 function addNewTab(op){
-	var zoomLevel, newTab;
+	var zoomLevel, newTab, t;
 
 	//Contador de abas
 	++tabCount;
 
 	if ( op === 'search' ){
 		zoomLevel = 0;
-		newTab = addTab('main-'+tabCount, 'Visualization ID: ' + tabCount, null);
+		t = $("#terms").val() + 
+		" " + $("#author").val() +
+		" " + $("#year-start").val() +
+		" " + $("#year-end").val();
+		
+		newTab = addTab('main-'+tabCount, 'Search ' + tabCount + " " + t, null, t);
+		newTab.title = t;
 	}else{ // op === 'zoom'
 		zoomLevel = selectedTab.zoomLevel + 1;
-		newTab = addTab('zoom-'+tabCount, 'Zoom Level: ' + zoomLevel, selectedTab.id);
+		t = selectedTab.title;
+		newTab = addTab('zoom-'+tabCount, 'Zoom Level ' + zoomLevel + " " + t, selectedTab.id, t);
+		newTab.title = t;
 	}
 
 	// Zoom Level
@@ -46,12 +54,13 @@ function addNewTab(op){
  * @param title título da nova aba.
  * @returns nova aba (objecto Tab).
  */
-function addTab(id, title, parentId){
+function addTab(id, title, parentId, altTextTitle){
 	// Criar um link para a nova aba no menu de abas
 	$('#viz-tabs').append('<li role="presentation" class="">' + 
 			'<a href="#' + id + '" aria-controls="' + id + '" role="tab"' +  
-			'data-toggle="tab" data-tab-index="' + tabCount + '" id="tab-' + id + '">' + title + 
-	' <button class="close"><span aria-hidden="true" class="glyphicon glyphicon-remove"></span></button></a></li>');
+			'data-toggle="tab" class="tab-title" data-tab-index="' + tabCount + '" id="tab-' + id + '" title="' + altTextTitle + '">' + 
+			'<button class="close"><span aria-hidden="true" class="glyphicon glyphicon-remove"></span></button>' + title + 
+	' </a></li>');
 	$('.tab-content').append(newTabContent(id));
 
 	// Adiciona tab ao vetor e marca a nova tab
@@ -93,7 +102,7 @@ function addTab(id, title, parentId){
 		// objeto Tab.
 		$(this).parents('li').remove();
 		deleteTab(tabId);
-		--tabCount;
+//		--tabCount;
 
 		// Se ainda existir outra aba
 		// exibe a aba e marca a aba selecionada

@@ -1,6 +1,15 @@
 .navbar{
 	margin-bottom: 5px !important;
 }
+
+.nav-tabs{
+	.tab-title{
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		max-width: 200px;
+	}
+}
 	
 .visualization {
 	width: 100vw;
@@ -23,6 +32,10 @@
 .visualization-wrapper {
 	/* border: 1px solid black; */
 	cursor: pointer;
+	
+	.legend{
+		max-height: 60px;
+	}
 }
 
 .zoom-cursor {
@@ -268,7 +281,6 @@ circle {
 
 .axis{ 
 	font-size: 10px;
-	
 	path,
 	tick,
 	line {
