@@ -38,13 +38,13 @@ import views.formdata.SelectionData;
 public class LocalDocumentSearcher implements DocumentSearcher {
 
 	private static final Pattern TERM_PATTERN = Pattern.compile(".*(\".*?\").*");
-	
+
 	private static Configuration configuration;
 
 	private static QuadTree quadTree;
-	
+
 	private DatabaseService dbService;
-	
+
 
 	@Inject
 	public LocalDocumentSearcher(Database db) {
@@ -79,9 +79,12 @@ public class LocalDocumentSearcher implements DocumentSearcher {
 
 			List<Document> docs;
 
-			if ( ! queryData.getAuthor().isEmpty() || ! queryData.getYearStart().isEmpty() || ! queryData.getYearEnd().isEmpty() )
-				docs = dbService.getAdvancedSimpleDocuments(query, queryData.getAuthor(), queryData.getYearStart(), 
+			if ( ! queryData.getAuthor().isEmpty() || ! queryData.getYearStart().isEmpty() || ! queryData.getYearEnd().isEmpty() ){
+				String op = getOperator(queryData.getOperator());
+				String authors = queryData.getAuthor().replaceAll("\\s+", op);
+				docs = dbService.getAdvancedSimpleDocuments(query, authors, queryData.getYearStart(), 
 						queryData.getYearEnd(), count);
+			}
 			else if ( query != null )
 				docs = dbService.getSimpleDocuments(query, count);
 			else
@@ -131,12 +134,12 @@ public class LocalDocumentSearcher implements DocumentSearcher {
 
 		try {
 			float x1, y1, x2, y2;
-			
+
 			x1 = selectionData.getStart()[0];
 			y1 = selectionData.getStart()[1];
 			x2 = selectionData.getEnd()[0];
 			y2 = selectionData.getEnd()[1];
-			
+
 			float aux;
 			if ( x1 > x2){
 				aux = x1;
@@ -148,14 +151,14 @@ public class LocalDocumentSearcher implements DocumentSearcher {
 				y1 = y2;
 				y2 = aux;
 			}
-			
+
 			Bounds rectangle = new Bounds(x1, y1, x2, y2);
-			
+
 			List<IDocument> documents = new ArrayList<>();
 			List<QuadTreeNode> nodes = new ArrayList<>();
-		
+
 			quadTree.findInRectangle(rectangle, documents, nodes, null);
-			
+
 			if ( documents.size() > 0){
 				// Ordena por relevancia (descrescente)
 				documents.sort(Comparator.comparing((IDocument d) -> d.getRank()).reversed());
@@ -175,7 +178,7 @@ public class LocalDocumentSearcher implements DocumentSearcher {
 						maxX = minX, 
 						minY = documents.get(0).getY(), 
 						maxY = minY;
-				
+
 				for(int i = 0; i < documents.size(); i++){
 					IDocument doc = documents.get(i);
 					float x = doc.getX();
@@ -191,7 +194,7 @@ public class LocalDocumentSearcher implements DocumentSearcher {
 
 				// Somente documentos selecionados para exibição,
 				// demais documentos irão compor o mapa de densidade.
-				
+
 				result.put("documents", documents);
 				result.put("nclusters", numClusters);
 				result.put("op", "zoom");
@@ -220,7 +223,7 @@ public class LocalDocumentSearcher implements DocumentSearcher {
 			return "";
 		}
 	}
-	
+
 	public String getDocumentsReferences(long[] docIds){
 		// References
 		final Map<Long, List<Long>> references;
@@ -232,8 +235,8 @@ public class LocalDocumentSearcher implements DocumentSearcher {
 			ref = new HashMap<>(0);
 		}
 		references = ref;
-		
-		
+
+
 		Map<String, Object> result = new HashMap<>();
 		result.put("references", references);
 		ObjectMapper mapper = new ObjectMapper();
@@ -317,18 +320,7 @@ public class LocalDocumentSearcher implements DocumentSearcher {
 		if ( terms.trim().isEmpty() )
 			return null;
 
-		String op;
-		switch (queryData.getOperator()) {
-		case "or":		
-			op = "|";
-			break;
-		case "and":
-			op = "&";
-			break;
-		default:
-			op = "|";
-			break;
-		}
+		String op = getOperator(queryData.getOperator());
 
 		StringBuilder query = new StringBuilder();
 		// Checa consulta usando padrão para expressões entre aspas:
@@ -393,5 +385,16 @@ public class LocalDocumentSearcher implements DocumentSearcher {
 		}
 
 		return query.toString();
+	}
+
+	private String getOperator(String operator) {
+		switch (operator) {
+		case "or":		
+			return "|";
+		case "and":
+			return "&";
+		default:
+			return "|";
+		}
 	}	
 }

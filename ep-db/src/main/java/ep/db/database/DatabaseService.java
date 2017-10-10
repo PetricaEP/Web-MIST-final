@@ -134,7 +134,7 @@ public class DatabaseService {
 			+ "INNER JOIN documents_data dd ON d.doc_id = dd.doc_id LEFT JOIN "
 			+ "(SELECT doc_id, string_agg(a.aut_name,';') authors_name, sum(a.relevance) relevance, "
 			+ "array_to_tsvector2(array_agg(aut_name_tsv)) aut_name_tsv FROM document_authors da INNER JOIN authors a "
-			+ "ON da.aut_id = a.aut_id GROUP BY da.doc_id) a ON d.doc_id = a.doc_id WHERE d.enabled is TRUE "
+			+ "ON da.aut_id = a.aut_id GROUP BY da.doc_id) a ON d.doc_id = a.doc_id "
 			+ "%s ORDER BY rank DESC LIMIT ?";
 
 	private static final String DOCUMENTS_DATA_SQL = "SELECT " + SQL_SELECT_COLUMNS + ", dd.relevance score, dd.node_id "
@@ -1057,16 +1057,16 @@ public class DatabaseService {
 			else
 				rankSql.append(", dd.relevance score");
 
-			sql.append(" AND ");
+			sql.append(" WHERE d.enabled is TRUE ");
 			if ( querySearch != null )
-				sql.append("query @@ tsv AND ");
+				sql.append(" AND query @@ tsv ");
 			if ( !authors.isEmpty() )
-				sql.append( "aut_query @@ aut_name_tsv AND ");
+				sql.append( " AND aut_query @@ aut_name_tsv ");
 			if ( !yearStart.isEmpty() )
-				sql.append("publication_date >= ? AND ");
+				sql.append(" AND publication_date >= ? ");
 			if ( !yearEnd.isEmpty() )
-				sql.append("publication_date <= ? AND ");
-			sql.append("TRUE");
+				sql.append(" AND publication_date <= ? ");
+//			sql.append("TRUE");
 
 			Configuration config = Configuration.getInstance();
 			PreparedStatement stmt = conn.prepareStatement(
