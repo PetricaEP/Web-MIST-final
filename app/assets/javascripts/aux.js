@@ -133,7 +133,16 @@ function showTip(n){
 	tip
 	.style("left", (x) + "px")
 	.style("top", (y) + "px");
-	d3.select(this).style("stroke-opacity", 1);
+	
+//	d3.select(this).style("stroke-opacity", 1);
+	d3.select(this)
+	.transition()
+	.duration(300)
+	.attr('r', function(d) {
+		if ( selectedTab.step == 1)
+			return fixRadius *  1.4;
+		return d.r * 1.4; 
+	});
 }
 
 function createToolTip(n){
@@ -163,20 +172,20 @@ function createToolTip(n){
  * @returns
  */
 function hideTip(d){
-	d3.select(this).style("stroke-opacity", 0);
+	
+	d3.select(this)
+	.transition()
+	.duration(300)
+	.attr('r', function(d) {
+		if ( selectedTab.step == 1)
+			return fixRadius;
+		return d.r * 0.6; 
+	});
+	
 	var tip = d3.selectAll('.node-tooltip');
 	tip.transition()
 	.duration(500)
 	.style("opacity", 0);
-// Mouse foi movido para fora da visualização e da tooltip
-//	tip.on("mouseover", function (t) {
-//		tip.on("mouseleave", function (t) {
-//			tip.transition().duration(500)
-//			.style("opacity", 0)
-//			.style("display", "none");
-//
-//		});
-//	});
 }
 
 /**
@@ -188,6 +197,19 @@ function hideTip(d){
 function toggleLinks(d,index){
 	
 	removeToolTip();
+	
+	// Adiciona ou remove documento do array 
+	// de documentos selecionados
+	var selectCircle = selectedTab.selectedCircles[d.id] === undefined;
+	if ( selectCircle ){
+		selectedTab.selectedCircles[d.id] = d.id;
+	}
+	else{
+		delete selectedTab.selectedCircles[d.id];
+	}
+	
+	// Marca docs selecionados
+	highligthSelectedCircle(this, selectCircle);
 	
 	if ( !selectedTab.links ) return;
 	
@@ -231,11 +253,14 @@ function toggleLinks(d,index){
 	tip
 	.style("left", (x) + "px")
 	.style("top", (y) + "px");
-	d3.select(this).style("stroke-opacity", 1);
 	
 	// Marca linhas na lista de documentos como ativas
 	var row = $("#" + selectedTab.id + " .documents-table table tbody tr")[index];
 	$(row).toggleClass('success');
+}
+
+function highligthSelectedCircle(circle, selected){
+	d3.select(circle).style("stroke-opacity", selected ? "1" : "0");
 }
 
 function removeToolTip(){
@@ -652,4 +677,29 @@ function palette(a, b) {
 	return d3.scaleThreshold()
 	.range(['#556b2f','#6f7d22','#7f921e','#8ca722','#95bf2b','#e8c219','#ffd700'])
 	.domain([a+1*d,a+2*d,a+3*d,a+4*d,a+5*d,a+6*d,a+7*d]);
+}
+
+
+/**
+ * Trata evento de alteracao 
+ * dos sliders de rank min/max
+ */
+function sliderRankChange(e){
+	var rankFactor = selectedTab.rankFactor;
+	d3.selectAll('circle')
+	.style('display', null)
+	.filter(function(d,i){return d.data.rank * rankFactor < e.value[0] || d.data.rank * rankFactor > e.value[1];})
+	.style('display', "none");
+}
+
+/**
+ * Faz download de documentos selecionados
+ *
+ */
+function downloadDocuments(){
+	var docIds = [];
+	for(var key in selectedTab.selectedCircles)
+		docIds.push(key);
+	var r = jsRoutes.controllers.HomeController.download(docIds);
+	window.location=r.absoluteURL();
 }

@@ -164,18 +164,25 @@ public class QuadTree {
 	}
 
 	public void addElements(List<? extends IDocument> documents) {
+//		int nDocs = 0;
 		for (IDocument document : documents) {
 			addElement(document);
+//			if ( ! addElement(document) )
+//				break;
+//			++nDocs;
 		}
+//		return nDocs;
 	}
 
 	public void addElement(IDocument d) {
 		QuadTreeKey key = calculateKey(d.getPos());
 		QuadTreeLeafNode leaf = makeLeaf(key);
+//		boolean added = leaf.addElement(d);
 		if (!leaf.addElement(d)) {
 			divideLeafInBranchWith4Leafs(leaf, d);
 			addElement(d);
 		}
+//		return added;
 	}
 
 	void makeEmptyLeafs() {

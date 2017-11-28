@@ -214,7 +214,10 @@ public class Configuration {
 		
 		prop = properties.getProperty(QUADTREE_MAX_DEPTH);
 		try{
-			quadTreeMaxDepth = Integer.parseInt(prop.trim());
+			if ( prop.trim().equals("Inf"))
+				quadTreeMaxDepth = Integer.MAX_VALUE;
+			else
+				quadTreeMaxDepth = Integer.parseInt(prop.trim());
 		}catch (NumberFormatException e) {
 			logger.warn("Cannot parse quadtree max depth value: " + prop, e);
 		}
@@ -592,5 +595,10 @@ public class Configuration {
 	
 	public void setTfidfWeightingScheme(int tfidfWeightingScheme) {
 		this.tfidfWeightingScheme = tfidfWeightingScheme;
+	}
+
+	public float getCirclePadding() {
+		// TODO Auto-generated method stub
+		return 6.0f;
 	}
 }

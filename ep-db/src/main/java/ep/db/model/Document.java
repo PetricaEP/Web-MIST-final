@@ -106,6 +106,11 @@ public class Document implements IDocument, Serializable{
 	private float authorsRank;
 	
 	/**
+	 * BibTEX
+	 */
+	private String bibTEX;
+	
+	/**
 	 * Score relativo a consulta (PostgreSQL rank)
 	 */
 	private double score;
@@ -586,5 +591,13 @@ public class Document implements IDocument, Serializable{
 		if (id != other.id)
 			return false;
 		return true;
+	}
+
+	public void setBibTEX(String bibTEX) {
+		this.bibTEX = bibTEX;
+	}
+	
+	public String getBibTEX() {
+		return bibTEX;
 	}
 }

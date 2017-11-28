@@ -24,8 +24,8 @@ public abstract class QuadTreeNode {
     protected long nodeId;
     protected int index;
     protected int depth;
-    protected float rankMax;
-    protected float rankMin;
+    protected float rankMax = Float.MIN_VALUE;
+    protected float rankMin = Float.MAX_VALUE;
 
     public boolean isLeaf() {
         return true;

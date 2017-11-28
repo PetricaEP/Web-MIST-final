@@ -62,17 +62,29 @@ public class RelevanceCalculator {
 	public void update(){
 		try {
 			System.out.println("Documents Page Rank...");
-			updateRelevance(DatabaseService.DOCUMENTS_GRAPH);
+//			updateRelevance(DatabaseService.DOCUMENTS_GRAPH);
+			calcPageRank(DatabaseService.DOCUMENTS_GRAPH);
 		} catch (Exception e) {
 			logger.error("Error updating relevance for documents.",e);
 		}
 
 		try {
 			System.out.println("Authors Page Rank...");
-			updateRelevance(DatabaseService.AUTHORS_GRAPH);
+//			updateRelevance(DatabaseService.AUTHORS_GRAPH);
+			calcPageRank(DatabaseService.AUTHORS_GRAPH);
 		} catch (Exception e) {
 			logger.error("Error updating relevance for authors.",e);
 		}
+	}
+
+	private void calcPageRank(int type) throws Exception {
+		try{
+			dbService.calPageRank(type, c);
+		}catch (Exception e) {
+			logger.error("Error while getting citation graph from database",e);
+			throw e;
+		}
+		
 	}
 
 	/**

@@ -250,6 +250,7 @@ public class DocumentParserService {
 			doc.setPublicationDate(documentParser.getPublicationDate());
 			doc.setLanguage(documentParser.getLanguage());
 			doc.setPath(filename.getAbsolutePath());
+			doc.setBibTEX(documentParser.toBibTEX());
 
 			consolidator.consolidate(doc);
 

@@ -104,4 +104,12 @@ public final class Utils {
 	private static boolean notBlank(String str) {
 		return str != null && !str.trim().isEmpty();
 	}
+
+	public static float interpolate(float a, float b, float t) {
+		return a * (1 - t) + b * t;
+	}
+	
+	public static float mapFromTo(float x, float a, float b, float c, float d){
+		return (x-a)/(b-a)*(d-c)+c;
+	}
 }

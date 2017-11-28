@@ -66,6 +66,8 @@ public interface IDocument extends Comparable<IDocument>{
 
     public Vec2 getPos();
     
+    public String getBibTEX();
+    
     @Override
     public int compareTo(IDocument o);
 }

@@ -9,11 +9,11 @@ package ep.db.quadtree;
 // ======================
 public class Vec2 {
 
-    public static float distance(Vec2 p1, Vec2 p2) {
+    public static double distance(Vec2 p1, Vec2 p2) {
         float dx = p2.x - p1.x;
         float dy = p2.y - p1.y;
 
-        return (float) Math.sqrt(dx * dx + dy * dy);
+        return Math.sqrt(dx * dx + dy * dy);
     }
 
     public float x;

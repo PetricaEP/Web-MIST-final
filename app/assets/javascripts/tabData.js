@@ -32,30 +32,24 @@ function Tab(id, parentId){
 	this.maxY= 1;
 	this.zoomLevel = 0;
 	this.parentId = parentId;
+	this.rankFactor = 1;
+	this.selectedCircles = [];
 }
 
-Tab.prototype.loadData = function(data, interpolator, maxArea, maxDocs){
-	var area = 0, index = 0;
+Tab.prototype.loadData = function(data, maxArea, maxDocs){
+	var area = 0, i = 0;
 	this.documents = {};
 	this.n = data.documents.length;
 
-	while ( ( area < maxArea || index < maxDocs) && index < data.documents.length ){
-		var doc = data.documents[index];
-		var r = interpolator(doc.rank);
-		doc.radius = r;
-		area += 4 * (r + padding) * (r + padding);
+	for(; i < data.documents.length; i++){
+		var doc = data.documents[i];
 		this.documents[doc.id] = doc;
-		++index;
 	}
 
-	this.densities = [];
-	for( var i = index; i < data.documents.length; i++){
-		this.densities.push(data.documents[i]);
-	}
-
+	this.densities = data.densities;
 	this.ncluster = data.nclusters;
 	
-	return index;
+	return i;
 };
 
 /**

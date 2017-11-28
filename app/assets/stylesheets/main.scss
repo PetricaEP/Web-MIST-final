@@ -211,7 +211,7 @@ circle {
 	
 		.search-buttons{
 // 			text-align: right;
-// 			width: 14%;
+			width: 18%;
 		}
 	}
 
@@ -242,6 +242,15 @@ circle {
 	width: 100% !important;
 }
 
+.slider-range{
+	width: 300px;
+	margin: 0 0 0 30px;
+}
+
+.slider-range .slider-selection{
+	background: none;
+}
+
 .result {
 	padding: 10px;
 }
@@ -250,8 +259,8 @@ circle {
 	border: 16px solid #f3f3f3; /* Light grey */
     border-top: 16px solid #3498db; /* Blue */
     border-radius: 50%;
-    width: 120px;
-    height: 120px;
+    width: 40px;
+    height: 40px;
     margin-left: auto;
 	margin-right: auto;
     -webkit-animation: spin 2s linear infinite;
@@ -286,5 +295,23 @@ circle {
 	line {
 		fill: none;
 		stroke: none;
+	}
+}
+
+.btn-download {
+    color: #fff;
+    background-color: #8d7ec8;
+    border-color: #8d7ec8;
+	
+	&:hover {
+    	color: #fff;
+    	background-color: #7565b7;
+    	border-color: #7565b7;
+	}
+
+	&:active {
+		color: #fff;
+		background-color: #7565b7;
+		border-color: #7565b7;
 	}
 }

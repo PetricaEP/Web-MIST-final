@@ -1,5 +1,8 @@
 package services.search;
 
+import java.io.File;
+import java.util.List;
+
 import views.formdata.QueryData;
 import views.formdata.SelectionData;
 
@@ -20,5 +23,7 @@ public interface DocumentSearcher {
 	public String getAuthorsGraph();
 
 	public String getDocumentsGraph();
+
+	public File downloadDocuments(List<Long> docIds);
 	
 }

@@ -109,6 +109,11 @@ public final class GrobIDDocumentParser implements DocumentParser{
 	public String getLanguage() {
 		return Utils.languageToISO3166(metadata.getLanguage());
 	}
+	
+	@Override
+	public String toBibTEX() {
+		return metadata.toBibTeX();
+	}
 
 	@Override
 	public String getTitle() {

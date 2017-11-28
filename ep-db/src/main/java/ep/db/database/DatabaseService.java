@@ -2,6 +2,7 @@ package ep.db.database;
 
 import java.sql.Array;
 import java.sql.Connection;
+import java.sql.JDBCType;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -33,6 +34,7 @@ import ep.db.quadtree.QuadTree;
 import ep.db.quadtree.QuadTreeBranchNode;
 import ep.db.quadtree.QuadTreeLeafNode;
 import ep.db.quadtree.QuadTreeNode;
+import ep.db.quadtree.Vec2;
 import ep.db.tfidf.LogaritmicTFIDF;
 import ep.db.tfidf.TFIDF;
 import ep.db.utils.Configuration;
@@ -59,8 +61,8 @@ public class DatabaseService {
 	 * SQL para inserção de um novo documento
 	 */
 	private static final String INSERT_DOC = "INSERT INTO documents AS d (title, doi, keywords, abstract, "
-			+ "publication_date, volume, pages, issue, container, container_issn, language, path, enabled ) "
-			+ "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::regconfig, ?, ?) ON CONFLICT (doi) DO UPDATE "
+			+ "publication_date, volume, pages, issue, container, container_issn, language, path, enabled, bibtex) "
+			+ "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::regconfig, ?, ?, ?) ON CONFLICT (doi) DO UPDATE "
 			+ "SET title = coalesce(d.title, excluded.title),"
 			+ "keywords=coalesce(d.keywords, excluded.keywords), "
 			+ "abstract = coalesce(d.abstract, excluded.abstract),"
@@ -72,7 +74,8 @@ public class DatabaseService {
 			+ "container_issn = coalesce(d.container_issn, excluded.container_issn), "
 			+ "language = coalesce(d.language, excluded.language), "
 			+ "path = coalesce(d.path, excluded.path), "
-			+ "enabled = coalesce(d.enabled, excluded.enabled)";
+			+ "enabled = coalesce(d.enabled, excluded.enabled), "
+			+ "bibtex = coalesce(d.bibtext,excluded.enabled)";
 
 	/**
 	 * SQL para inserção de novo autor
@@ -115,7 +118,7 @@ public class DatabaseService {
 
 	private static final String SQL_SELECT_COLUMNS = "d.doc_id, d.doi, d.title, d.keywords, d.publication_date, "
 			+ "dd.x, dd.y, (%f * dd.relevance + %f * coalesce(a.relevance,0)) rank, dd.relevance doc_rank, "
-			+ "coalesce(a.relevance,0) aut_rank, a.authors_name";
+			+ "coalesce(a.relevance,0) aut_rank, a.authors_name, d.bibtex";
 
 	private static final String SEARCH_SQL = "SELECT " + SQL_SELECT_COLUMNS + ", ts_rank(?, tsv, query, ?) score FROM documents d "
 			+ "INNER JOIN documents_data dd ON d.doc_id = dd.doc_id LEFT JOIN "
@@ -128,6 +131,12 @@ public class DatabaseService {
 			+ "INNER JOIN documents_data dd ON d.doc_id = dd.doc_id LEFT JOIN "
 			+ "(SELECT doc_id, string_agg(a.aut_name,';') authors_name, sum(a.relevance) relevance FROM document_authors da INNER JOIN authors a "
 			+ "ON da.aut_id = a.aut_id GROUP BY da.doc_id) a ON d.doc_id = a.doc_id WHERE d.enabled is TRUE "
+			+ "ORDER BY rank DESC";
+	
+	private static final String SEARCH_SQL_DOC_IDS = "SELECT " + SQL_SELECT_COLUMNS + ", dd.relevance score FROM documents d "
+			+ "INNER JOIN documents_data dd ON d.doc_id = dd.doc_id LEFT JOIN "
+			+ "(SELECT doc_id, string_agg(a.aut_name,';') authors_name, sum(a.relevance) relevance FROM document_authors da INNER JOIN authors a "
+			+ "ON da.aut_id = a.aut_id GROUP BY da.doc_id) a ON d.doc_id = a.doc_id WHERE doc_id IN ? AND d.enabled is TRUE "
 			+ "ORDER BY rank DESC";
 
 	private static final String ADVANCED_SEARCH_SQL = "SELECT " + SQL_SELECT_COLUMNS + " %s FROM documents d "
@@ -157,15 +166,14 @@ public class DatabaseService {
 
 	private static final String DELETE_NODE_DATA_SQL = "DELETE FROM nodes;";
 
-//	private static final String UPDATE_NODEID_NULL_DOC_DATA_SQL = "UPDATE documents_data SET node_id = NULL;";
+	//	private static final String UPDATE_NODEID_NULL_DOC_DATA_SQL = "UPDATE documents_data SET node_id = NULL;";
 
 	private static final String INSERT_NODE_SQL = "INSERT INTO nodes( node_id, isleaf, rankmax, rankmin, "
 			+ "parent_id, depth, index) VALUES (?, ?, ?, ?, ?, ?, ?);";
 
 	private static final String INSERT_DOC_DATA_SQL = "INSERT INTO documents_data( doc_id, node_id, x, y, relevance ) "
-			+ "VALUES (?, ?, ?, ?, ?);";
-
-	private static final String UPDATE_NODEID_DOC_DATA_SQL = "UPDATE documents_data SET node_id=? WHERE doc_id=?;";
+			+ "VALUES (?, ?, ?, ?, ?) ON CONFLICT (doc_id) DO UPDATE "
+			+ "SET node_id = excluded.node_id, x = excluded.x, y = excluded.y, relevance = excluded.relevance;";
 
 	private static final String AUTHORS_GRAPH_SQL = "SELECT a.aut_id source,a.aut_name source_name, a.relevance source_rank,"
 			+ "at.aut_id target,at.aut_name target_name, at.relevance target_relevance "
@@ -185,6 +193,10 @@ public class DatabaseService {
 
 	private static final String AUTHROS_GRAPH_SQL = "SELECT a.aut_id source, ra.aut_id target FROM citations c "
 			+ "INNER JOIN document_authors a ON c.doc_id = a.doc_id INNER JOIN document_authors ra ON c.ref_id = ra.doc_id";
+
+	private static final String PAGE_RANK_SQL_FUNC_DOCS = "SELECT calpagerank_docs(?);";
+
+	private static final String PAGE_RANK_SQL_FUNC_AUTHORS = "SELECT calpagerank_authors(?);";
 
 	/**
 	 * Data source
@@ -292,9 +304,9 @@ public class DatabaseService {
 	 */
 	public long addDocument(Document doc) throws Exception {
 		long docId = -1;
-		
+
 		boolean isCompleted = Utils.isDocumentCompleted(doc);
-		
+
 		try ( Connection conn = db.getConnection();){
 			PreparedStatement stmt = conn.prepareStatement(INSERT_DOC, Statement.RETURN_GENERATED_KEYS);
 			stmt.setString(1, doc.getTitle());
@@ -310,6 +322,7 @@ public class DatabaseService {
 			stmt.setString(11, doc.getLanguage());
 			stmt.setString(12, doc.getPath());
 			stmt.setBoolean(13, isCompleted);
+			stmt.setString(14, doc.getBibTEX());
 			stmt.executeUpdate();
 			ResultSet rs = stmt.getGeneratedKeys();
 			if (rs.next()){
@@ -352,7 +365,7 @@ public class DatabaseService {
 
 			for( Document doc: documents ){
 				boolean isCompleted = Utils.isDocumentCompleted(doc);
-				
+
 				stmt.setString(1, doc.getTitle());
 				stmt.setString(2, doc.getDOI());
 				stmt.setString(3, doc.getKeywords());
@@ -366,6 +379,7 @@ public class DatabaseService {
 				stmt.setString(11, doc.getLanguage());
 				stmt.setString(12, doc.getPath());
 				stmt.setBoolean(13, isCompleted);
+				stmt.setString(14, doc.getBibTEX());
 				stmt.addBatch();
 
 				if (++count % Configuration.getInstance().getDbBatchSize() == 0){
@@ -609,7 +623,7 @@ public class DatabaseService {
 				long docId = rs.getLong(1);
 				String terms = rs.getString(2);
 				matrix.set(doc, 0, docId); //Coloca docId na primeira coluna
-		
+
 				if ( terms != null && !terms.isEmpty() ){
 
 					List<Map<String,Object>> t = mapper.readValue(terms, 
@@ -740,7 +754,7 @@ public class DatabaseService {
 			conn.setAutoCommit(false);
 
 			PreparedStatement pstmt = conn.prepareStatement(UPDATE_XY);
-			
+
 			int doc = 0;
 			for(int i = 0; i < docIds.size(); i++){
 				long id = (long) docIds.getQuick(i);
@@ -982,12 +996,14 @@ public class DatabaseService {
 		}
 	}
 
-	public List<Document> getSimpleDocuments(String querySearch, int limit) throws Exception {
+	public List<Document> getSimpleDocuments(String querySearch, int limit, float rankMax, float rankMin, 
+			float radiiMax, float radiiMin, float maxArea, List<Document> docs, List<Vec2> densities) throws Exception {
+		
 		try ( Connection conn = db.getConnection();){
 			Configuration config = Configuration.getInstance();
 			PreparedStatement stmt = conn.prepareStatement(
 					String.format(SEARCH_SQL, config.getDocumentRelevanceFactor(), config.getAuthorsRelevanceFactor()));
-			
+
 			Array array = conn.createArrayOf("float4", config.getWeights());
 			stmt.setArray(1, array);
 			stmt.setInt(2, config.getNormalization());
@@ -998,11 +1014,25 @@ public class DatabaseService {
 				stmt.setNull(4, java.sql.Types.INTEGER);
 
 			try (ResultSet rs = stmt.executeQuery()){
-				List<Document> docs = new ArrayList<>();
-				while ( rs.next() ){
+				
+				float area = 0;
+				boolean next = rs.next();
+				while ( area <= maxArea && next ){
 					Document doc = newSimpleDocument( rs );
+					float radii = Utils.mapFromTo(doc.getRank(), rankMin, rankMax, radiiMin, radiiMax);
+					doc.setRadius(radii);
+					area += 4 * (radii + config.getCirclePadding()) * (radii + config.getCirclePadding());
 					docs.add(doc);
+					next = rs.next();
 				}
+				
+				while( next ){
+					float x = rs.getFloat(6),
+							y = rs.getFloat(7);
+					densities.add(new Vec2(x, y));
+					next = rs.next();
+				}
+				
 				return docs;
 			}catch (SQLException e) {
 				throw e;
@@ -1032,9 +1062,68 @@ public class DatabaseService {
 			throw e;
 		}
 	}
+	
+	public List<Document> getSimpleDocuments(Long[] docIds) throws Exception {
+		try ( Connection conn = db.getConnection();){
+			Configuration config = Configuration.getInstance();
+			PreparedStatement stmt = conn.prepareStatement(
+					String.format(SEARCH_SQL_DOC_IDS, config.getDocumentRelevanceFactor(), config.getAuthorsRelevanceFactor()));
+			stmt.setArray(1, conn.createArrayOf(JDBCType.BIGINT.getName(), docIds));
+			try (ResultSet rs = stmt.executeQuery()){
+				List<Document> docs = new ArrayList<>();
+				while ( rs.next() ){
+					Document doc = newSimpleDocument( rs );
+					docs.add(doc);
+				}
+				return docs;
+			}catch (SQLException e) {
+				throw e;
+			}
+		}catch( Exception e){
+			throw e;
+		}
+	}
+
+	public void getAllSimpleDocuments(float rankMax, float rankMin, float radiiMax, float radiiMin, float maxArea,
+			List<Document> docs, List<Vec2> densities) throws Exception {
+
+		try ( Connection conn = db.getConnection();){
+			Configuration config = Configuration.getInstance();
+			PreparedStatement stmt = conn.prepareStatement(
+					String.format(SEARCH_SQL_ALL, config.getDocumentRelevanceFactor(), config.getAuthorsRelevanceFactor()));
+
+			try (ResultSet rs = stmt.executeQuery()){
+				float area = 0;
+				boolean next = rs.next();
+				while ( area <= maxArea && next ){
+					Document doc = newSimpleDocument( rs );
+					float radii = Utils.mapFromTo(doc.getRank(), rankMin, rankMax, radiiMin, radiiMax);
+					doc.setRadius(radii);
+					area += 4 * (radii + config.getCirclePadding()) * (radii + config.getCirclePadding());
+					docs.add(doc);
+					next = rs.next();
+				}
+
+				// Documentos para mapa de densidade
+				while( next ){
+					float x = rs.getFloat(6),
+							y = rs.getFloat(7);
+					densities.add(new Vec2(x, y));
+					next = rs.next();
+				}
+
+			}catch (SQLException e) {
+				throw e;
+			}
+		}catch( Exception e){
+			throw e;
+		}
+
+	}
 
 	public List<Document> getAdvancedSimpleDocuments(String querySearch, String authors, String yearStart, 
-			String yearEnd, int limit) throws Exception {
+			String yearEnd, int limit, float rankMax, float rankMin, float radiiMax, float radiiMin, float maxArea,
+			List<Document> docs, List<Vec2> densities ) throws Exception {
 		try ( Connection conn = db.getConnection();){
 
 			StringBuilder sql = new StringBuilder();
@@ -1066,7 +1155,7 @@ public class DatabaseService {
 				sql.append(" AND publication_date >= ? ");
 			if ( !yearEnd.isEmpty() )
 				sql.append(" AND publication_date <= ? ");
-//			sql.append("TRUE");
+			//			sql.append("TRUE");
 
 			Configuration config = Configuration.getInstance();
 			PreparedStatement stmt = conn.prepareStatement(
@@ -1076,8 +1165,8 @@ public class DatabaseService {
 							rankSql.toString(),
 							sql.toString())
 					);
-			
-			
+
+
 
 			int index = 1;
 			if (querySearch != null){
@@ -1109,11 +1198,24 @@ public class DatabaseService {
 				stmt.setNull(index, java.sql.Types.INTEGER);
 
 			try (ResultSet rs = stmt.executeQuery()){
-				List<Document> docs = new ArrayList<>();
-				while ( rs.next() ){
+				float area = 0;
+				boolean next = rs.next();
+				while ( area <= maxArea && next ){
 					Document doc = newSimpleDocument( rs );
+					float radii = Utils.mapFromTo(doc.getRank(), rankMin, rankMax, radiiMin, radiiMax);
+					doc.setRadius(radii);
+					area += 4 * (radii + config.getCirclePadding()) * (radii + config.getCirclePadding());
 					docs.add(doc);
+					next = rs.next();
 				}
+
+				while( next ){
+					float x = rs.getFloat(6),
+							y = rs.getFloat(7);
+					densities.add(new Vec2(x, y));
+					next = rs.next();
+				}
+				
 				return docs;
 			}catch (SQLException e) {
 				throw e;
@@ -1140,7 +1242,8 @@ public class DatabaseService {
 		doc.setDocumentRank(rs.getFloat(9));
 		doc.setAuthorsRank(rs.getFloat(10));
 		doc.setAuthors(Utils.getAuthors(rs.getString(11)));
-		doc.setScore(rs.getDouble(12));
+		doc.setBibTEX(rs.getString(12));
+		doc.setScore(rs.getDouble(13));
 
 		return doc;
 	}
@@ -1216,7 +1319,6 @@ public class DatabaseService {
 					int index = rs.getByte(7);
 					int nDocuments = rs.getInt(8);
 					QuadTreeBranchNode parent = parent_id < 0 ? null : (QuadTreeBranchNode) nodes.get(parent_id);
-
 					if (isLeaf) {
 						QuadTreeLeafNode leaf = new QuadTreeLeafNode(depth, index, node_id, rankMax, rankMin, parent);
 						leaf.setnTotalDocuments(nDocuments);
@@ -1231,23 +1333,23 @@ public class DatabaseService {
 				qTree.setRoot((QuadTreeBranchNode) nodes.get(0));
 			}
 
-			Configuration config = Configuration.getInstance();
-			sql = String.format(DOCUMENTS_DATA_SQL, config.getDocumentRelevanceFactor(), config.getAuthorsRelevanceFactor());
-			stmt = conn.prepareStatement(sql);
-			stmt.setInt(1, qTree.getMaxElementsPerBunch());
-
-			try (ResultSet rs = stmt.executeQuery()) {
-				while (rs.next()) {
-					//d.doc_id, d.doi, d.title, d.keywords, d.publication_date, 
-					//dd.x, dd.y, dd.relevance, a.authors_name, dd.node_id
-					Document doc = newSimpleDocument(rs);  
-					int node_id = rs.getInt(13);
-
-					((QuadTreeLeafNode) nodes.get(node_id)).addElement(doc);
-				}
-			}
-
-			conn.close();
+			//			Configuration config = Configuration.getInstance();
+			//			sql = String.format(DOCUMENTS_DATA_SQL, config.getDocumentRelevanceFactor(), config.getAuthorsRelevanceFactor());
+			//			stmt = conn.prepareStatement(sql);
+			//			stmt.setInt(1, qTree.getMaxElementsPerBunch());
+			//
+			//			try (ResultSet rs = stmt.executeQuery()) {
+			//				while (rs.next()) {
+			//					//d.doc_id, d.doi, d.title, d.keywords, d.publication_date, 
+			//					//dd.x, dd.y, dd.relevance, a.authors_name, dd.node_id
+			//					Document doc = newSimpleDocument(rs);  
+			//					int node_id = rs.getInt(13);
+			//
+			//					((QuadTreeLeafNode) nodes.get(node_id)).addElement(doc);
+			//				}
+			//			}
+			//
+			//			conn.close();
 		} catch (Exception e) {
 			System.out.println(e.getMessage());
 		}
@@ -1263,31 +1365,36 @@ public class DatabaseService {
 			//			PreparedStatement stmt = conn.prepareStatement(sql);
 			//			stmt.execute();
 
-			String sql = DELETE_NODE_DATA_SQL;
-			PreparedStatement stmt = conn.prepareStatement(sql);
+			PreparedStatement branchStmt = conn.prepareStatement(INSERT_NODE_SQL), 
+					stmt = conn.prepareStatement(DELETE_NODE_DATA_SQL);
 			stmt.execute();
 
 			List<QuadTreeNode> nodes = new ArrayList<>();
 			nodes.add(quadTree.getRoot());
+			int count = 0;
+			final int batchSize = Configuration.getInstance().getDbBatchSize();
+			
 			while (!nodes.isEmpty()) {
 				QuadTreeNode node = nodes.remove(0);
 
 				//INSERT INTO nodes( node_id, isleaf, rankmax, rankmin, parent_id, depth, index)
-				sql = INSERT_NODE_SQL;
-				stmt = conn.prepareStatement(sql);
-				stmt.setLong(1, node.getNodeId());
-				stmt.setBoolean(2, node.isLeaf());
-				stmt.setFloat(3, node.getRankMax());
-				stmt.setFloat(4, node.getRankMin());
+				branchStmt.setLong(1, node.getNodeId());
+				branchStmt.setBoolean(2, node.isLeaf());
+				branchStmt.setFloat(3, node.getRankMax());
+				branchStmt.setFloat(4, node.getRankMin());
 				long pId = node.getParentNodeId();
 				if ( pId != -1 )
-					stmt.setLong(5, pId);
+					branchStmt.setLong(5, pId);
 				else
-					stmt.setNull(5, Types.BIGINT);
-				stmt.setInt(6, node.getDepth());
-				stmt.setInt(7, node.getIndex());
+					branchStmt.setNull(5, Types.BIGINT);
+				branchStmt.setInt(6, node.getDepth());
+				branchStmt.setInt(7, node.getIndex());
 
-				stmt.execute();
+				branchStmt.addBatch();
+				++count;
+				
+				if (count % batchSize == 0)
+					branchStmt.executeBatch();
 
 				if (!node.isLeaf()) {
 					QuadTreeBranchNode branch = (QuadTreeBranchNode) node;
@@ -1297,29 +1404,30 @@ public class DatabaseService {
 						}
 					}
 				} else { //Leaf
+					branchStmt.executeBatch();
+					
 					QuadTreeLeafNode leaf = (QuadTreeLeafNode) node;
-
+					PreparedStatement leafStmt = conn.prepareStatement(INSERT_DOC_DATA_SQL);
 					for (int i = 0; i < leaf.size(); i++) {
-						sql = UPDATE_NODEID_DOC_DATA_SQL;
-						stmt = conn.prepareStatement(sql);
-
 						IDocument d = leaf.getDocument(i);
-						stmt.setLong(1, node.getNodeId());
-						stmt.setLong(2, d.getId());
-						if (stmt.executeUpdate() == 0) {
-							sql = INSERT_DOC_DATA_SQL;
-							stmt = conn.prepareStatement(sql);
-
-							stmt.setLong(1, d.getId());
-							stmt.setLong(2, node.getNodeId());
-							stmt.setFloat(3, d.getPos().x);
-							stmt.setFloat(4, d.getPos().y);
-							stmt.setFloat(5, d.getRank());
-							stmt.execute();
+						leafStmt.setLong(1, d.getId());
+						leafStmt.setLong(2, node.getNodeId());
+						leafStmt.setFloat(3, d.getPos().x);
+						leafStmt.setFloat(4, d.getPos().y);
+						leafStmt.setFloat(5, d.getRank());						
+						leafStmt.addBatch();
+						
+						if ( i % batchSize == 0){
+							leafStmt.executeBatch();
 						}
 					}
+					leafStmt.executeBatch();
+					leafStmt.close();
 				}
 			}
+			
+			branchStmt.executeBatch();
+			branchStmt.close();
 			conn.close();
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -1335,7 +1443,7 @@ public class DatabaseService {
 			conn.setAutoCommit(false);
 
 			PreparedStatement pstmt = conn.prepareStatement("UPDATE documents SET enabled = FALSE WHERE doc_id = ?");
-			
+
 			int doc = 0;
 			for(int i = 0; i < docIds.size(); i++){
 				long id = (long) docIds.getQuick(i);
@@ -1358,5 +1466,25 @@ public class DatabaseService {
 			if ( conn != null )
 				conn.close();
 		}
+	}
+
+	public void calPageRank(int type, double alpha) throws SQLException {
+		try ( Connection conn = db.getConnection();){
+			PreparedStatement stmt; 
+			if ( type == DatabaseService.DOCUMENTS_GRAPH)
+				stmt = conn.prepareStatement(PAGE_RANK_SQL_FUNC_DOCS);
+			else
+				stmt = conn.prepareStatement(PAGE_RANK_SQL_FUNC_AUTHORS);
+			stmt.setDouble(1, alpha);
+			stmt.execute();
+
+		}catch (SQLException e) {
+			throw e;
+		}
+	}
+
+	public void getAllSimpleDocuments(long[] array) {
+		// TODO Auto-generated method stub
+		
 	}
 }

@@ -121,4 +121,11 @@ public interface DocumentParser {
 	 * @return
 	 */
 	public String getVolume();
+	
+	/**
+	 * Retorna representacao deste
+	 * documeto em BibTEX.
+	 * @return BibTEX
+	 */
+	public String toBibTEX();
 }

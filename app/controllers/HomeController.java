@@ -1,6 +1,8 @@
 package controllers;
 
+import java.io.File;
 import java.util.Iterator;
+import java.util.List;
 
 import javax.inject.Inject;
 import javax.inject.Named;
@@ -101,7 +103,7 @@ public class HomeController extends Controller {
 	public Result references(){
 		JsonNode json = request().body().asJson();
 		String jsonResult = "";
-		
+
 		if ( json.size() > 0){
 			Iterator<JsonNode> iter = json.elements();
 			long[] docIds = new long[json.size()];
@@ -109,7 +111,7 @@ public class HomeController extends Controller {
 			while(iter.hasNext()){
 				docIds[i++] = iter.next().asLong();
 			}
-			
+
 			try {
 				jsonResult = docSearcher.getDocumentsReferences(docIds);
 			} catch (Exception e) {
@@ -119,6 +121,13 @@ public class HomeController extends Controller {
 		}
 		return ok(jsonResult).as("application/json");
 
+	}
+
+	public Result download(List<Long> docIds){
+		File file = docSearcher.downloadDocuments(docIds);
+		if ( file != null)
+			return ok(file, /* inline = */ false).as("application/x-download");
+		return ok();
 	}
 
 	/**
@@ -131,6 +140,7 @@ public class HomeController extends Controller {
 						routes.javascript.HomeController.search(),
 						routes.javascript.HomeController.zoom(),
 						routes.javascript.HomeController.references(),
+						routes.javascript.HomeController.download(),
 						routes.javascript.GraphController.getGraph()
 						)).as("text/javascript");
 	}

@@ -163,7 +163,7 @@ function newTabContent(id){
 	return '<div role="tabpanel" class="tab-pane" id="' + id + '">' + 
 	'<div class="visualization-wrapper">' + 
 	'<svg id="visualization" class="visualization"></svg>' + 
-	'<svg id="visualization-legend" class="legend"></svg></div>' +
+	'<div id="slider-range" class="slider-range"><input type="text" class="slider" value="/></div>' +
 	'<div class="documents-list_wrapper">' +
 	'<div class="documents-table">' +
 	'<div class="total-documents-info"></div>' +

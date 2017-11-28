@@ -11,11 +11,14 @@ $(function(){
 	$("#reheat-btn").prop('disabled', true);
 	$("#show-list-btn").prop('disabled', true);
 	$("#zoom-btn").prop('disabled', true);
-	
+	$("#download-btn").prop('disabled', true);
+
 	$("#reset-btn").click(resetVisualization);
 	$("#zoom-btn").click(zoomTool);
+	$("#download-btn").click(downloadDocuments);
+
 //	$("#zoom-btn").on( "mouseleave", function(){
-//		$(this).tooltip('hide');
+//	$(this).tooltip('hide');
 //	} );
 	$("#show-list-btn").on( "mouseleave", function(){
 		$(this).tooltip('hide');
@@ -38,13 +41,13 @@ createVisualization = function(jsonData){
 	var svg;
 //	var n = jsonData.documents.length; // no. total de documentos
 //	if ( n === 0 ){
-//		noDocumentsFound();
-//		return;
+//	noDocumentsFound();
+//	return;
 //	}
-	
+
 	// Esconde loading...
 	$('#loading').addClass('hidden');
-	
+
 	// Verifica se há pontos a serem exibidos
 	if ( selectedTab !== null && jsonData.op === "zoom" ){
 		var parentDocs = selectedTab.documents;
@@ -52,7 +55,7 @@ createVisualization = function(jsonData){
 			return parentDocs[ element.id ] === undefined;
 		});
 	}
-	
+
 	// Se não houver nenhum documento, 
 	// não há nada que desenhar
 	var n = jsonData.documents.length;
@@ -65,7 +68,7 @@ createVisualization = function(jsonData){
 		}
 		return;
 	}
-	
+
 	// Cria nova aba
 	var	currentTab = addNewTab(jsonData.op);
 	currentTab.step = 1;
@@ -74,6 +77,7 @@ createVisualization = function(jsonData){
 	$("#step-btn").prop('disabled', false);
 	$("#show-list-btn").prop('disabled', false);
 	$("#zoom-btn").prop('disabled', false);
+	$("#download-btn").prop('disabled', false);
 
 	svg = d3.select("#" + currentTab.id + " svg.visualization");
 	var width = $("#" + currentTab.id + " svg.visualization").width(),
@@ -84,7 +88,7 @@ createVisualization = function(jsonData){
 
 	svg.attr('width', width);
 	svg.attr('height', height);
-	
+
 	svg.on('click', function(){
 		d3.select('.fixed-tooltip')
 		.transition()
@@ -104,15 +108,9 @@ createVisualization = function(jsonData){
 	maxRadius = width * jsonData.maxRadiusPerc;
 	minRadius = width * jsonData.minRadiusPerc;
 
-	//Adiciona data ao vetor de dados de cada aba
-	var radiiInterpolator = d3.scaleLinear()
-	.domain([minRank, maxRank])
-	.range([minRadius, maxRadius]);
-
-	
-	var index = currentTab.loadData(jsonData, radiiInterpolator, width * height, maxDocs);
+	var index = currentTab.loadData(jsonData, width * height, maxDocs);
 	var minRankView = jsonData.documents[index-1].rank;
-	
+
 	// Valores min/max das coordenadas x,y 
 	// dos documentos atuais
 	var minX = -1, 
@@ -126,6 +124,7 @@ createVisualization = function(jsonData){
 		minY = jsonData.min_max[2];
 		maxY = jsonData.min_max[3];
 	}
+	jsonData = null;
 
 	// Inicializa transformações 2D (x,y) 
 	// do intervalo [-1,1] para [0, width/height]
@@ -133,12 +132,26 @@ createVisualization = function(jsonData){
 	currentTab.xy_inverse(width, height);
 
 	// Criar contornos
-	var contours = d3.contourDensity()
-	.x(function(d){ return selectedTab.x(d.x);})
-	.y(function(d){ return selectedTab.y(d.y);})
-	.size([width,height])
-	.bandwidth(50)
+//	var contours = d3.contourDensity()
+////	.x(function(d){ return selectedTab.x(d.x);})
+////	.y(function(d){ return selectedTab.y(d.y);})
+//	.x(function(d){ return d.x;})
+//	.y(function(d){ return d.y;})
+//	.size([width,height])
+////	.bandwidth((maxX-minX) / (width - 1))
+//	(currentTab.densities);
+
+	var thresholds = d3.range(0,20)
+	.map(function(p){ return Math.pow(2,p);});
+	
+	var sizeN = 1024;
+	var contours = d3.contours()
+	.size([sizeN, sizeN])
+	.thresholds(thresholds)
 	(currentTab.densities);
+
+	console.debug("Max: " + d3.max(currentTab.densities));
+	console.debug("Min: " + d3.min(currentTab.densities));
 
 	// Inicializa coloração dos clusters
 	if ( isColoringByRelevance ){
@@ -147,12 +160,14 @@ createVisualization = function(jsonData){
 	else{
 		currentTab.initColorSchema(false, 0, m);
 	}
-	
 
 	// Coloração dos contornos
-	var contourColor = d3.scaleSequential(d3.interpolateOranges)
-	.domain(d3.extent(contours.map(function(p) { return p.value;}))); // Points per square pixel.
-
+//	var contourColor = d3.scaleSequential(d3.interpolateOranges)
+//	.domain(d3.extent(contours.map(function(p) { return p.value;}))); // Points per square pixel.
+	var contourColor = d3.scaleLog()
+	.domain(d3.extent(thresholds))
+	.interpolate(function() { return d3.interpolateYlGnBu;});
+	
 	// Array para armazenar o maior nó de cada cluster (centroide)
 	currentTab.clusters = new Array(m);
 
@@ -165,10 +180,11 @@ createVisualization = function(jsonData){
 	if ( showPoints ){
 		currentTab.points = createPoints(currentTab.densities);
 	}
+	currentTab.densities = null;
 
 	// Marcadores dos links (setas)
 	var defs = svg.append("defs");
-	
+
 	defs.selectAll("marker")
 	.data(["link" + currentTab.id])
 	.enter().append("marker")
@@ -181,15 +197,7 @@ createVisualization = function(jsonData){
 	.attr("orient", "auto")
 	.append("path")
 	.attr("d", "M0,-5L10,0L0,5");
-	
-	var legend = defs.append("linearGradient")
-		.attr("id", "legend-"+currentTab.id)
-		.selectAll("stop")
-		.data(currentTab.color.range())
-		.enter().append('stop')
-		.attr("offset", function(d,i){ return i/(selectedTab.color.range().length-1); })
-		.attr("stop-color", function(d){ return d; });	
-	
+
 	// Contornos
 	svg.insert("g", "g")
 	.attr("fill", "none")
@@ -199,8 +207,11 @@ createVisualization = function(jsonData){
 	.selectAll("path")
 	.data(contours)
 	.enter().append("path")
-	.attr("d", d3.geoPath())
+	.attr("d", d3.geoPath(d3.geoIdentity()
+			.scale( [width / sizeN])))
 	.attr("fill", function(d){ return contourColor(d.value);});
+
+	contours = null;
 
 	var g = svg.append("g");
 
@@ -219,7 +230,7 @@ createVisualization = function(jsonData){
 	.attr('fill-opacity', 0.80)
 	.on("mouseover", showTip)
 	.on("mouseout", hideTip)
-	.on("click", toggleLinks);
+	.on("click", toggleLinks);	
 
 	// Se há pontos de densidade, 
 	// então desenha na visualização.
@@ -252,27 +263,27 @@ createVisualization = function(jsonData){
 	// Mostra tooltips sobre os pontos de densidade,
 	// apenas coordenadas x,y.
 //	if ( showPoints ){
-//		point
-//		.on("mouseover", function(p){
-//			var d = p.data;
-//			var html = "<p>x = " + d.x + ", y = " + d.y + "<p>";
-//
-//			tip.transition()
-//			.duration(500)
-//			.style("opacity", 0);
-//
-//			tip.transition()
-//			.duration(200)
-//			.style("opacity", 0.9)
-//			.style("display", "block");
-//
-//			tip.html(html)
-//			.style("left", "150px")
-//			.style("top", "150px");
-//			d3.select(this).style("stroke-opacity", 1);
-//
-//		})
-//		.on("mouseout", hideTip);
+//	point
+//	.on("mouseover", function(p){
+//	var d = p.data;
+//	var html = "<p>x = " + d.x + ", y = " + d.y + "<p>";
+
+//	tip.transition()
+//	.duration(500)
+//	.style("opacity", 0);
+
+//	tip.transition()
+//	.duration(200)
+//	.style("opacity", 0.9)
+//	.style("display", "block");
+
+//	tip.html(html)
+//	.style("left", "150px")
+//	.style("top", "150px");
+//	d3.select(this).style("stroke-opacity", 1);
+
+//	})
+//	.on("mouseout", hideTip);
 //	}
 
 	if ( currentTab.parentId === null ){
@@ -281,8 +292,8 @@ createVisualization = function(jsonData){
 	else{
 		copyMiniMapFromParent(svg, currentTab, minX, minY, maxX, maxY);
 	}
-	
-	// Exibe/Esconde circuls?
+
+	// Exibe/Esconde circulos?
 	var showCircles = $('#show-circles-btn').hasClass('glyphicon-eye-close');
 	if ( showCircles ){
 		d3.selectAll('circle')
@@ -293,44 +304,65 @@ createVisualization = function(jsonData){
 		.style('opacity', 0);
 	}
 
+
 	// Adiciona legenda
-	var legendsvg = d3.select("#" + currentTab.id + " svg.legend")
-	.attr('width', 400);
-	
-	var legendWrapper = legendsvg.append("g")
-	.attr("class", "legendWrapper");
-	
-	legendWrapper.append("rect")
-	.attr("class", "legendRect")
-	.attr("width", 300)
-	.attr("height", 20)
-	.attr("x", 30)
-	.style("fill", "url(#legend-"+currentTab.id+")");
-	
-	var rankFactor = 10e4;
-	var xScale = d3.scaleLinear()
-	.range([0, 300])
-	.domain([minRankView * rankFactor,maxRank * rankFactor] );
-	
-	var xAxis = d3.axisBottom(xScale)
-	.ticks(1);
-	
-	legendWrapper.append("text")
-	.attr("class", "axis")
-	.attr("x", 30)
-	.attr("y", 30)
-	.text( Math.round(minRank * rankFactor ) );
-	
-	legendWrapper.append("text")
-	.attr("class", "axis")
-	.attr("x", 320)
-	.attr("y", 30)
-	.append("tspan")
-	.text( Math.round(maxRank * rankFactor ) + "  x 10")
-	.append("tspan")
-	.attr("dy", "-5")
-	.text(" 4" );
-	
+	currentTab.rankFactor = 1.0/minRankView;
+//	var legendsvg = d3.select("#" + currentTab.id + " svg.legend")
+//	.attr('width', 400);
+
+//	var legendWrapper = legendsvg.append("g")
+//	.attr("class", "legendWrapper");
+
+//	legendWrapper.append("rect")
+//	.attr("class", "legendRect")
+//	.attr("width", 300)
+//	.attr("height", 20)
+//	.attr("x", 30)
+//	.style("fill", "url(#legend-"+currentTab.id+")");
+
+
+//	var xScale = d3.scaleLinear()
+//	.range([0, 300])
+//	.domain([minRankView * rankFactor,maxRank * rankFactor] );
+
+//	var xAxis = d3.axisBottom(xScale)
+//	.ticks(1);
+
+//	legendWrapper.append("text")
+//	.attr("class", "axis")
+//	.attr("x", 30)
+//	.attr("y", 30)
+//	.text( (minRankView * rankFactor ).toFixed(3) );
+
+//	legendWrapper.append("text")
+//	.attr("class", "axis")
+//	.attr("x", 320)
+//	.attr("y", 30)
+//	.append("tspan")
+//	.text( (maxRank * rankFactor ).toFixed(3) + "  x 10");
+	//.append("tspan")
+//	.attr("dy", "-5")
+//	.text(" 4" );
+
+	var slider = $("#" + currentTab.id + " .slider-range .slider");
+	$(slider).slider({
+		tooltip:  "always",
+		min: (minRankView * currentTab.rankFactor),
+		max: Math.ceil(maxRank * currentTab.rankFactor),
+		precision: 3,
+		value: [(minRankView * currentTab.rankFactor ), Math.ceil(maxRank * currentTab.rankFactor)]
+	}).on('slide', sliderRankChange);
+
+	var colors = currentTab.color.range();
+	var gradientStr = colors[0];
+	for(var i = 1; i < colors.length; i++){
+		gradientStr += "," + colors[i];
+	}
+
+	$("#" + currentTab.id + " .slider-range .slider .slider-track").css({
+		"background": "linear-gradient(to right," + gradientStr + ")"
+	});
+
 	// ###### Fim do primeiro passo: criar visualização ######
 };
 

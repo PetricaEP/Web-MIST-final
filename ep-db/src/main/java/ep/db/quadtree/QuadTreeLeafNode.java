@@ -72,11 +72,11 @@ public class QuadTreeLeafNode extends QuadTreeNode {
     private void updateRankPathRoot(float rank) {
         if (rank < rankMin) {
             rankMin = rank;
-            //parent.updateRankPathRoot(rank);
+            parent.updateRankPathRoot(rank);
         }
         if (rank > rankMax) {
             rankMax = rank;
-            //parent.updateRankPathRoot(rank);
+            parent.updateRankPathRoot(rank);
         }
     }
 

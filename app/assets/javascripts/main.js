@@ -72,7 +72,7 @@ $(function() {
 
 //Submission error 
 errorFn = function(err){
-	$('#loading').removeClass('hidden');
+	$('#loading').addClass('hidden');
 	console.debug("Error:");
 	console.debug(err);
 };
