@@ -12,6 +12,8 @@ POST		/zoom							controllers.HomeController.zoom()
 
 POST		/references						controllers.HomeController.references()
 
+GET			/download						controllers.HomeController.download(docIds : java.util.List[java.lang.Long])
+
 GET     	/javascriptRoutes      			controllers.HomeController.javascriptRoutes
 
 GET			/graph/:graph					controllers.GraphController.graph(graph : String)
