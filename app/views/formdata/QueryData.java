@@ -17,22 +17,18 @@ public class QueryData {
 	
 	protected int numClusters = 10;
 	
-	@Required
-	protected float width;
-	
-	@Required
-	protected float height; 
+	protected int maxDocs;
 	
 	public QueryData() {
 		
 	}
 	
-	public QueryData(String terms, String operator, float width, float height) {
-		this(terms, operator, null, null, null, 10, width, height);
+	public QueryData(String terms, String operator, float width, float height, int maxDocs) {
+		this(terms, operator, null, null, null, 10, maxDocs);
 	}
 
 	public QueryData(String terms, String operator, String author, String yearStart, String yearEnd, int numClusters, 
-			float width, float height) {
+			int maxDocs) {
 		super();
 		this.terms = terms;
 		this.operator = operator;
@@ -40,8 +36,6 @@ public class QueryData {
 		this.yearStart = yearStart;
 		this.yearEnd = yearEnd;
 		this.numClusters = numClusters;
-		this.width = width;
-		this.height = height;
 	}
 
 	public String getTerms() {
@@ -92,19 +86,11 @@ public class QueryData {
 		this.numClusters = numClusters;
 	}
 
-	public float getWidth() {
-		return width;
+	public int getMaxDocs() {
+		return maxDocs;
 	}
 
-	public void setWidth(float width) {
-		this.width = width;
-	}
-
-	public float getHeight() {
-		return height;
-	}
-
-	public void setHeight(float height) {
-		this.height = height;
+	public void setMaxDocs(int maxDocs) {
+		this.maxDocs = maxDocs;
 	}
 }

@@ -112,4 +112,13 @@ public final class Utils {
 	public static float mapFromTo(float x, float a, float b, float c, float d){
 		return (x-a)/(b-a)*(d-c)+c;
 	}
+
+	public static String authorsToString(List<Author> authors) {
+		StringBuilder sb = new StringBuilder();
+		for(Author a : authors){
+			sb.append(a.getName());
+			sb.append(";");
+		}
+		return sb.toString();
+	}
 }

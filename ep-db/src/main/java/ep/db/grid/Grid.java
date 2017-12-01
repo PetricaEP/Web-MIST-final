@@ -8,9 +8,7 @@ package ep.db.grid;
 import java.util.ArrayList;
 import java.util.List;
 
-import ep.db.model.Document;
 import ep.db.quadtree.Bounds;
-import ep.db.quadtree.QuadTree;
 import ep.db.quadtree.Vec2;
 
 /**
@@ -49,54 +47,13 @@ public class Grid {
         }
     }
 
-//    public void evaluate(QuadTree qTree, Kernel k) {
-//
-//        Bounds bounds = qTree.boundingBox();
-//
-//        //Para o calculo dos pontos será considerado dois tamanhos de células (caso width e height forem diferentes)
-//        //Porém para o raio será considerado o tamanho em X
-//        float bandwidthX = bounds.size().x / (width - 1);
-//        float bandwidthY = bounds.size().y / (height - 1);
-//
-//        //Canto superior esquerdo
-//        Vec2 p0 = new Vec2(bounds.getP1().x, bounds.getP2().y);
-//
-//        Vec2 p = new Vec2(p0);
-//        for (int i = 0; i < data.length; i++) {
-//            for (int j = 0; j < data[i].length; j++) {
-//                points[i][j] = new Vec2(p);
-//                data[i][j] = (float) evaluatePointQuadTree(qTree, bandwidthX, k, p);
-//                p.x += bandwidthX;
-//            }
-//            p.y -= bandwidthY;
-//            p.x = p0.x;
-//        }
-//    }
-
-//    private float evaluatePointQuadTree(QuadTree qTree, float bandwidth, Kernel k, Vec2 p) {
-//
-//        List<Document> elements = new ArrayList();
-//        //Buscando os elementos próximos do ponto p
-//        qTree.findNeighbors(p, bandwidth, elements, 0);
-//
-//        if(elements.isEmpty())
-//            return 0;
-//        
-//        float valueAtP = 0;
-//        for (Document element : elements) {
-//            float distance = Vec2.distance(p, element.getPos());
-//            valueAtP += k.eval(distance / bandwidth);
-//        }
-//        return valueAtP;// / (elements.size() * bandwidth);
-//    }
-
     public void evaluate(List<Vec2> values, Bounds bounds, Kernel k) {
 
         //Para o calculo dos pontos será considerado os tamanhos em X e em Y
         float bandwidthX = bounds.size().x / (width - 1);
         float bandwidthY = bounds.size().y / (height - 1);
 
-        List<Vec2> valuesGrid[][] = new ArrayList[width - 1][height - 1];
+        List<Vec2> valuesGrid[][] = new ArrayList[height - 1][width - 1];
         for (int i = 0; i < valuesGrid.length; i++) {
             for (int j = 0; j < valuesGrid[i].length; j++) {
                 valuesGrid[i][j] = new ArrayList<>();
@@ -106,18 +63,18 @@ public class Grid {
         //Canto superior esquerdo
         Vec2 p0 = new Vec2(bounds.getP1().x, bounds.getP2().y);
         for (Vec2 value : values) {
-            int i = (int) ((value.x - p0.x) / bandwidthX);
-            int j = (int) ((p0.y - value.y) / bandwidthY); //invert for positives results
-            if (i == width-1) --i;
-            if (j == height-1) --j;
+            int j = (int) ((value.x - p0.x) / bandwidthX);
+            int i = (int) ((p0.y - value.y) / bandwidthY); //invert for positives results
+            if (i == height-1) --i;
+            if (j == width-1) --j;
             valuesGrid[i][j].add(value);
         }
 
         Vec2 p = new Vec2(p0);
-        for (int i = 0; i < width-1; i++) {
-            for (int j = 0; j < height-1; j++) {
-                points[i*height + j] = new Vec2(p);
-                data[i*height + j] = evaluatePointListGrid(valuesGrid, i, j, 4, k, p);
+        for (int i = 0; i < height-1; i++) {
+            for (int j = 0; j < width-1; j++) {
+                points[i*width + j] = new Vec2(p);
+                data[i*width + j] = evaluatePointListGrid(valuesGrid, i, j, 20, k, p);
                 p.x += bandwidthX;
             }
             p.y -= bandwidthY;

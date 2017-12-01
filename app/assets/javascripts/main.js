@@ -1,4 +1,4 @@
-var maxNumberOfTabs = 10;
+var maxNumberOfTabs = 3;
 
 //Form submission handle
 $(function() {
@@ -60,10 +60,10 @@ $(function() {
 	$("#show-circles-btn").click(function(e){
 		var closed = $('#show-circles-btn').hasClass('glyphicon-eye-close');
 		if ( closed ){
-			d3.selectAll('circle').style('opacity', 0);
+			d3.selectAll('circle').style('display', 'none');
 		}
 		else{
-			d3.selectAll('circle').style('opacity', 0.80);
+			d3.selectAll('circle').style('display', null);
 		}
 		$('#show-circles-btn').toggleClass('glyphicon-eye-close', !closed);
 		$('#show-circles-btn').toggleClass('glyphicon-eye-open', closed);
@@ -95,8 +95,7 @@ function ajaxSubmitForm(){
 	yearS = $("#year-start").val(),
 	yearE = $("#year-end").val(),
 	numClusters = $("#num-clusters").val(),
-	width = $(".tab-content").width(),
-	height = width * 6 / 16; //$(".tab-content").height();
+	maxDocs = $("#max-number-of-docs").val();
 
 	var r = jsRoutes.controllers.HomeController.search();
 	$.ajax({url: r.url, type: r.type, data: {
@@ -106,8 +105,7 @@ function ajaxSubmitForm(){
 		yearStart:  yearS,
 		yearEnd: yearE,
 		numClusters: numClusters,
-		width: width,
-		height: height
+		maxDocs: maxDocs
 	}, 
 	success: createVisualization, error: errorFn, dataType: "json"});
 

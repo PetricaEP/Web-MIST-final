@@ -2,7 +2,6 @@ package ep.db.database;
 
 import java.sql.Array;
 import java.sql.Connection;
-import java.sql.JDBCType;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -133,10 +132,15 @@ public class DatabaseService {
 			+ "ON da.aut_id = a.aut_id GROUP BY da.doc_id) a ON d.doc_id = a.doc_id WHERE d.enabled is TRUE "
 			+ "ORDER BY rank DESC";
 	
+	private static final String SEARCH_SQL_ALL_MAX_RANK = "SELECT x,y FROM documents_data d WHERE relevance <= ? AND "
+			+ "x >= ? AND x <= ? AND y >= ? AND y <= ? ORDER BY relevance DESC";
+	
+	private static final String SEARCH_SQL_ALL_XY = "SELECT x,y FROM documents_data d";
+	
 	private static final String SEARCH_SQL_DOC_IDS = "SELECT " + SQL_SELECT_COLUMNS + ", dd.relevance score FROM documents d "
 			+ "INNER JOIN documents_data dd ON d.doc_id = dd.doc_id LEFT JOIN "
 			+ "(SELECT doc_id, string_agg(a.aut_name,';') authors_name, sum(a.relevance) relevance FROM document_authors da INNER JOIN authors a "
-			+ "ON da.aut_id = a.aut_id GROUP BY da.doc_id) a ON d.doc_id = a.doc_id WHERE doc_id IN ? AND d.enabled is TRUE "
+			+ "ON da.aut_id = a.aut_id GROUP BY da.doc_id) a ON d.doc_id = a.doc_id WHERE d.doc_id IN %s AND d.enabled is TRUE "
 			+ "ORDER BY rank DESC";
 
 	private static final String ADVANCED_SEARCH_SQL = "SELECT " + SQL_SELECT_COLUMNS + " %s FROM documents d "
@@ -155,7 +159,7 @@ public class DatabaseService {
 			+ "ON da.aut_id = a.aut_id GROUP BY da.doc_id) a ON d.doc_id = a.doc_id WHERE r <= ? AND d.enabled is TRUE "
 			+ "ORDER BY node_id,rank DESC";
 
-	private static final String DOCUMENTS_NODE_SQL = "SELECT " + SQL_SELECT_COLUMNS + ", d.relevance FROM (SELECT * FROM "
+	private static final String DOCUMENTS_NODE_SQL = "SELECT " + SQL_SELECT_COLUMNS + ", dd.relevance FROM (SELECT * FROM "
 			+ "documents_data dd WHERE dd.node_id = ? ) dd INNER JOIN documents d ON d.doc_id = dd.doc_id LEFT JOIN "
 			+ "(SELECT doc_id, string_agg(a.aut_name,';') authors_name, sum(a.relevance) relevance FROM document_authors da INNER JOIN authors a "
 			+ "ON da.aut_id = a.aut_id GROUP BY da.doc_id) a ON d.doc_id = a.doc_id WHERE d.enabled is TRUE ORDER BY rank "
@@ -165,8 +169,6 @@ public class DatabaseService {
 			+ "where dn.node_id=n.node_id)  FROM nodes n ORDER BY node_id";
 
 	private static final String DELETE_NODE_DATA_SQL = "DELETE FROM nodes;";
-
-	//	private static final String UPDATE_NODEID_NULL_DOC_DATA_SQL = "UPDATE documents_data SET node_id = NULL;";
 
 	private static final String INSERT_NODE_SQL = "INSERT INTO nodes( node_id, isleaf, rankmax, rankmin, "
 			+ "parent_id, depth, index) VALUES (?, ?, ?, ?, ?, ?, ?);";
@@ -996,8 +998,8 @@ public class DatabaseService {
 		}
 	}
 
-	public List<Document> getSimpleDocuments(String querySearch, int limit, float rankMax, float rankMin, 
-			float radiiMax, float radiiMin, float maxArea, List<Document> docs, List<Vec2> densities) throws Exception {
+	public List<Document> getSimpleDocuments(String querySearch, int limit, 
+			List<Document> docs, List<Vec2> densities, int maxDocs) throws Exception {
 		
 		try ( Connection conn = db.getConnection();){
 			Configuration config = Configuration.getInstance();
@@ -1015,13 +1017,9 @@ public class DatabaseService {
 
 			try (ResultSet rs = stmt.executeQuery()){
 				
-				float area = 0;
 				boolean next = rs.next();
-				while ( area <= maxArea && next ){
+				for(int i = 0; i < maxDocs && next; i++){
 					Document doc = newSimpleDocument( rs );
-					float radii = Utils.mapFromTo(doc.getRank(), rankMin, rankMax, radiiMin, radiiMax);
-					doc.setRadius(radii);
-					area += 4 * (radii + config.getCirclePadding()) * (radii + config.getCirclePadding());
 					docs.add(doc);
 					next = rs.next();
 				}
@@ -1063,12 +1061,57 @@ public class DatabaseService {
 		}
 	}
 	
+	public List<Vec2> loadXY(float maxRank, float x1, float y1, float x2, float y2) throws Exception {
+		try ( Connection conn = db.getConnection();){
+			PreparedStatement stmt = conn.prepareStatement(SEARCH_SQL_ALL_MAX_RANK);
+			stmt.setFloat(1, maxRank);
+			stmt.setFloat(2, x1);
+			stmt.setFloat(3, x2);
+			stmt.setFloat(4, y1);
+			stmt.setFloat(5, y2);
+			
+			try (ResultSet rs = stmt.executeQuery()){
+				List<Vec2> points = new ArrayList<>();
+				while ( rs.next() ){
+					Vec2 point = new Vec2(rs.getFloat(1), rs.getFloat(2));
+					points.add(point);
+				}
+				return points;
+			}catch (SQLException e) {
+				throw e;
+			}
+		}catch( Exception e){
+			throw e;
+		}
+	}
+	
+	public List<Vec2> loadXY() throws Exception {
+		try ( Connection conn = db.getConnection();){
+			PreparedStatement stmt = conn.prepareStatement(SEARCH_SQL_ALL_XY);
+			try (ResultSet rs = stmt.executeQuery()){
+				List<Vec2> points = new ArrayList<>();
+				while ( rs.next() ){
+					Vec2 point = new Vec2(rs.getFloat(1), rs.getFloat(2));
+					points.add(point);
+				}
+				return points;
+			}catch (SQLException e) {
+				throw e;
+			}
+		}catch( Exception e){
+			throw e;
+		}
+	}
+	
 	public List<Document> getSimpleDocuments(Long[] docIds) throws Exception {
 		try ( Connection conn = db.getConnection();){
 			Configuration config = Configuration.getInstance();
-			PreparedStatement stmt = conn.prepareStatement(
-					String.format(SEARCH_SQL_DOC_IDS, config.getDocumentRelevanceFactor(), config.getAuthorsRelevanceFactor()));
-			stmt.setArray(1, conn.createArrayOf(JDBCType.BIGINT.getName(), docIds));
+			String sql = String.format(SEARCH_SQL_DOC_IDS, 
+					config.getDocumentRelevanceFactor(), 
+					config.getAuthorsRelevanceFactor(), 
+					Arrays.toString(docIds).replaceAll("\\[", "(").replaceAll("\\]", ")"));
+			PreparedStatement stmt = conn.prepareStatement(sql);
+			
 			try (ResultSet rs = stmt.executeQuery()){
 				List<Document> docs = new ArrayList<>();
 				while ( rs.next() ){
@@ -1084,8 +1127,7 @@ public class DatabaseService {
 		}
 	}
 
-	public void getAllSimpleDocuments(float rankMax, float rankMin, float radiiMax, float radiiMin, float maxArea,
-			List<Document> docs, List<Vec2> densities) throws Exception {
+	public void getAllSimpleDocuments(List<Document> docs, List<Vec2> densities, int maxDocs) throws Exception {
 
 		try ( Connection conn = db.getConnection();){
 			Configuration config = Configuration.getInstance();
@@ -1093,13 +1135,9 @@ public class DatabaseService {
 					String.format(SEARCH_SQL_ALL, config.getDocumentRelevanceFactor(), config.getAuthorsRelevanceFactor()));
 
 			try (ResultSet rs = stmt.executeQuery()){
-				float area = 0;
 				boolean next = rs.next();
-				while ( area <= maxArea && next ){
+				for(int i = 0; i < maxDocs && next; i++){
 					Document doc = newSimpleDocument( rs );
-					float radii = Utils.mapFromTo(doc.getRank(), rankMin, rankMax, radiiMin, radiiMax);
-					doc.setRadius(radii);
-					area += 4 * (radii + config.getCirclePadding()) * (radii + config.getCirclePadding());
 					docs.add(doc);
 					next = rs.next();
 				}
@@ -1122,8 +1160,7 @@ public class DatabaseService {
 	}
 
 	public List<Document> getAdvancedSimpleDocuments(String querySearch, String authors, String yearStart, 
-			String yearEnd, int limit, float rankMax, float rankMin, float radiiMax, float radiiMin, float maxArea,
-			List<Document> docs, List<Vec2> densities ) throws Exception {
+			String yearEnd, int limit, List<Document> docs, List<Vec2> densities, int maxDocs ) throws Exception {
 		try ( Connection conn = db.getConnection();){
 
 			StringBuilder sql = new StringBuilder();
@@ -1198,13 +1235,9 @@ public class DatabaseService {
 				stmt.setNull(index, java.sql.Types.INTEGER);
 
 			try (ResultSet rs = stmt.executeQuery()){
-				float area = 0;
 				boolean next = rs.next();
-				while ( area <= maxArea && next ){
+				for(int i = 0; i < maxDocs && next; i++){
 					Document doc = newSimpleDocument( rs );
-					float radii = Utils.mapFromTo(doc.getRank(), rankMin, rankMax, radiiMin, radiiMax);
-					doc.setRadius(radii);
-					area += 4 * (radii + config.getCirclePadding()) * (radii + config.getCirclePadding());
 					docs.add(doc);
 					next = rs.next();
 				}
@@ -1272,13 +1305,18 @@ public class DatabaseService {
 		}
 	}
 
-	public List<IDocument> getDocumentsFromNode(long node_id, int offset, int limit){
+	public List<IDocument> getDocumentsFromNode(long nodeId, int offset, int limit) throws Exception{
 		List<IDocument> docs = new ArrayList<>();
 		try (Connection conn = db.getConnection();) {
 			Configuration config = Configuration.getInstance();
-			String sql = String.format(DOCUMENTS_NODE_SQL, config.getDbBatchSize(), config.getAuthorsRelevanceFactor());
+			String sql = String.format(DOCUMENTS_NODE_SQL, config.getDocumentRelevanceFactor(), config.getAuthorsRelevanceFactor());
 			PreparedStatement stmt = conn.prepareStatement(sql);
-			stmt.setLong(1, node_id);
+			//SELECT " + SQL_SELECT_COLUMNS + ", dd.relevance FROM (SELECT * FROM "
+//			+ "documents_data dd WHERE dd.node_id = ? ) dd INNER JOIN documents d ON d.doc_id = dd.doc_id LEFT JOIN "
+//			+ "(SELECT doc_id, string_agg(a.aut_name,';') authors_name, sum(a.relevance) relevance FROM document_authors da INNER JOIN authors a "
+//			+ "ON da.aut_id = a.aut_id GROUP BY da.doc_id) a ON d.doc_id = a.doc_id WHERE d.enabled is TRUE ORDER BY rank "
+//			+ "DESC LIMIT ? OFFSET ?
+			stmt.setLong(1, nodeId);
 			stmt.setInt(2, limit);
 			stmt.setInt(3, offset);
 			try (ResultSet rs = stmt.executeQuery()) {
@@ -1290,16 +1328,14 @@ public class DatabaseService {
 				}
 				return docs;
 			} catch (SQLException e) {
-				System.out.println(e.getMessage());
-				return docs;
+				throw e;
 			}
 		} catch (Exception e) {
-			System.out.println(e.getMessage());
-			return docs;
+			throw e;
 		}
 	}
 
-	public QuadTree loadQuadTree(QuadTree qTree) {
+	public QuadTree loadQuadTree(QuadTree qTree) throws Exception {
 
 		try (Connection conn = db.getConnection();) {
 			String sql = NODE_DATA_SQL;
@@ -1333,25 +1369,26 @@ public class DatabaseService {
 				qTree.setRoot((QuadTreeBranchNode) nodes.get(0));
 			}
 
-			//			Configuration config = Configuration.getInstance();
-			//			sql = String.format(DOCUMENTS_DATA_SQL, config.getDocumentRelevanceFactor(), config.getAuthorsRelevanceFactor());
-			//			stmt = conn.prepareStatement(sql);
-			//			stmt.setInt(1, qTree.getMaxElementsPerBunch());
-			//
-			//			try (ResultSet rs = stmt.executeQuery()) {
-			//				while (rs.next()) {
-			//					//d.doc_id, d.doi, d.title, d.keywords, d.publication_date, 
-			//					//dd.x, dd.y, dd.relevance, a.authors_name, dd.node_id
-			//					Document doc = newSimpleDocument(rs);  
-			//					int node_id = rs.getInt(13);
-			//
-			//					((QuadTreeLeafNode) nodes.get(node_id)).addElement(doc);
-			//				}
-			//			}
-			//
-			//			conn.close();
+//			Configuration config = Configuration.getInstance();
+//			sql = String.format(DOCUMENTS_DATA_SQL, config.getDocumentRelevanceFactor(), config.getAuthorsRelevanceFactor());
+//			stmt = conn.prepareStatement(sql);
+//			stmt.setInt(1, qTree.getMaxElementsPerBunch());
+//
+//			try (ResultSet rs = stmt.executeQuery()) {
+//				while (rs.next()) {
+//					//d.doc_id, d.doi, d.title, d.keywords, d.publication_date, 
+//					//dd.x, dd.y, dd.relevance, a.authors_name, dd.node_id
+//					Document doc = newSimpleDocument(rs);  
+//					int node_id = rs.getInt(13);
+//
+//					((QuadTreeLeafNode) nodes.get(node_id)).addElement(doc);
+//				}
+//			}
+
+			conn.close();
 		} catch (Exception e) {
 			System.out.println(e.getMessage());
+			throw e;
 		}
 
 		return qTree;
@@ -1481,10 +1518,5 @@ public class DatabaseService {
 		}catch (SQLException e) {
 			throw e;
 		}
-	}
-
-	public void getAllSimpleDocuments(long[] array) {
-		// TODO Auto-generated method stub
-		
 	}
 }

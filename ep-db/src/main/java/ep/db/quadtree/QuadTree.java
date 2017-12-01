@@ -244,14 +244,27 @@ public class QuadTree {
 			}
 		}
 	}
-
-	public int findInRectangle(Bounds rectangle, List<IDocument> documents, List<QuadTreeNode> nodes, long[] selectedDocIds) {
+	
+	public int findInRectangle(Bounds rectangle, List<IDocument> documents, List<QuadTreeNode> nodes) {
 		documents.clear();
 		nodes.clear();
-		if ( selectedDocIds == null || selectedDocIds.length == 0)
-			rectangleSearchAll(rectangle, new QuadTreeKey(0), getRoot(), documents, nodes);
-		else
-			rectangleSearchByDocId(rectangle, new QuadTreeKey(0), getRoot(), documents, nodes, selectedDocIds);
+		rectangleSearchAll(rectangle, new QuadTreeKey(0), getRoot(), documents, nodes);
+		return documents.size();
+	}
+
+	public int findInRectangle(Bounds rectangle, List<IDocument> documents, List<QuadTreeNode> nodes, 
+			int maxDocs) {
+		documents.clear();
+		nodes.clear();
+		rectangleSearchAll(rectangle, new QuadTreeKey(0), getRoot(), documents, nodes, maxDocs);
+		return documents.size();
+	}
+	
+	public int findInRectangleByDocId(Bounds rectangle, List<IDocument> documents, List<QuadTreeNode> nodes, 
+			long[] selectedDocIds) {
+		documents.clear();
+		nodes.clear();
+		rectangleSearchByDocId(rectangle, new QuadTreeKey(0), getRoot(), documents, nodes, selectedDocIds);
 		return documents.size();
 	}
 
@@ -313,8 +326,45 @@ public class QuadTree {
 	}
 
 	public void rectangleSearchAll(Bounds rectangle, QuadTreeKey key, QuadTreeBranchNode branch, 
+			List<IDocument> documentList, List<QuadTreeNode> nodes, int maxDocs) {
+		int depth = branch.getDepth() + 1;
+		
+		if ( documentList.size() == maxDocs)
+			return;
+		
+		for (int i = 0; i < 4; i++) {
+			if (branch.hasChild(i)) {
+				QuadTreeNode child = branch.getChild(i);
+				QuadTreeKey childKey = key.pushChild(i);
+
+				Bounds bChild = boundingBox(childKey, depth);
+				int inter = rectangle.intersect(bChild);
+
+				if (inter == 2) {
+					child.getDocuments(documentList);
+					addNodeAndChildrenInList(nodes, child);
+				} else if (inter == 1) { //Test if point intersects the Rect
+					if (!child.isLeaf()) {
+						rectangleSearchAll(rectangle, childKey, (QuadTreeBranchNode) child, documentList, nodes, maxDocs);
+					} else {
+						QuadTreeLeafNode leaf = (QuadTreeLeafNode) child;
+						for (int j = 0; j < leaf.size() && documentList.size() <= maxDocs; j++) {
+							IDocument d = leaf.getDocument(j);
+							if (rectangle.contains(d.getPos())) {
+								documentList.add(d);
+							}
+						}
+						addNodeAndChildrenInList(nodes, child);
+					}
+				}
+			}
+		}
+	}
+	
+	public void rectangleSearchAll(Bounds rectangle, QuadTreeKey key, QuadTreeBranchNode branch, 
 			List<IDocument> documentList, List<QuadTreeNode> nodes) {
 		int depth = branch.getDepth() + 1;
+		
 		for (int i = 0; i < 4; i++) {
 			if (branch.hasChild(i)) {
 				QuadTreeNode child = branch.getChild(i);
@@ -331,7 +381,6 @@ public class QuadTree {
 						rectangleSearchAll(rectangle, childKey, (QuadTreeBranchNode) child, documentList, nodes);
 					} else {
 						QuadTreeLeafNode leaf = (QuadTreeLeafNode) child;
-
 						for (int j = 0; j < leaf.size(); j++) {
 							IDocument d = leaf.getDocument(j);
 							if (rectangle.contains(d.getPos())) {
@@ -423,7 +472,7 @@ public class QuadTree {
 		return d2sum;
 	}
 	
-	public QuadTree loadQuadTree(){
+	public QuadTree loadQuadTree() throws Exception{
 		return dbService.loadQuadTree(this);
 	}
 	
@@ -498,7 +547,12 @@ public class QuadTree {
 		System.out.println("Loading QuadTree from DB...");
 
 		QuadTree quadTree2 = new QuadTree(bounds, dbService);
-		dbService.loadQuadTree(quadTree2);
+		try {
+			dbService.loadQuadTree(quadTree2);
+		} catch (Exception e) {
+			e.printStackTrace();
+			return;
+		}
 		
 		System.out.println("Done!");
 	}

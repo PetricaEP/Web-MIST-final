@@ -81,7 +81,7 @@ public class QuadTreeLeafNode extends QuadTreeNode {
     }
 
     public int size() {
-        return nDocuments;
+        return nTotalDocuments;
     }
 
     public IDocument getDocument(int index) {
@@ -102,7 +102,15 @@ public class QuadTreeLeafNode extends QuadTreeNode {
 
     public void loadBunch(int indexBunch) {
         //Load the Documents from the Bunch from Data Base
-        List<IDocument> documents = QuadTree.dbService.getDocumentsFromNode(nodeId, indexBunch*QuadTree.maxElementsPerBunch, QuadTree.maxElementsPerBunch);
+        List<IDocument> documents;
+		try {
+			documents = QuadTree.dbService.getDocumentsFromNode(nodeId, indexBunch*QuadTree.maxElementsPerBunch, QuadTree.maxElementsPerBunch);
+		} catch (Exception e) {
+			e.printStackTrace();
+			documents = null;
+			return;
+		}
+		
         if(data[indexBunch].addElements(documents)){
             nDocuments += documents.size();
         }

@@ -103,70 +103,73 @@ createVisualization = function(jsonData){
 	var maxDocs = $("#max-number-of-docs").val();
 	var isColoringByRelevance = $('#color-schema').prop('checked');
 	var minRank, maxRank, minRadius, maxRadius;
+	
 	maxRank = jsonData.documents[0].rank;
 	minRank = jsonData.documents[n-1].rank;
 	maxRadius = width * jsonData.maxRadiusPerc;
 	minRadius = width * jsonData.minRadiusPerc;
 
+	// Radius interpolator based on document relevance
+	currentTab.radiusInterpolator = d3.scaleLinear()
+		.domain([minRank, maxRank])
+		.range([minRadius, maxRadius])
+		.interpolate(d3.interpolateRound);
+	
+	// Carrega documentos para a aba atual
 	var index = currentTab.loadData(jsonData, width * height, maxDocs);
-	var minRankView = jsonData.documents[index-1].rank;
 
 	// Valores min/max das coordenadas x,y 
 	// dos documentos atuais
-	var minX = -1, 
-	maxX = 1,
-	minY = -1,
-	maxY = 1;
-
-	if ( typeof jsonData.min_max !== "undefined" && jsonData.min_max.length == 4){
-		minX = jsonData.min_max[0];
-		maxX = jsonData.min_max[1];
-		minY = jsonData.min_max[2];
-		maxY = jsonData.min_max[3];
+	var minMaxX, minMaxY;
+	if ( jsonData.op === "zoom"){
+		minMaxX = [jsonData.bounds[0], jsonData.bounds[2]];
+		minMaxY = [jsonData.bounds[1], jsonData.bounds[3]];
 	}
-	jsonData = null;
+	else{
+		minMaxX = d3.extent(jsonData.documents,function(d){ return d.x; });
+		minMaxY = d3.extent(jsonData.documents,function(d){ return d.y; });
+	}
+	
+	var densityMap = jsonData.densityMap;
 
 	// Inicializa transformações 2D (x,y) 
 	// do intervalo [-1,1] para [0, width/height]
-	currentTab.xy(width, height, minX, maxX, minY, maxY);
+	currentTab.xy(width, height, minMaxX[0], minMaxX[1], minMaxY[0],minMaxY[1]);
 	currentTab.xy_inverse(width, height);
 
 	// Criar contornos
-//	var contours = d3.contourDensity()
-////	.x(function(d){ return selectedTab.x(d.x);})
-////	.y(function(d){ return selectedTab.y(d.y);})
-//	.x(function(d){ return d.x;})
-//	.y(function(d){ return d.y;})
-//	.size([width,height])
-////	.bandwidth((maxX-minX) / (width - 1))
-//	(currentTab.densities);
-
-	var thresholds = d3.range(0,20)
-	.map(function(p){ return Math.pow(2,p);});
+	var contours;
+	var gridSize = [256,256];
+	if ( densityMap === 1 ){
+		contours = d3.contourDensity()
+			.x(function(d){ return selectedTab.x(d.x);})
+			.y(function(d){ return selectedTab.y(d.y);})
+			.size([width,height])
+			.bandwidth(10);
+	}
+	else{
+		var thresholds = d3.range(0,5)
+		.map(function(p){ return Math.pow(2,p);});
 	
-	var sizeN = 1024;
-	var contours = d3.contours()
-	.size([sizeN, sizeN])
-	.thresholds(thresholds)
-	(currentTab.densities);
-
-	console.debug("Max: " + d3.max(currentTab.densities));
-	console.debug("Min: " + d3.min(currentTab.densities));
+		gridSize = jsonData.gridSize;
+		contours = d3.contours()
+			.size(gridSize)
+			.thresholds(thresholds);
+	}
+	contours = contours(currentTab.densities);
 
 	// Inicializa coloração dos clusters
 	if ( isColoringByRelevance ){
-		currentTab.initColorSchema(true, minRankView, maxRank);
+		currentTab.initColorSchema(true, minRank, maxRank);
 	}
 	else{
 		currentTab.initColorSchema(false, 0, m);
 	}
+	jsonData = null;
 
 	// Coloração dos contornos
-//	var contourColor = d3.scaleSequential(d3.interpolateOranges)
-//	.domain(d3.extent(contours.map(function(p) { return p.value;}))); // Points per square pixel.
-	var contourColor = d3.scaleLog()
-	.domain(d3.extent(thresholds))
-	.interpolate(function() { return d3.interpolateYlGnBu;});
+	var contourColor = d3.scaleSequential(d3.interpolateOranges)
+	.domain(d3.extent(contours.map(function(p) { return p.value;}))); // Points per square pixel.
 	
 	// Array para armazenar o maior nó de cada cluster (centroide)
 	currentTab.clusters = new Array(m);
@@ -207,8 +210,10 @@ createVisualization = function(jsonData){
 	.selectAll("path")
 	.data(contours)
 	.enter().append("path")
-	.attr("d", d3.geoPath(d3.geoIdentity()
-			.scale( [width / sizeN])))
+	.attr("d", densityMap === 1 ? d3.geoPath() : d3.geoPath(d3.geoIdentity()
+			.scale(width/gridSize[0])
+//			.translate([0,-height/2])
+			))
 	.attr("fill", function(d){ return contourColor(d.value);});
 
 	contours = null;
@@ -260,97 +265,35 @@ createVisualization = function(jsonData){
 	else
 		desactiveZoom ( svg );
 
-	// Mostra tooltips sobre os pontos de densidade,
-	// apenas coordenadas x,y.
-//	if ( showPoints ){
-//	point
-//	.on("mouseover", function(p){
-//	var d = p.data;
-//	var html = "<p>x = " + d.x + ", y = " + d.y + "<p>";
-
-//	tip.transition()
-//	.duration(500)
-//	.style("opacity", 0);
-
-//	tip.transition()
-//	.duration(200)
-//	.style("opacity", 0.9)
-//	.style("display", "block");
-
-//	tip.html(html)
-//	.style("left", "150px")
-//	.style("top", "150px");
-//	d3.select(this).style("stroke-opacity", 1);
-
-//	})
-//	.on("mouseout", hideTip);
-//	}
-
 	if ( currentTab.parentId === null ){
 		createMiniMap(svg, currentTab);
 	}
 	else{
-		copyMiniMapFromParent(svg, currentTab, minX, minY, maxX, maxY);
+		copyMiniMapFromParent(svg, currentTab, minMaxX[0], minMaxY[0], minMaxX[1], minMaxY[1]);
 	}
 
 	// Exibe/Esconde circulos?
 	var showCircles = $('#show-circles-btn').hasClass('glyphicon-eye-close');
 	if ( showCircles ){
 		d3.selectAll('circle')
-		.style('opacity', 0.80);
+		.style('display', null);
 	}
 	else{
 		d3.selectAll('circle')
-		.style('opacity', 0);
+		.style('display', 'none');
 	}
 
 
 	// Adiciona legenda
-	currentTab.rankFactor = 1.0/minRankView;
-//	var legendsvg = d3.select("#" + currentTab.id + " svg.legend")
-//	.attr('width', 400);
-
-//	var legendWrapper = legendsvg.append("g")
-//	.attr("class", "legendWrapper");
-
-//	legendWrapper.append("rect")
-//	.attr("class", "legendRect")
-//	.attr("width", 300)
-//	.attr("height", 20)
-//	.attr("x", 30)
-//	.style("fill", "url(#legend-"+currentTab.id+")");
-
-
-//	var xScale = d3.scaleLinear()
-//	.range([0, 300])
-//	.domain([minRankView * rankFactor,maxRank * rankFactor] );
-
-//	var xAxis = d3.axisBottom(xScale)
-//	.ticks(1);
-
-//	legendWrapper.append("text")
-//	.attr("class", "axis")
-//	.attr("x", 30)
-//	.attr("y", 30)
-//	.text( (minRankView * rankFactor ).toFixed(3) );
-
-//	legendWrapper.append("text")
-//	.attr("class", "axis")
-//	.attr("x", 320)
-//	.attr("y", 30)
-//	.append("tspan")
-//	.text( (maxRank * rankFactor ).toFixed(3) + "  x 10");
-	//.append("tspan")
-//	.attr("dy", "-5")
-//	.text(" 4" );
-
+	currentTab.rankFactor = 1.0/minRank;
+	
 	var slider = $("#" + currentTab.id + " .slider-range .slider");
 	$(slider).slider({
 		tooltip:  "always",
-		min: (minRankView * currentTab.rankFactor),
+		min: (minRank * currentTab.rankFactor),
 		max: Math.ceil(maxRank * currentTab.rankFactor),
 		precision: 3,
-		value: [(minRankView * currentTab.rankFactor ), Math.ceil(maxRank * currentTab.rankFactor)]
+		value: [(minRank * currentTab.rankFactor ), Math.ceil(maxRank * currentTab.rankFactor)]
 	}).on('slide', sliderRankChange);
 
 	var colors = currentTab.color.range();
@@ -437,11 +380,10 @@ function selectArea(p){
 
 	var numClusters = $("#num-clusters").val();
 	var r = jsRoutes.controllers.HomeController.zoom(),
-	width = $("#" + selectedTab.id + " svg.visualization").width(),
-	height = $("#" + selectedTab.id + " svg.visualization").height(),
 	selectionWidth = $(".selection")[0].style.width.replace("px", ""),
-	selectionHeight = $(".selection")[0].style.height.replace("px","");
-
+	selectionHeight = $(".selection")[0].style.height.replace("px",""),
+	maxDocs = $("#max-number-of-docs").val();
+	
 	// Transforma coordenada para espaço original
 	// no intervalo [-1,1]
 	var start = [ selectedTab.x_inv(p[0] - selectionWidth/2 ) , selectedTab.y_inv(p[1] - selectionHeight/2) ],
@@ -449,10 +391,8 @@ function selectArea(p){
 	$.ajax({url: r.url, type: r.type, data: {
 		start: start,
 		end: end,
-		width: width,
-		height: height,
 		numClusters: numClusters,
-		zoomLevel: selectedTab.zoomLevel + 1
+		maxDocs: maxDocs
 	},
 	success: createVisualization, error: errorFn, dataType: "json"});
 }

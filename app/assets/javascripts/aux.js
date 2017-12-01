@@ -13,7 +13,7 @@ function createNodes(documents){
 			d = {
 					id: doc.id,
 					cluster: doc.cluster,
-					r: doc.radius,
+					r: selectedTab.radiusInterpolator(doc.rank),
 					x: selectedTab.x(doc.x),
 					y: selectedTab.y(doc.y),
 					data: doc

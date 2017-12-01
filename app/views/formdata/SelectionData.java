@@ -10,44 +10,34 @@ public class SelectionData {
 	@Required
 	protected float[] end;
 	
-	@Required
-	protected float width;
-	
-	@Required
-	protected float height;
-
-	protected int zoomLevel;
-	
 	private int numClusters = 10; 
 	
-	protected long[] hiddenDocIds;
+	@Required
+	protected int maxDocs;
 	
 	public SelectionData() {
 	
 	}
 
-	public SelectionData(float[] start, float[] end, float width, float height, 
-			int numClusters, int zoomLevel, long[] hiddenDocIds) {
+	public SelectionData(float[] start, float[] end, 
+			int numClusters, int maxDocs) {
 		super();
 		this.start = start;
 		this.end = end;
-		this.width = width;
-		this.height = height;
 		this.numClusters = numClusters;
-		this.zoomLevel = zoomLevel;
-		this.hiddenDocIds = hiddenDocIds;
+		this.maxDocs = maxDocs;
 	}
 	
-	public SelectionData(float[] start, float[] end, float width, float height){
-		this(start, end, width, height, 10, 1, null);
+	public SelectionData(float[] start, float[] end, int maxDocs){
+		this(start, end, 10, maxDocs);
 	}
 
-	public long[] getHiddenDocIds() {
-		return hiddenDocIds;
+	public int getMaxDocs() {
+		return maxDocs;
 	}
 
-	public void setHiddenDocIds(long[] hiddenDocIds) {
-		this.hiddenDocIds = hiddenDocIds;
+	public void setMaxDocs(int maxDocs) {
+		this.maxDocs = maxDocs;
 	}
 
 	public float[] getStart() {
@@ -66,35 +56,11 @@ public class SelectionData {
 		this.end = end;
 	}
 	
-	public float getWidth() {
-		return width;
-	}
-
-	public void setWidth(float width) {
-		this.width = width;
-	}
-
-	public float getHeight() {
-		return height;
-	}
-
-	public void setHeight(float height) {
-		this.height = height;
-	}
-
 	public int getNumClusters() {
 		return numClusters;
 	}
 	
 	public void setNumClusters(int numClusters) {
 		this.numClusters = numClusters;
-	}
-	
-	public int getZoomLevel() {
-		return zoomLevel;
-	}
-	
-	public void setZoomLevel(int zoomLevel) {
-		this.zoomLevel = zoomLevel;
 	}
 }

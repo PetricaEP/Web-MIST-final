@@ -120,7 +120,7 @@ public class InfoVis {
                     Bounds rectangle = new Bounds(pReal,new Vec2(0.4f,0.4f));
                     List<IDocument> selectedList = new ArrayList<>();
                     List<QuadTreeNode> selectedNodes = new ArrayList<>();
-                    quadTree.findInRectangle(rectangle, selectedList, selectedNodes, null);
+                    quadTree.findInRectangle(rectangle, selectedList, selectedNodes, 100);
 //                    quadTree.findNeighbors(pReal, radius, selectedList, selectedNodes, 0);
                     points.setSelectedList(selectedList);
                     points.setSelectedNodes(selectedNodes);

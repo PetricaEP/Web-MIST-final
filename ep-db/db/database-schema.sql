@@ -24,7 +24,8 @@ CREATE TABLE documents (
 	tsv					tsvector,
 	freqs				jsonb,
 	path				varchar(300),
-	enabled				boolean default true
+	enabled				boolean default true,
+	bibtex				text
 );
 
 CREATE TABLE authors (
@@ -145,3 +146,13 @@ CREATE OR REPLACE FUNCTION array_to_tsvector2(arr tsvector[]) RETURNS tsvector A
 		RETURN tsv;
 	END;
 $array_to_tsvector2$ LANGUAGE plpgsql;
+
+
+-- Index
+
+CREATE INDEX documents_data_node_id_index ON documents_data (node_id);
+CREATE INDEX documents_data_relevance_index ON documents_data (relevance);
+CREATE INDEX document_authors_doc_id_index ON document_authors(doc_id);
+CREATE INDEX document_authors_aut_id_index ON document_authors(aut_id);
+CREATE INDEX documents_enabled_index ON documents(enabled);
+CREATE INDEX documents_tsv_index ON documents USING gist(tsv);

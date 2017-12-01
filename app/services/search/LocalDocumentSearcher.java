@@ -8,6 +8,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.IntStream;
@@ -22,8 +23,9 @@ import cern.colt.matrix.tfloat.impl.DenseFloatMatrix2D;
 import cern.colt.matrix.tint.IntMatrix1D;
 import edu.uci.ics.jung.graph.Graph;
 import ep.db.database.DatabaseService;
-import ep.db.grid.GaussianKernel;
-import ep.db.grid.Grid;
+import ep.db.grid.grid2.EpanechnikovKernel;
+import ep.db.grid.grid2.Grid;
+import ep.db.grid.grid2.Kernel;
 import ep.db.model.Author;
 import ep.db.model.Document;
 import ep.db.model.IDocument;
@@ -33,6 +35,7 @@ import ep.db.quadtree.QuadTree;
 import ep.db.quadtree.QuadTreeNode;
 import ep.db.quadtree.Vec2;
 import ep.db.utils.Configuration;
+import ep.db.utils.Utils;
 import play.Logger;
 import play.db.Database;
 import services.clustering.KMeans;
@@ -48,9 +51,17 @@ public class LocalDocumentSearcher implements DocumentSearcher {
 
 	private static final String TEMP_DIRECTORY = System.getProperty("java.io.tmpdir");
 
+	private static final int GRID_SIZE_Y = 96;
+
+	private static final int GRID_SIZE_X = 256;
+
 	private static Configuration configuration;
 
-	private static QuadTree quadTree;
+	private QuadTree quadTree;
+	
+//	private Grid grid;
+	
+//	private Kernel kernel;
 
 	private DatabaseService dbService;
 
@@ -60,6 +71,7 @@ public class LocalDocumentSearcher implements DocumentSearcher {
 		this.dbService = new DatabaseService(new PlayDatabaseWrapper(db));
 		configuration = Configuration.getInstance();
 		initQuadTree();
+		initGrid();
 	}
 
 	@Override
@@ -80,39 +92,34 @@ public class LocalDocumentSearcher implements DocumentSearcher {
 	@Override
 	public String search(QueryData queryData, boolean fetchNumberOfCitations, int count) throws Exception {
 
-		long start;
-		double elapsed;
+		long start, elapsed;
 		Map<String, Object> result = new HashMap<>();
 
 		try {
 			start = System.nanoTime();
 			String query = buildQuery(queryData);
-			elapsed = (System.nanoTime() - start) / 10e9;
-			timeLogger.info(String.format("Query building: %.3f", elapsed));
+			elapsed = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start);
+			timeLogger.info(String.format("Query building: %d", elapsed));
 
 			List<Document> docs = new ArrayList<>();
 			List<Vec2> points = new ArrayList<>();
 			float[] densities = null;
-			final float rankMax = quadTree.getRoot().getRankMax(),
-					rankMin = quadTree.getRoot().getRankMin(),
-					radiiMax = configuration.getMaxRadiusSizePercent() * queryData.getWidth(),
-					radiiMin = configuration.getMinRadiusSizePercent() * queryData.getWidth(),
-					maxArea = queryData.getHeight() * queryData.getWidth();
+			final int maxDocs = queryData.getMaxDocs();
 
 			start = System.nanoTime();
 			if ( ! queryData.getAuthor().isEmpty() || ! queryData.getYearStart().isEmpty() || ! queryData.getYearEnd().isEmpty() ){
 				String op = getOperator(queryData.getOperator());
 				String authors = queryData.getAuthor().replaceAll("\\s+", op);
 				dbService.getAdvancedSimpleDocuments(query, authors, queryData.getYearStart(), 
-						queryData.getYearEnd(), count, rankMax, rankMin, radiiMax, radiiMin, maxArea, docs, points);
+						queryData.getYearEnd(), count, docs, points, maxDocs);
 			}
 			else if ( query != null )
-				dbService.getSimpleDocuments(query, count, rankMax, rankMin, radiiMax, radiiMin, maxArea, docs, points);
+				dbService.getSimpleDocuments(query, count, docs, points, maxDocs);
 			else{
-				dbService.getAllSimpleDocuments(rankMax, rankMin, radiiMax, radiiMin, maxArea, docs, points);
+				dbService.getAllSimpleDocuments(docs, points, maxDocs);
 			}
-			elapsed = (System.nanoTime() - start)/10e9;
-			timeLogger.info(String.format("Quering DB: %.3f", elapsed));
+			elapsed = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start);
+			timeLogger.info(String.format("Quering DB: %d", elapsed));
 
 			if( docs.size() > 0){
 
@@ -120,62 +127,52 @@ public class LocalDocumentSearcher implements DocumentSearcher {
 				final int numClusters = queryData.getNumClusters();
 				start = System.nanoTime();
 				IntMatrix1D clusters = clustering(docs, numClusters);
-				elapsed = (System.nanoTime() - start)/10e9;
-				timeLogger.info(String.format("Clustering: %.3f", elapsed));
+				elapsed = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start);
+				timeLogger.info(String.format("Clustering: %d", elapsed));
 
-				//Atribui id cluster e referencias
+				//Atribui id cluster
 				start = System.nanoTime();
 				IntStream.range(0, docs.size()).parallel().forEach( (i) -> {
 					docs.get(i).setCluster(clusters.get(i));
 				});
-				elapsed = (System.nanoTime() - start)/10e9;
-				timeLogger.info(String.format("Fecthing references: %.3f", elapsed));
+				elapsed = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start);
+				timeLogger.info(String.format("Fecthing references: %d", elapsed));
 
 				if ( points != null && !points.isEmpty()){
-					float minX = points.get(0).x,
-							maxX = minX, 
-							minY = points.get(0).y, 
-							maxY = minY;
-					for(int i = 0; i < points.size(); i++){
-						Vec2 p = points.get(i);
-
-						//Atualiza min/max
-						if ( p.x > maxX) maxX = p.x;
-						if ( p.x < minX) minX = p.x;
-						if ( p.y > maxY) maxY = p.y;
-						if ( p.y < minY) minY = p.y;
-
-					}
-
-					//					EpanechnikovKernel k = new EpanechnikovKernel(10.0f);
-					GaussianKernel k = new GaussianKernel();
-					final int  width = (int) queryData.getWidth(), 
-							height = (int) queryData.getHeight();
-					Bounds bounds = new Bounds(-1, -1, 1, 1);
-					//					XYTransformer transformer = new XYTransformer(width, height, minX, maxX, minY, maxY);
-					//					for(Vec2 p : points){
-					//						p.x = transformer.x(p.x);
-					//						p.y = transformer.y(p.y);
-					//					}
-
-					//					densities = Grid2.readDensities();
-
-					Grid grid = new Grid(1024, 1024);
-					grid.evaluate(points, bounds, k);
-					float[][] values = grid.getData();
-					densities = new float[1024*1024];
-					int kk = 0;
-					for(int i = 0; i < values.length; i++)
-						for(int j =0; j < values[i].length; j++){
-							densities[kk] = values[i][j];
-							++kk;
+					int densityMap = configuration.getDensityMapCalculation();
+					if ( densityMap == Configuration.DENSITY_MAP_SERVER ){
+						
+						// Calcula coordenadas max/min dos documentos
+						// a serem exibidos para calcular camada do grid
+						float minX = docs.get(0).getX(), maxX = docs.get(0).getX(), 
+								minY = docs.get(0).getY(), maxY = docs.get(0).getY();
+						for(int i = 1; i < points.size(); i++){
+							Vec2 p = points.get(i);
+							if ( p.x > maxX) maxX = p.x;
+							if ( p.x  < minX) minX = p.x;
+							if ( p.y > maxY) maxY = p.y;
+							if ( p.y < minY) minY = p.y;
 						}
-					
-					grid.printData();
+						
+						EpanechnikovKernel k = new EpanechnikovKernel(1.0f);
+						Grid grid = new Grid(GRID_SIZE_X, GRID_SIZE_Y, new Bounds(minX,minY,maxX,maxY));
+						grid.evaluate(points, k);
+//						grid.printData("/Users/jose/Documents/freelancer/petricaep/densities.csv");
+						int gridSize[] = new int[]{GRID_SIZE_X,GRID_SIZE_Y};
+						densities = grid.getData();
+
+						result.put("densities", densities);
+						result.put("bounds", new float[]{minX,minY,maxX,maxY});
+						result.put("gridSize", gridSize);
+						result.put("densityMap", Configuration.DENSITY_MAP_SERVER);
+					}
+					else {
+						result.put("densities", points);
+						result.put("densityMap", Configuration.DENSITY_MAP_CLIENT);
+					}
 				}
 
 				result.put("documents", docs);
-				result.put("densities", densities);
 				result.put("nclusters", numClusters);
 				result.put("op", "search");
 				result.put("minRadiusPerc", configuration.getMinRadiusSizePercent());
@@ -199,8 +196,8 @@ public class LocalDocumentSearcher implements DocumentSearcher {
 		ObjectMapper mapper = new ObjectMapper();
 		try {
 			String json = mapper.writeValueAsString(result);
-			elapsed = ( System.nanoTime() - start) / 10e9;
-			timeLogger.info(String.format("Converting to JSON: %.3f", elapsed));
+			elapsed = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start);
+			timeLogger.info(String.format("Converting to JSON: %d", elapsed));
 			return json;
 		} catch (JsonProcessingException e) {
 			Logger.error("JSON processing error: " + result.toString(), e);
@@ -211,12 +208,12 @@ public class LocalDocumentSearcher implements DocumentSearcher {
 	@Override
 	public String zoom(SelectionData selectionData) {
 
-		long start;
-		double elapsed;
+		long start, elapsed;
 		Map<String, Object> result = new HashMap<>();
 
 		try {
 			float x1, y1, x2, y2;
+			final int maxDocs = selectionData.getMaxDocs();
 
 			x1 = selectionData.getStart()[0];
 			y1 = selectionData.getStart()[1];
@@ -241,61 +238,71 @@ public class LocalDocumentSearcher implements DocumentSearcher {
 			List<QuadTreeNode> nodes = new ArrayList<>();
 
 			start = System.nanoTime();
-			quadTree.findInRectangle(rectangle, documents, nodes, null);
-			elapsed = (System.nanoTime() - start)/10e9;
-			timeLogger.info(String.format("Find in quadtree: %.3f", elapsed));
+			quadTree.findInRectangle(rectangle, documents, nodes, maxDocs);
+			elapsed = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start);
+			timeLogger.info(String.format("Find in quadtree: %d", elapsed));
+
+			// Ordena por relevancia (descrescente)
+			start = System.nanoTime();
+			documents.sort(Comparator.comparing((IDocument d) -> d.getRank()).reversed());
+			elapsed = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start);
+			timeLogger.info(String.format("Sorting results: %d", elapsed));
+			
+			float minRank = documents.get(documents.size()-1).getRank();
+			
+			start = System.nanoTime();
+			List<Vec2> points = loadXY(minRank, x1, y1, x2, y2);
+//			List<Vec2> points = new ArrayList<>(documents.size());
+//			for( IDocument doc : documents )
+//				points.add(new Vec2(doc.getPos()));
+			
+			elapsed = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start);
+			timeLogger.info(String.format("Loading x,y points: %d", elapsed));
+			float[] densities = null;
 
 			if ( documents.size() > 0){
-				// Ordena por relevancia (descrescente)
-				start = System.nanoTime();
-				documents.sort(Comparator.comparing((IDocument d) -> d.getRank()).reversed());
-				elapsed = (System.nanoTime() - start)/10e9;
-				timeLogger.info(String.format("Sorting results: %.3f", elapsed));
+
+				if ( points != null ){
+					int densityMap = configuration.getDensityMapCalculation();
+					if ( densityMap == Configuration.DENSITY_MAP_SERVER ){
+						Kernel k = new EpanechnikovKernel(1.0f);
+						Grid grid = new Grid(GRID_SIZE_X, GRID_SIZE_Y, rectangle);
+						grid.evaluate(points, k);
+						int gridSize[] = new int[]{GRID_SIZE_X,GRID_SIZE_Y};
+						densities = grid.getData();
+						result.put("densities", densities);
+						result.put("gridSize", gridSize);
+						result.put("bounds", new float[]{x1,y1,x2,y2});
+						result.put("densityMap", Configuration.DENSITY_MAP_SERVER);
+					}
+					else {
+						result.put("densities", points);
+						result.put("densityMap", Configuration.DENSITY_MAP_CLIENT);
+					}
+				}
 
 				start = System.nanoTime();
 				final int numClusters = selectionData.getNumClusters();
 				IntMatrix1D clusters = clustering(documents, numClusters);
-				elapsed = (System.nanoTime() - start)/10e9;
-				timeLogger.info(String.format("Clustering results: %.3f", elapsed));
+				elapsed = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start);
+				timeLogger.info(String.format("Clustering results: %d", elapsed));
 
-				//Atribui id cluster e referencias
+				//Atribui id cluster
 				start = System.nanoTime();
-				IntStream.range(0, documents.size()).parallel().forEach( (i) -> {
-					documents.get(i).setCluster(clusters.get(i));
+				final List<IDocument> docs = documents;
+				IntStream.range(0, docs.size()).parallel().forEach( (i) -> {
+					docs.get(i).setCluster(clusters.get(i));
 				});
-				elapsed = (System.nanoTime() - start)/10e9;
-				timeLogger.info(String.format("Fecthing references: %.3f", elapsed));
+				elapsed = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start);
+				timeLogger.info(String.format("Fecthing references: %d", elapsed));
 
-				// Valores min/max das coordenadas
-				// x,y para interpolação com as dimensões
-				// da tela
-				float minX = documents.get(0).getX(), 
-						maxX = minX, 
-						minY = documents.get(0).getY(), 
-						maxY = minY;
-
-				start = System.nanoTime();
-				for(int i = 0; i < documents.size(); i++){
-					IDocument doc = documents.get(i);
-					float x = doc.getX();
-					float y = doc.getY();
-
-					//Atualiza min/max
-					if ( x > maxX) maxX = x;
-					if ( x < minX) minX = x;
-					if ( y > maxY) maxY = y;
-					if ( y < minY) minY = y;
-				}
-				elapsed = (System.nanoTime() - start)/10e9;
-				timeLogger.info(String.format("Calculation min/max (x,y) coordinates: %.3f", elapsed));
-
-
+				
 				// Somente documentos selecionados para exibição,
 				// demais documentos irão compor o mapa de densidade.
 				result.put("documents", documents);
 				result.put("nclusters", numClusters);
 				result.put("op", "zoom");
-				result.put("min_max", new float[]{minX, maxX, minY, maxY});
+				result.put("bounds", new float[]{x1,y1,x2,y2});
 				result.put("minRadiusPerc", configuration.getMinRadiusSizePercent());
 				result.put("maxRadiusPerc", configuration.getMaxRadiusSizePercent());
 			}
@@ -316,12 +323,21 @@ public class LocalDocumentSearcher implements DocumentSearcher {
 		try {
 			start = System.nanoTime();
 			String json = mapper.writeValueAsString(result);
-			elapsed = (System.nanoTime() - start)/10e9;
-			timeLogger.info(String.format("Converting to JSON: %.3f", elapsed));
+			elapsed = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start);
+			timeLogger.info(String.format("Converting to JSON: %d", elapsed));
 			return json;
 		} catch (JsonProcessingException e) {
 			Logger.error("JSON processing error: " + result.toString(), e);
 			return "";
+		}
+	}
+
+	private List<Vec2> loadXY(float maxRank, float x1, float y1, float x2, float y2) {
+		try {
+			return dbService.loadXY(maxRank, x1, y1, x2, y2);
+		} catch (Exception e) {
+			Logger.error("Can't load <x,y> coordinates for documents", e);
+			return null;
 		}
 	}
 
@@ -372,11 +388,13 @@ public class LocalDocumentSearcher implements DocumentSearcher {
 	private File exportToFile(List<Document> docs) throws Exception {
 		File file = new File(TEMP_DIRECTORY +  File.separator + "download_" + System.nanoTime() + ".csv");
 		try( BufferedWriter bw = new BufferedWriter(new FileWriter(file))){
+			bw.write("DOI,Title,Authors,Year,BibTEX");
+			bw.newLine();
 			for(Document doc : docs){
 				String line = String.format("%s,%s,%s,%s,%s", 
 						doc.getDOI(), 
-						doc.getTitle(), 
-						doc.getAuthors().toString(),
+						doc.getTitle(),
+						Utils.authorsToString(doc.getAuthors()),
 						doc.getPublicationDate(),
 						doc.getBibTEX()
 						);
@@ -384,7 +402,6 @@ public class LocalDocumentSearcher implements DocumentSearcher {
 				bw.newLine();
 			}
 		}catch (Exception e) {
-			// TODO: handle exception
 			throw e;
 		}
 		return file;
@@ -412,7 +429,25 @@ public class LocalDocumentSearcher implements DocumentSearcher {
 		quadTree = new QuadTree(bounds, configuration.getQuadTreeMaxDepth(), 
 				configuration.getQuadTreeMaxElementsPerBunch(), 
 				configuration.getQuadTreeMaxElementsPerLeaf(), dbService);
-		quadTree.loadQuadTree();
+		try {
+			quadTree.loadQuadTree();
+		} catch (Exception e) {
+			Logger.error("Can't load QuadTree from Database", e);
+			return;
+		}
+	}
+	
+	private void initGrid(){
+//		kernel = new EpanechnikovKernel(1.0f);
+//		Bounds bounds = new Bounds(-1, -1, 1, 1);
+//		grid = new Grid(GRID_SIZE_X, GRID_SIZE_Y, bounds);
+//		try {
+//			List<Vec2> points = dbService.loadXY();
+//			grid.evaluate(points, kernel);
+//		} catch (Exception e) {
+//			Logger.error("Can't load XY (Grid) from Database", e);
+//			return;
+//		}
 	}
 
 	@Override

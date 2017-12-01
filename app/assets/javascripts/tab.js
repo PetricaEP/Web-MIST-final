@@ -2,7 +2,7 @@
  * Funções para manipulação das abas.
  */
 
-var tabCount, selectedTab, tabs;
+var tabCount, tabIndex, selectedTab, tabs;
 
 /**
  * Inicializa variavies globais
@@ -10,6 +10,7 @@ var tabCount, selectedTab, tabs;
 $(function(){
 	tabs = [];
 	tabCount = 0;
+	tabIndex = 0;
 	selectedTab = null;
 });
 
@@ -24,6 +25,7 @@ function addNewTab(op){
 
 	//Contador de abas
 	++tabCount;
+	++tabIndex;
 
 	if ( op === 'search' ){
 		zoomLevel = 0;
@@ -32,12 +34,12 @@ function addNewTab(op){
 		" " + $("#year-start").val() +
 		" " + $("#year-end").val();
 		
-		newTab = addTab('main-'+tabCount, 'Search ' + tabCount + " " + t, null, t);
+		newTab = addTab('main-'+tabIndex, 'Search ' + tabIndex + " " + t, null, t);
 		newTab.title = t;
 	}else{ // op === 'zoom'
 		zoomLevel = selectedTab.zoomLevel + 1;
 		t = selectedTab.title;
-		newTab = addTab('zoom-'+tabCount, 'Zoom Level ' + zoomLevel + " " + t, selectedTab.id, t);
+		newTab = addTab('zoom-'+tabIndex, 'Zoom Level ' + zoomLevel + " " + t, selectedTab.id, t);
 		newTab.title = t;
 	}
 
@@ -58,7 +60,7 @@ function addTab(id, title, parentId, altTextTitle){
 	// Criar um link para a nova aba no menu de abas
 	$('#viz-tabs').append('<li role="presentation" class="">' + 
 			'<a href="#' + id + '" aria-controls="' + id + '" role="tab"' +  
-			'data-toggle="tab" class="tab-title" data-tab-index="' + tabCount + '" id="tab-' + id + '" title="' + altTextTitle + '">' + 
+			'data-toggle="tab" class="tab-title" data-tab-index="' + tabIndex + '" id="tab-' + id + '" title="' + altTextTitle + '">' + 
 			'<button class="close"><span aria-hidden="true" class="glyphicon glyphicon-remove"></span></button>' + title + 
 	' </a></li>');
 	$('.tab-content').append(newTabContent(id));
@@ -67,7 +69,6 @@ function addTab(id, title, parentId, altTextTitle){
 	// como selecionada
 	tabs[id] = new Tab(id, parentId);
 	selectedTab = tabs[id];
-
 
 	// Trata evento de click
 	$('#tab-' + id).click(function (e) {
@@ -102,7 +103,7 @@ function addTab(id, title, parentId, altTextTitle){
 		// objeto Tab.
 		$(this).parents('li').remove();
 		deleteTab(tabId);
-//		--tabCount;
+		--tabCount;
 
 		// Se ainda existir outra aba
 		// exibe a aba e marca a aba selecionada

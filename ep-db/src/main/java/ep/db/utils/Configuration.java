@@ -48,6 +48,11 @@ public class Configuration {
 	private static final String DISABLE_OUTLIERS = "disable_outliers";
 	private static final String PAGE_RANK_ALPHA = "page_rank_alpha";
 	private static final String TFIDF_WEIGHTING_SCHEME = "tfidf_weighting_scheme";
+	private static final String DENSITY_MAP_CALCULATION = "density_map";
+
+	public static final int DENSITY_MAP_CLIENT = 1;
+
+	public static final int DENSITY_MAP_SERVER = 0;
 	
 	private static Logger logger = LoggerFactory.getLogger(Configuration.class);
 
@@ -112,6 +117,8 @@ public class Configuration {
 	private float pageRankAlpha;
 	
 	private int tfidfWeightingScheme;
+
+	private int densityMapCalculation;
 	
 	private static Configuration instance;
 
@@ -308,6 +315,12 @@ public class Configuration {
 			}
 		}
 		
+		prop = properties.getProperty(DENSITY_MAP_CALCULATION);
+		if ( prop.trim().equals("client"))
+			densityMapCalculation = DENSITY_MAP_CLIENT;
+		else 
+			densityMapCalculation = DENSITY_MAP_SERVER;
+			
 		usePreCalculatedFreqs = Boolean.parseBoolean(properties.getProperty(USE_PRE_CALCULATED_FREQS));
 		randomControlPoints  = Boolean.parseBoolean(properties.getProperty(RANDOM_CONTROL_POINTS));
 		disableOutliers  = Boolean.parseBoolean(properties.getProperty(DISABLE_OUTLIERS));
@@ -361,6 +374,9 @@ public class Configuration {
 		properties.setProperty(USE_PRE_CALCULATED_FREQS, Boolean.toString(usePreCalculatedFreqs));
 		properties.setProperty(RANDOM_CONTROL_POINTS, Boolean.toString(randomControlPoints));
 		properties.setProperty(DISABLE_OUTLIERS, Boolean.toString(disableOutliers));
+		
+		properties.setProperty(DENSITY_MAP_CALCULATION, densityMapCalculation == DENSITY_MAP_CLIENT ? 
+				"client" : "server");
 		
 		properties.store(new FileOutputStream(configFile), null);
 	}
@@ -598,7 +614,14 @@ public class Configuration {
 	}
 
 	public float getCirclePadding() {
-		// TODO Auto-generated method stub
 		return 6.0f;
+	}
+	
+	public int getDensityMapCalculation() {
+		return densityMapCalculation;
+	}
+	
+	public void setDensityMapCalculation(int densityMapCalculation) {
+		this.densityMapCalculation = densityMapCalculation;
 	}
 }
