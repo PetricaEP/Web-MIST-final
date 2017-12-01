@@ -252,9 +252,6 @@ public class LocalDocumentSearcher implements DocumentSearcher {
 			
 			start = System.nanoTime();
 			List<Vec2> points = loadXY(minRank, x1, y1, x2, y2);
-//			List<Vec2> points = new ArrayList<>(documents.size());
-//			for( IDocument doc : documents )
-//				points.add(new Vec2(doc.getPos()));
 			
 			elapsed = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start);
 			timeLogger.info(String.format("Loading x,y points: %d", elapsed));
