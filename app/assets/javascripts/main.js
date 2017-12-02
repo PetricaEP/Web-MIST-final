@@ -97,17 +97,24 @@ function ajaxSubmitForm(){
 	numClusters = $("#num-clusters").val(),
 	maxDocs = $("#max-number-of-docs").val();
 
+	$.ajaxPrefilter(function (options, originalOptions, jqXHR) {
+		jqXHR.setRequestHeader('Csrf-Token', $("input[name='csrfToken']").val());
+	});
+	
 	var r = jsRoutes.controllers.HomeController.search();
-	$.ajax({url: r.url, type: r.type, data: {
-		terms: t, 
-		operator: op,
-		author: author,
-		yearStart:  yearS,
-		yearEnd: yearE,
-		numClusters: numClusters,
-		maxDocs: maxDocs
-	}, 
-	success: createVisualization, error: errorFn, dataType: "json"});
+	$.ajax({
+		url: r.url, 
+		type: r.type, 
+		data: {
+			terms: t, 
+			operator: op,
+			author: author,
+			yearStart:  yearS,
+			yearEnd: yearE,
+			numClusters: numClusters,
+			maxDocs: maxDocs
+		}, 
+		success: createVisualization, error: errorFn, dataType: "json"});
 
 	//Waiting...
 	$('#viz-tabs').removeClass('hidden');

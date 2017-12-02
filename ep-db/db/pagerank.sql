@@ -150,3 +150,15 @@ CREATE OR REPLACE FUNCTION calpagerank_docs(alpha double precision) RETURNS void
 	END;
 
 	$$ LANGUAGE plpgsql;
+	
+	CREATE OR REPLACE FUNCTION update_documents_rank(docRelevance double precision, authorRelevance double precision) RETURNS void AS $$
+		
+	BEGIN
+		
+		 UPDATE documents_data dd set rank = (docRelevance * dd.relevance + authorRelevance * coalesce(a.relevance,0)), relevance_aut = coalesce(a.relevance,0)  
+		 FROM (SELECT doc_id, sum(a.relevance) relevance FROM document_authors da INNER JOIN authors a ON da.aut_id = a.aut_id GROUP BY da.doc_id) a 
+		 WHERE dd.doc_id = a.doc_id;
+
+	END;
+
+	$$ LANGUAGE plpgsql;

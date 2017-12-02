@@ -103,7 +103,7 @@ createVisualization = function(jsonData){
 	var maxDocs = $("#max-number-of-docs").val();
 	var isColoringByRelevance = $('#color-schema').prop('checked');
 	var minRank, maxRank, minRadius, maxRadius;
-	
+
 	maxRank = jsonData.documents[0].rank;
 	minRank = jsonData.documents[n-1].rank;
 	maxRadius = width * jsonData.maxRadiusPerc;
@@ -111,10 +111,10 @@ createVisualization = function(jsonData){
 
 	// Radius interpolator based on document relevance
 	currentTab.radiusInterpolator = d3.scaleLinear()
-		.domain([minRank, maxRank])
-		.range([minRadius, maxRadius])
-		.interpolate(d3.interpolateRound);
-	
+	.domain([minRank, maxRank])
+	.range([minRadius, maxRadius])
+	.interpolate(d3.interpolateRound);
+
 	// Carrega documentos para a aba atual
 	var index = currentTab.loadData(jsonData, width * height, maxDocs);
 
@@ -129,7 +129,7 @@ createVisualization = function(jsonData){
 		minMaxX = d3.extent(jsonData.documents,function(d){ return d.x; });
 		minMaxY = d3.extent(jsonData.documents,function(d){ return d.y; });
 	}
-	
+
 	var densityMap = jsonData.densityMap;
 
 	// Inicializa transformações 2D (x,y) 
@@ -138,25 +138,37 @@ createVisualization = function(jsonData){
 	currentTab.xy_inverse(width, height);
 
 	// Criar contornos
-	var contours;
+	var contours, contourColor;
 	var gridSize = [256,256];
-	if ( densityMap === 1 ){
-		contours = d3.contourDensity()
+	if (currentTab.densities !== undefined && currentTab.densities !== null){
+		if ( densityMap === 1 ){
+			contours = d3.contourDensity()
 			.x(function(d){ return selectedTab.x(d.x);})
 			.y(function(d){ return selectedTab.y(d.y);})
 			.size([width,height])
 			.bandwidth(10);
-	}
-	else{
-		var thresholds = d3.range(0,5)
-		.map(function(p){ return Math.pow(2,p);});
-	
-		gridSize = jsonData.gridSize;
-		contours = d3.contours()
+			
+			contourColor = d3.scaleSequential(d3.interpolateOranges)
+			.domain(d3.extent(contours.map(function(p) { return p.value;}))); // Points per square pixel.
+		}
+		else{
+			var thresholds = d3.range(0,20)
+			.map(function(p){ return  Math.pow(2,p);});
+
+			gridSize = jsonData.gridSize;
+			contours = d3.contours()
 			.size(gridSize)
 			.thresholds(thresholds);
+			
+			// Coloração dos contornos
+			contourColor = d3.scaleLog()
+			.domain([d3.extent(thresholds)])
+			.interpolate(function() { return d3.interpolateYlGnBu;});
+		}
+		contours = contours(currentTab.densities);
+		
+
 	}
-	contours = contours(currentTab.densities);
 
 	// Inicializa coloração dos clusters
 	if ( isColoringByRelevance ){
@@ -167,9 +179,6 @@ createVisualization = function(jsonData){
 	}
 	jsonData = null;
 
-	// Coloração dos contornos
-	var contourColor = d3.scaleSequential(d3.interpolateOranges)
-	.domain(d3.extent(contours.map(function(p) { return p.value;}))); // Points per square pixel.
 	
 	// Array para armazenar o maior nó de cada cluster (centroide)
 	currentTab.clusters = new Array(m);
@@ -202,20 +211,21 @@ createVisualization = function(jsonData){
 	.attr("d", "M0,-5L10,0L0,5");
 
 	// Contornos
-	svg.insert("g", "g")
-	.attr("fill", "none")
-//	.attr("stroke", "#000")
-//	.attr("stroke-width", 0.5)
-//	.attr("stroke-linejoin", "round")
-	.selectAll("path")
-	.data(contours)
-	.enter().append("path")
-	.attr("d", densityMap === 1 ? d3.geoPath() : d3.geoPath(d3.geoIdentity()
-			.scale(width/gridSize[0])
-//			.translate([0,-height/2])
-			))
-	.attr("fill", function(d){ return contourColor(d.value);});
-
+	if ( contours !== undefined ){
+		svg.insert("g", "g")
+		.attr("fill", "none")
+//		.attr("stroke", "#000")
+//		.attr("stroke-width", 0.5)
+//		.attr("stroke-linejoin", "round")
+		.selectAll("path")
+		.data(contours)
+		.enter().append("path")
+		.attr("d", densityMap === 1 ? d3.geoPath() : d3.geoPath(d3.geoIdentity()
+				.scale(width/gridSize[0])
+		))
+		.attr("fill", function(d){ return contourColor(d.value);});
+	}
+	
 	contours = null;
 
 	var g = svg.append("g");
@@ -286,7 +296,7 @@ createVisualization = function(jsonData){
 
 	// Adiciona legenda
 	currentTab.rankFactor = 1.0/minRank;
-	
+
 	var slider = $("#" + currentTab.id + " .slider-range .slider");
 	$(slider).slider({
 		tooltip:  "always",
@@ -373,7 +383,7 @@ function thirdStep(){
  **/
 function selectArea(p){
 
-	if ( tabs.length >= maxNumberOfTabs ){
+	if ( tabCount >= maxNumberOfTabs ){
 		showMaxTabsAlert();
 		return;
 	}
@@ -383,9 +393,13 @@ function selectArea(p){
 	selectionWidth = $(".selection")[0].style.width.replace("px", ""),
 	selectionHeight = $(".selection")[0].style.height.replace("px",""),
 	maxDocs = $("#max-number-of-docs").val();
-	
+
 	// Transforma coordenada para espaço original
 	// no intervalo [-1,1]
+	$.ajaxPrefilter(function (options, originalOptions, jqXHR) {
+		jqXHR.setRequestHeader('Csrf-Token', $("input[name='csrfToken']").val());
+	});
+
 	var start = [ selectedTab.x_inv(p[0] - selectionWidth/2 ) , selectedTab.y_inv(p[1] - selectionHeight/2) ],
 	end = [ selectedTab.x_inv(p[0] + selectionWidth/2), selectedTab.y_inv(p[1] + selectionHeight/2)];
 	$.ajax({url: r.url, type: r.type, data: {

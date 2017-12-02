@@ -8,6 +8,8 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -39,6 +41,7 @@ import ep.db.utils.Utils;
 import play.Logger;
 import play.db.Database;
 import services.clustering.KMeans;
+import services.database.DatabaseExecutionContext;
 import services.database.PlayDatabaseWrapper;
 import views.formdata.QueryData;
 import views.formdata.SelectionData;
@@ -64,34 +67,48 @@ public class LocalDocumentSearcher implements DocumentSearcher {
 //	private Kernel kernel;
 
 	private DatabaseService dbService;
+	
+	private DatabaseExecutionContext executionContext;
 
 
 	@Inject
-	public LocalDocumentSearcher(Database db) {
+	public LocalDocumentSearcher(Database db, DatabaseExecutionContext context) {
 		this.dbService = new DatabaseService(new PlayDatabaseWrapper(db));
+		this.executionContext = context;
 		configuration = Configuration.getInstance();
 		initQuadTree();
 		initGrid();
 	}
 
 	@Override
-	public String search(QueryData queryData) throws Exception {
+	public CompletionStage<String> search(QueryData queryData) throws Exception {
 		return search(queryData, false, 0);
 	}
 
 	@Override
-	public String search(QueryData queryData, int count) throws Exception {
+	public CompletionStage<String>  search(QueryData queryData, int count) throws Exception {
 		return search(queryData, false, count);
 	}
 
 	@Override
-	public String search(QueryData queryData, boolean fetchNumberOfCitations) throws Exception {
+	public CompletionStage<String>  search(QueryData queryData, boolean fetchNumberOfCitations) throws Exception {
 		return search(queryData, fetchNumberOfCitations, 0);
 	}
 
 	@Override
-	public String search(QueryData queryData, boolean fetchNumberOfCitations, int count) throws Exception {
-
+	public CompletionStage<String> search(QueryData queryData, boolean fetchNumberOfCitations, int count) throws Exception {
+		return CompletableFuture.supplyAsync(() -> {
+			try {
+				return searchData(queryData, fetchNumberOfCitations, count);
+			} catch (Exception e) {
+				Logger.error("Can't search for data", e);
+				return null;
+			}
+		}, executionContext);
+	}
+	
+	public String searchData(QueryData queryData, boolean fetchNumberOfCitations, int count) throws Exception {
+		
 		long start, elapsed;
 		Map<String, Object> result = new HashMap<>();
 
@@ -136,12 +153,13 @@ public class LocalDocumentSearcher implements DocumentSearcher {
 					docs.get(i).setCluster(clusters.get(i));
 				});
 				elapsed = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start);
-				timeLogger.info(String.format("Fecthing references: %d", elapsed));
+				timeLogger.info(String.format("Set cluster numbers: %d", elapsed));
 
 				if ( points != null && !points.isEmpty()){
 					int densityMap = configuration.getDensityMapCalculation();
 					if ( densityMap == Configuration.DENSITY_MAP_SERVER ){
 						
+						start = System.nanoTime();
 						// Calcula coordenadas max/min dos documentos
 						// a serem exibidos para calcular camada do grid
 						float minX = docs.get(0).getX(), maxX = docs.get(0).getX(), 
@@ -157,9 +175,10 @@ public class LocalDocumentSearcher implements DocumentSearcher {
 						EpanechnikovKernel k = new EpanechnikovKernel(1.0f);
 						Grid grid = new Grid(GRID_SIZE_X, GRID_SIZE_Y, new Bounds(minX,minY,maxX,maxY));
 						grid.evaluate(points, k);
-//						grid.printData("/Users/jose/Documents/freelancer/petricaep/densities.csv");
 						int gridSize[] = new int[]{GRID_SIZE_X,GRID_SIZE_Y};
 						densities = grid.getData();
+						elapsed = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start);
+						timeLogger.info(String.format("Creating Grid (KDE 2D): %d", elapsed));
 
 						result.put("densities", densities);
 						result.put("bounds", new float[]{minX,minY,maxX,maxY});
@@ -262,11 +281,16 @@ public class LocalDocumentSearcher implements DocumentSearcher {
 				if ( points != null ){
 					int densityMap = configuration.getDensityMapCalculation();
 					if ( densityMap == Configuration.DENSITY_MAP_SERVER ){
+						
+						start = System.nanoTime();
 						Kernel k = new EpanechnikovKernel(1.0f);
 						Grid grid = new Grid(GRID_SIZE_X, GRID_SIZE_Y, rectangle);
 						grid.evaluate(points, k);
 						int gridSize[] = new int[]{GRID_SIZE_X,GRID_SIZE_Y};
 						densities = grid.getData();
+						elapsed = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start);
+						timeLogger.info(String.format("Creating Grid (KDE 2D): %d", elapsed));
+						
 						result.put("densities", densities);
 						result.put("gridSize", gridSize);
 						result.put("bounds", new float[]{x1,y1,x2,y2});
@@ -291,7 +315,7 @@ public class LocalDocumentSearcher implements DocumentSearcher {
 					docs.get(i).setCluster(clusters.get(i));
 				});
 				elapsed = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start);
-				timeLogger.info(String.format("Fecthing references: %d", elapsed));
+				timeLogger.info(String.format("Set cluster numbers: %d", elapsed));
 
 				
 				// Somente documentos selecionados para exibição,
@@ -331,14 +355,14 @@ public class LocalDocumentSearcher implements DocumentSearcher {
 
 	private List<Vec2> loadXY(float maxRank, float x1, float y1, float x2, float y2) {
 		try {
-			return dbService.loadXY(maxRank, x1, y1, x2, y2);
+			return dbService.loadXY(x1, y1, x2, y2);
 		} catch (Exception e) {
 			Logger.error("Can't load <x,y> coordinates for documents", e);
 			return null;
 		}
 	}
 
-	public String getDocumentsReferences(long[] docIds){
+	public String getDocumentsReferences(List<Long> docIds){
 		// References
 		final Map<Long, List<Long>> references;
 		Map<Long, List<Long>> ref;

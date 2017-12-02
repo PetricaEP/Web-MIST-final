@@ -3,6 +3,10 @@ package controllers;
 import java.io.File;
 import java.util.Iterator;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
+import java.util.concurrent.Executor;
+import java.util.function.Function;
 
 import javax.inject.Inject;
 import javax.inject.Named;
@@ -12,10 +16,13 @@ import com.fasterxml.jackson.databind.JsonNode;
 import play.Logger;
 import play.data.Form;
 import play.data.FormFactory;
+import play.libs.concurrent.HttpExecution;
 import play.mvc.BodyParser;
 import play.mvc.Controller;
 import play.mvc.Result;
+import play.mvc.Results;
 import play.routing.JavaScriptReverseRouter;
+import services.database.DatabaseExecutionContext;
 import services.search.DocumentSearcher;
 import views.formdata.QueryData;
 import views.formdata.SelectionData;
@@ -32,15 +39,19 @@ public class HomeController extends Controller {
 	 */
 	private final DocumentSearcher docSearcher;
 
+	private DatabaseExecutionContext databaseContext;
+
 	/**
 	 * Form factory
 	 */
 	private final FormFactory formFactory;
 
 	@Inject
-	public HomeController(@Named("docSearcher") DocumentSearcher docSearcher, FormFactory formFactory) {
+	public HomeController(@Named("docSearcher") DocumentSearcher docSearcher, FormFactory formFactory,
+			DatabaseExecutionContext context) {
 		this.docSearcher = docSearcher;
 		this.formFactory = formFactory;
+		this.databaseContext = context;
 	}
 
 	/**
@@ -59,21 +70,22 @@ public class HomeController extends Controller {
 	 * @param term the search term
 	 * @return Play result as Json
 	 */
-	public Result search(){
+	public CompletionStage<Result> search(){
 
 		Form<QueryData> queryData = formFactory.form(QueryData.class).bindFromRequest();
 		if ( queryData.hasErrors() ){
-			return ok();
+			return CompletableFuture.completedFuture(
+					Results.ok(""));
 		}
 
-		String jsonResult;
 		try {
-			jsonResult = docSearcher.search(queryData.get(), false, -1);
-		} catch (Exception e) {
-			Logger.error("Can't search for documents. Query: " + queryData.toString(), e);
-			return internalServerError("Can't search for documents");
+			return docSearcher.search(queryData.get(), false, -1).thenApplyAsync((json) -> {
+				return ok(json);
+			}, databaseContext);
+		}catch (Exception e) {
+			return CompletableFuture.completedFuture(
+					Results.ok(""));
 		}
-		return ok(jsonResult).as("application/json");
 	}
 
 	/**
@@ -81,53 +93,53 @@ public class HomeController extends Controller {
 	 * @param term the search term
 	 * @return Play result as Json
 	 */
-	public Result zoom(){
+	public CompletionStage<Result> zoom(){
 
 		Form<SelectionData> selectionData = formFactory.form(SelectionData.class).bindFromRequest();
 
 		if ( selectionData.hasErrors() ){
-			return ok();
+			return CompletableFuture.completedFuture(
+					Results.ok(""));
 		}
 
-		String jsonResult;
 		try {
-			jsonResult = docSearcher.zoom(selectionData.get());
+			CompletionStage<String> jsonResult = CompletableFuture.supplyAsync(() -> docSearcher.zoom(selectionData.get()) );
+			return jsonResult.thenApplyAsync((json) -> {
+				return ok(json);
+			}, databaseContext);
 		} catch (Exception e) {
 			Logger.error("Can't search for documents. Query: " + selectionData.toString(), e);
-			return internalServerError("Can't search for documents");
 		}
-		return ok(jsonResult).as("application/json");
+
+		return CompletableFuture.completedFuture(
+				Results.ok(""));
 	}
 
-	@BodyParser.Of(BodyParser.Json.class)
-	public Result references(){
-		JsonNode json = request().body().asJson();
-		String jsonResult = "";
-
-		if ( json.size() > 0){
-			Iterator<JsonNode> iter = json.elements();
-			long[] docIds = new long[json.size()];
-			int i = 0;
-			while(iter.hasNext()){
-				docIds[i++] = iter.next().asLong();
-			}
-
+	public CompletionStage<Result> references(List<Long> docIds){
+		if ( docIds.size() > 0){
 			try {
-				jsonResult = docSearcher.getDocumentsReferences(docIds);
+				CompletionStage<String> jsonResult = CompletableFuture.supplyAsync(
+						() -> docSearcher.getDocumentsReferences(docIds));
+				return jsonResult.thenApplyAsync((j) -> {
+					return ok(j).as("application/json");
+				}, databaseContext);
 			} catch (Exception e) {
-				Logger.error("Can't search for documents. Query: " + json.toString(), e);
-				return internalServerError("Can't search for documents");
+				Logger.error("Can't search for documents. Query: " + docIds.toString(), e);
 			}
+
+			return CompletableFuture.completedFuture(
+					Results.ok(""));
 		}
-		return ok(jsonResult).as("application/json");
+
+		return CompletableFuture.completedFuture(
+				Results.ok(""));
 
 	}
 
-	public Result download(List<Long> docIds){
-		File file = docSearcher.downloadDocuments(docIds);
-		if ( file != null)
-			return ok(file, /* inline = */ false).as("application/x-download");
-		return ok();
+	public CompletionStage<Result> download(List<Long> docIds){
+		CompletionStage<File> filePromise = CompletableFuture.supplyAsync(() -> docSearcher.downloadDocuments(docIds));
+		return filePromise.thenApplyAsync(
+				(file) -> ok(file, false).as("application/x-download"));
 	}
 
 	/**

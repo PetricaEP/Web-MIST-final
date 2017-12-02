@@ -7,18 +7,18 @@ import java.util.Locale;
 
 import com.google.inject.AbstractModule;
 import com.google.inject.name.Names;
+import com.typesafe.config.Config;
 
-import play.Configuration;
 import play.Environment;
 import services.search.DocumentSearcher;
 
 public class Module extends AbstractModule {
 
 	private final Environment environment;
-	private final Configuration configuration;
+	private final Config configuration;
 
 	public Module(Environment environment,
-			Configuration configuration) {
+			Config configuration) {
 		this.environment = environment;
 		this.configuration = configuration;
 	}

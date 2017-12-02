@@ -44,11 +44,16 @@ function createNodes(documents){
  * @returns
  */
 function fetchReferencesAjax(docIds){
-	var r = jsRoutes.controllers.HomeController.references();
+	
 
-	$.ajax({url: r.url, type: r.type, 
-		data: JSON.stringify(docIds),
-		contentType: "application/json",
+	$.ajaxPrefilter(function (options, originalOptions, jqXHR) {
+		jqXHR.setRequestHeader('Csrf-Token', $("input[name='csrfToken']").val());
+	});
+	
+	var r = jsRoutes.controllers.HomeController.references(docIds);
+	$.ajax({
+		url: r.url, 
+		type: r.type, 
 		success: processReferences, error: errorFn, dataType: "json"});
 }
 
@@ -526,9 +531,10 @@ function activeZoom(svg){
 	})
 	.on("click.selection", function() {
 		// Remove event listeners
-		d3.select(this).on("mousemove", null);
-		d3.select(this).on("wheel", null);
-		d3.select(this).on("click.selection", null);
+//		d3.select(this).on("mousemove", null);
+//		d3.select(this).on("wheel", null);
+//		d3.select(this).on("click.selection", null);
+		$('#loading').removeClass('hidden');
 		endSelection(d3.mouse(this));
 	})
 	.on("wheel", function(){

@@ -1,5 +1,7 @@
 @(active : String = "home")
     
+@import helper._
+
 <nav class="navbar navbar-default navbar-inverse">
 	<div class="container-fluid">
  		<div class="navbar-header">
@@ -26,6 +28,7 @@
     		
     		@if( active == "home"){
     			<form id="searchForm" class="navbar-form row" >
+    			@CSRF.formField 
     			<div class="row form-inline simple-search col-sm-10 row">
 	    			<div class="col-sm-4">
 	    				<input type="text" id="terms" name="terms" class="form-control">

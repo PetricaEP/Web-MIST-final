@@ -14,6 +14,7 @@ CREATE TABLE documents (
 	title				text,
 	keywords 			text,
 	abstract 			text,
+	authors				text,
 	publication_date	int,
 	volume				varchar(100),
 	pages				varchar(100),
@@ -58,7 +59,9 @@ CREATE TABLE documents_data (
 	node_id				bigint REFERENCES nodes(node_id) ON UPDATE CASCADE ON DELETE SET NULL,
 	x					real,
 	y					real,
-	relevance			real
+	relevance_doc		real,
+	relevance_aut		real,
+	rank				real
 );
 
 ALTER TABLE nodes ADD CONSTRAINT no_self_loops_nodes_chk CHECK (node_id <> parent_id);

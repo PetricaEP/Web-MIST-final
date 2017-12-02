@@ -65,7 +65,7 @@ public class RelevanceCalculator {
 //			updateRelevance(DatabaseService.DOCUMENTS_GRAPH);
 			calcPageRank(DatabaseService.DOCUMENTS_GRAPH);
 		} catch (Exception e) {
-			logger.error("Error updating relevance for documents.",e);
+			logger.error("Error calculating relevance for documents.",e);
 		}
 
 		try {
@@ -73,7 +73,14 @@ public class RelevanceCalculator {
 //			updateRelevance(DatabaseService.AUTHORS_GRAPH);
 			calcPageRank(DatabaseService.AUTHORS_GRAPH);
 		} catch (Exception e) {
-			logger.error("Error updating relevance for authors.",e);
+			logger.error("Error calculating relevance for authors.",e);
+		}
+		
+		try{
+			System.out.println("Updating documents rank...");
+			dbService.updateDocumentsRank();
+		}catch (Exception e) {
+			logger.error("Error updating relevance for documents.",e);
 		}
 	}
 
