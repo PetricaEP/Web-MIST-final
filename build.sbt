@@ -11,12 +11,16 @@ lazy val root = (project in file("."))
 
 lazy val ep_db = (project in file("ep-db"))
 
-scalaVersion := "2.11.7"
+javacOptions ++= Seq("-g")
+
+//scalaVersion := "2.11.7"
+scalaVersion := "2.12.3"
 
 //resolvers += "ICM repository" at "http://maven.icm.edu.pl/artifactory/repo"
 
 
 libraryDependencies ++= Seq(
+  guice,
   javaJdbc,
   cache,
   javaWs,
@@ -26,5 +30,6 @@ libraryDependencies ++= Seq(
   "org.webjars" % "bootstrap" % "3.3.7",
   "org.webjars" % "bootstrap-slider" % "5.3.1",
   "org.webjars" % "d3js" % "4.2.1",
+//  "org.webjars.npm" % "d3-cloud" % "1.2.4",
   "ca.umontreal.iro.simul" % "ssj" % "3.2.1"
 )
