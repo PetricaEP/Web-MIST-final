@@ -10,7 +10,7 @@ GET			/search							controllers.HomeController.search()
 
 POST		/zoom							controllers.HomeController.zoom()
 
-POST		/references						controllers.HomeController.references()
+GET			/references						controllers.HomeController.references(docIds: java.util.List[java.lang.Long])
 
 GET			/download						controllers.HomeController.download(docIds : java.util.List[java.lang.Long])
 
