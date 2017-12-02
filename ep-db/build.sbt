@@ -4,9 +4,10 @@ version := "1.0"
 
 lazy val ep_db = (project in file("."))
 
+javacOptions ++= Seq("-g")
 
-scalaVersion := "2.11.7"
-
+//scalaVersion := "2.11.7"
+scalaVersion := "2.12.3"
 
 libraryDependencies ++= Seq(
   "org.postgresql" % "postgresql" % "42.0.0",
