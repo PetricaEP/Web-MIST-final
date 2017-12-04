@@ -124,7 +124,7 @@ public class DatabaseService {
 			+ "to_tsquery(?) query WHERE query @@ tsv AND d.enabled is TRUE "
 			+ "ORDER BY rank DESC, score DESC LIMIT ?";
 
-	private static final String SEARCH_SQL_ALL = "SELECT " + SQL_SELECT_COLUMNS + ", dd.relevance score FROM documents d "
+	private static final String SEARCH_SQL_ALL = "SELECT " + SQL_SELECT_COLUMNS + " FROM documents d "
 			+ "INNER JOIN documents_data dd ON d.doc_id = dd.doc_id "
 			+ "ORDER BY rank DESC";
 
@@ -142,12 +142,12 @@ public class DatabaseService {
 
 	private static final String SEARCH_SQL_ALL_XY = "SELECT x,y FROM documents_data d";
 
-	private static final String SEARCH_SQL_DOC_IDS = "SELECT " + SQL_SELECT_COLUMNS + ", dd.relevance score FROM documents d "
+	private static final String SEARCH_SQL_DOC_IDS = "SELECT " + SQL_SELECT_COLUMNS + " FROM documents d "
 			+ "INNER JOIN documents_data dd ON d.doc_id = dd.doc_id "
 			+ "WHERE d.doc_id IN %s AND d.enabled is TRUE "
 			+ "ORDER BY rank DESC";
 
-	private static final String DOCUMENTS_DATA_SQL = "SELECT " + SQL_SELECT_COLUMNS + ", dd.relevance score, dd.node_id "
+	private static final String DOCUMENTS_DATA_SQL = "SELECT " + SQL_SELECT_COLUMNS + ", dd.node_id "
 			+ "FROM (SELECT dd.doc_id, dd.x, dd.y, "
 			+ "dd.relevance, dd.node_id, rank() over (partition by dd.node_id order by dd.relevance desc) as r "
 			+ "FROM documents_data dd) dd INNER JOIN documents d ON dd.doc_id = d.doc_id LEFT JOIN "
@@ -197,6 +197,9 @@ public class DatabaseService {
 	private static final String PAGE_RANK_SQL_FUNC_AUTHORS = "SELECT calpagerank_authors(?);";
 
 	private static final String UPDATE_DOCUMENTS_RANK = "SELECT update_documents_rank(?,?);";
+
+	private static final String SELECT_TERMS_FREQ_FROM_TSV = "SELECT d.doc_id, tsv::varchar tsv_str FROM "
+			+ "documents d INNER JOIN documents_data da ON d.doc_id = da.doc_id %s ORDER BY da.rank DESC, d.doc_id";
 
 	/**
 	 * Data source
@@ -669,12 +672,7 @@ public class DatabaseService {
 			String where, TFIDF tfidfCalc) throws Exception {
 		try ( Connection conn = db.getConnection();){
 
-			String sql = "SELECT d.doc_id, tsv::varchar tsv_str FROM documents d INNER JOIN documents_data da "
-					+ "ON d.doc_id = da.doc_id";
-			if ( where != null)
-				sql += where;
-			sql += " ORDER BY da.relevance DESC, d.doc_id";
-
+			String sql = String.format(SELECT_TERMS_FREQ_FROM_TSV, where != null ? where : "");
 			Statement stmt = conn.createStatement();
 			ResultSet rs = stmt.executeQuery(sql);
 			int doc = 0;
@@ -1103,10 +1101,7 @@ public class DatabaseService {
 
 	public List<Document> getSimpleDocuments(Long[] docIds) throws Exception {
 		try ( Connection conn = db.getConnection();){
-			Configuration config = Configuration.getInstance();
-			String sql = String.format(SEARCH_SQL_DOC_IDS, 
-					config.getDocumentRelevanceFactor(), 
-					config.getAuthorsRelevanceFactor(), 
+			String sql = String.format(SEARCH_SQL_DOC_IDS,  
 					Arrays.toString(docIds).replaceAll("\\[", "(").replaceAll("\\]", ")"));
 			PreparedStatement stmt = conn.prepareStatement(sql);
 
@@ -1261,11 +1256,9 @@ public class DatabaseService {
 		doc.setX(rs.getFloat(6));
 		doc.setY(rs.getFloat(7));
 		doc.setRank(rs.getFloat(8));
-		//		doc.setDocumentRank(rs.getFloat(9));
-		//		doc.setAuthorsRank(rs.getFloat(10));
 		doc.setAuthors(Utils.getAuthors(rs.getString(9)));
 		doc.setBibTEX(rs.getString(10));
-		doc.setScore(rs.getDouble(11));
+//		doc.setScore(rs.getDouble(11));
 
 		return doc;
 	}
