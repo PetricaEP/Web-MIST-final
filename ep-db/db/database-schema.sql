@@ -128,7 +128,7 @@ CREATE TRIGGER tsvector_doc_update_freq BEFORE INSERT OR UPDATE
     
 CREATE OR REPLACE FUNCTION documents_data() RETURNS TRIGGER AS $documents_data_trigger$
 	BEGIN
-		INSERT INTO documents_data(doc_id,x,y,relevance) VALUES (new.doc_id,0.0,0.0,0.0);
+		INSERT INTO documents_data(doc_id,x,y,relevance_doc, relevance_aut,rank) VALUES (new.doc_id,0.0,0.0,0.0,0.0,0.0);
 		return new;
 	END;
 $documents_data_trigger$ LANGUAGE plpgsql;
@@ -154,7 +154,7 @@ $array_to_tsvector2$ LANGUAGE plpgsql;
 -- Index
 
 CREATE INDEX documents_data_node_id_index ON documents_data (node_id);
-CREATE INDEX documents_data_relevance_index ON documents_data (relevance);
+CREATE INDEX documents_data_relevance_index ON documents_data (rank);
 CREATE INDEX document_authors_doc_id_index ON document_authors(doc_id);
 CREATE INDEX document_authors_aut_id_index ON document_authors(aut_id);
 CREATE INDEX documents_enabled_index ON documents(enabled);

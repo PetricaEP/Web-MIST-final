@@ -62,7 +62,7 @@ CREATE OR REPLACE FUNCTION calpagerank_docs(alpha double precision) RETURNS void
 
 		END LOOP;
 
-		UPDATE documents_data SET relevance = pr FROM pagerank WHERE documents_data.doc_id = pagerank.doc_id;
+		UPDATE documents_data SET relevance_doc = pr FROM pagerank WHERE documents_data.doc_id = pagerank.doc_id;
 		
 		DROP TABLE IF EXISTS edgeWithOuterDegree;
 		
@@ -155,7 +155,7 @@ CREATE OR REPLACE FUNCTION calpagerank_docs(alpha double precision) RETURNS void
 		
 	BEGIN
 		
-		 UPDATE documents_data dd set rank = (docRelevance * dd.relevance + authorRelevance * coalesce(a.relevance,0)), relevance_aut = coalesce(a.relevance,0)  
+		 UPDATE documents_data dd set rank = (docRelevance * dd.relevance_doc + authorRelevance * coalesce(a.relevance,0)), relevance_aut = coalesce(a.relevance,0)  
 		 FROM (SELECT doc_id, sum(a.relevance) relevance FROM document_authors da INNER JOIN authors a ON da.aut_id = a.aut_id GROUP BY da.doc_id) a 
 		 WHERE dd.doc_id = a.doc_id;
 
