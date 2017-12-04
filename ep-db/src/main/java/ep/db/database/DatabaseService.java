@@ -109,7 +109,7 @@ public class DatabaseService {
 	/**
 	 * SQL para atualização da relevancia de um documento
 	 */
-	private static final String UPDATE_RELEVANCE_DOCUMENTS = "UPDATE documents_data SET relevance = ? WHERE doc_id = ?";
+	private static final String UPDATE_RELEVANCE_DOCUMENTS = "UPDATE documents_data SET relevance_doc = ? WHERE doc_id = ?";
 
 	/**
 	 * SQL para atualização da relevancia de um autor.
@@ -149,14 +149,14 @@ public class DatabaseService {
 
 	private static final String DOCUMENTS_DATA_SQL = "SELECT " + SQL_SELECT_COLUMNS + ", dd.node_id "
 			+ "FROM (SELECT dd.doc_id, dd.x, dd.y, "
-			+ "dd.relevance, dd.node_id, rank() over (partition by dd.node_id order by dd.relevance desc) as r "
+			+ "dd.rank, dd.node_id, rank() over (partition by dd.node_id order by dd.rank desc) as r "
 			+ "FROM documents_data dd) dd INNER JOIN documents d ON dd.doc_id = d.doc_id LEFT JOIN "
 			+ "(SELECT doc_id, string_agg(a.aut_name,';') authors_name, sum(a.relevance) relevance "
 			+ "FROM document_authors da INNER JOIN authors a "
 			+ "ON da.aut_id = a.aut_id GROUP BY da.doc_id) a ON d.doc_id = a.doc_id WHERE r <= ? AND d.enabled is TRUE "
 			+ "ORDER BY node_id,rank DESC";
 
-	private static final String DOCUMENTS_NODE_SQL = "SELECT " + SQL_SELECT_COLUMNS + ", dd.relevance FROM "
+	private static final String DOCUMENTS_NODE_SQL = "SELECT " + SQL_SELECT_COLUMNS + " FROM "
 			+ "documents_data dd INNER JOIN documents d ON d.doc_id = dd.doc_id AND dd.node_id = ? "
 			+ "ORDER BY rank "
 			+ "DESC LIMIT ? OFFSET ?";
@@ -169,9 +169,9 @@ public class DatabaseService {
 	private static final String INSERT_NODE_SQL = "INSERT INTO nodes( node_id, isleaf, rankmax, rankmin, "
 			+ "parent_id, depth, index) VALUES (?, ?, ?, ?, ?, ?, ?);";
 
-	private static final String INSERT_DOC_DATA_SQL = "INSERT INTO documents_data( doc_id, node_id, x, y, relevance ) "
+	private static final String INSERT_DOC_DATA_SQL = "INSERT INTO documents_data( doc_id, node_id, x, y, rank ) "
 			+ "VALUES (?, ?, ?, ?, ?) ON CONFLICT (doc_id) DO UPDATE "
-			+ "SET node_id = excluded.node_id, x = excluded.x, y = excluded.y, relevance = excluded.relevance;";
+			+ "SET node_id = excluded.node_id, x = excluded.x, y = excluded.y, rank = excluded.rank;";
 
 	private static final String AUTHORS_GRAPH_SQL = "SELECT a.aut_id source,a.aut_name source_name, a.relevance source_rank,"
 			+ "at.aut_id target,at.aut_name target_name, at.relevance target_relevance "
@@ -180,8 +180,8 @@ public class DatabaseService {
 			+ "a.ref_id = rda.doc_id INNER JOIN authors at ON rda.aut_id = at.aut_id";
 
 	private static final String DOCS_GRAPH_SQL = "SELECT d.doc_id, r.doc_id, d.doi, d.title, d.keywords, d.publication_date, "
-			+ "dd.x, dd.y, dd.relevance, "
-			+ "r.doi, r.title, r.keywords, r.publication_date, rr.x, rr.y, rr.relevance "
+			+ "dd.x, dd.y, dd.rank, "
+			+ "r.doi, r.title, r.keywords, r.publication_date, rr.x, rr.y, rr.rank "
 			+ "FROM citations c INNER JOIN documents d "
 			+ "ON c.doc_id = d.doc_id INNER JOIN documents r ON c.ref_id = r.doc_id "
 			+ "INNER JOIN documents_data dd on d.doc_id = dd.doc_id INNER JOIN documents_data rr "
@@ -615,7 +615,7 @@ public class DatabaseService {
 					+ "ON d.doc_id = da.doc_id";
 			if ( where != null)
 				sql += where;
-			sql += " ORDER BY da.relevance DESC, d.doc_id";
+			sql += " ORDER BY da.rank DESC, d.doc_id";
 
 			Statement stmt = conn.createStatement();
 			ResultSet rs = stmt.executeQuery(sql);
