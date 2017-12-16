@@ -82,10 +82,13 @@ public class Points extends JPanel {
                 rectangleP2.x - rectangleP1.x,
                 rectangleP2.y - rectangleP1.y);
 
-        g2d.drawOval(
-                (int) p.getX() - mapRadiusX(radius),
-                (int) p.getY() - mapRadiusY(radius),
-                mapRadiusX(radius) * 2, mapRadiusY(radius) * 2);
+//        g2d.drawOval(
+//                (int) p.getX() - mapRadiusX(radius),
+//                (int) p.getY() - mapRadiusY(radius),
+//                mapRadiusX(radius) * 2, mapRadiusY(radius) * 2);
+        
+        g2d.drawRect((int)p.getX() -  mapRadiusX(radius), 
+        		(int)p.getY() -  mapRadiusY(radius), mapRadiusX(radius) * 2, mapRadiusY(radius) * 2);
 
         if (grid != null) {
             Vec2 resolution = new Vec2((float)size.x / (grid[0].length - 1), (float)size.y / (grid.length - 1));
@@ -139,7 +142,7 @@ public class Points extends JPanel {
             } else {
                 QuadTreeLeafNode leaf = (QuadTreeLeafNode) node;
                 for (int i = 0; i < leaf.size(); i++) {
-                    IDocument d = leaf.getDocument(i);
+                    IDocument d = leaf.getDocument(i, null);
                     g2d.setColor(Color.red);
 
                     if (selectedList != null) {

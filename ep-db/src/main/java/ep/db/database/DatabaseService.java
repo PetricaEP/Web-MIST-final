@@ -131,7 +131,7 @@ public class DatabaseService {
 	private static final String ADVANCED_SEARCH_SQL = "SELECT " + SQL_SELECT_COLUMNS + " %s FROM documents d " 
 			+ " INNER JOIN documents_data dd ON d.doc_id = dd.doc_id %s "
 			+ " ORDER BY dd.rank DESC LIMIT ?";
-	
+
 	private static final String ADVENCED_SEARCH_AUTHORS_INNER_JOIN_SQL = " INNER JOIN (SELECT doc_id, "
 			+ "ts_rank(?, aut_name_tsv, aut_query, ?) aut_rank FROM document_authors da INNER JOIN "
 			+ "authors a ON da.aut_id = a.aut_id, to_tsquery(?) aut_query WHERE aut_query @@ aut_name_tsv) a "
@@ -140,7 +140,8 @@ public class DatabaseService {
 	private static final String SEARCH_SQL_ALL_MAX_RANK = "SELECT x,y FROM documents_data d WHERE "
 			+ "(x >= ? AND x <= ?) AND (y >= ? AND y <= ?) ORDER BY rank DESC";
 
-	private static final String SEARCH_SQL_ALL_XY = "SELECT x,y FROM documents_data d";
+	private static final String LOAD_XY_SQL = "SELECT x,y FROM documents_data d WHERE "
+			+ "(x > ? AND x <= ?) AND (y > ? AND y <= ?)";
 
 	private static final String SEARCH_SQL_DOC_IDS = "SELECT " + SQL_SELECT_COLUMNS + " FROM documents d "
 			+ "INNER JOIN documents_data dd ON d.doc_id = dd.doc_id "
@@ -156,10 +157,12 @@ public class DatabaseService {
 			+ "ON da.aut_id = a.aut_id GROUP BY da.doc_id) a ON d.doc_id = a.doc_id WHERE r <= ? AND d.enabled is TRUE "
 			+ "ORDER BY node_id,rank DESC";
 
-	private static final String DOCUMENTS_NODE_SQL = "SELECT " + SQL_SELECT_COLUMNS + " FROM "
-			+ "documents_data dd INNER JOIN documents d ON d.doc_id = dd.doc_id AND dd.node_id = ? "
-			+ "ORDER BY rank "
-			+ "DESC LIMIT ? OFFSET ?";
+	private static final String DOCUMENTS_NODE_SQL = "SELECT s.*, ts_rank(?, tsv, query, ?) score FROM ("
+			+ "SELECT " + SQL_SELECT_COLUMNS + ", dd.node_id, "
+			+ "rank() over (partition by dd.node_id order by dd.rank desc) as r "
+			+ "FROM documents_data dd INNER JOIN documents d "
+			+ "ON d.doc_id = dd.doc_id WHERE dd.node_id = ? ORDER BY node_id, rank DESC LIMIT ? OFFSET ?) s, "
+			+ "to_tsquery(?) query WHERE query @@ tsv AND s.enabled is TRUE ORDER BY s.rank DESC";
 
 	private static final String NODE_DATA_SQL = "SELECT *, (select count(*) as nDocuments FROM documents_data dn "
 			+ "where dn.node_id=n.node_id)  FROM nodes n ORDER BY node_id";
@@ -997,8 +1000,8 @@ public class DatabaseService {
 		}
 	}
 
-	public List<Document> getSimpleDocuments(String querySearch, int limit, 
-			List<Document> docs, List<Vec2> densities, int maxDocs) throws Exception {
+	public List<IDocument> getSimpleDocuments(String querySearch, int limit,
+			List<Vec2> densities, int maxDocs) throws Exception {
 
 		try ( Connection conn = db.getConnection();){
 			Configuration config = Configuration.getInstance();
@@ -1015,6 +1018,7 @@ public class DatabaseService {
 
 			try (ResultSet rs = stmt.executeQuery()){
 
+				List<IDocument> docs  = new ArrayList<>(maxDocs);
 				boolean next = rs.next();
 				for(int i = 0; i < maxDocs && next; i++){
 					Document doc = newSimpleDocument( rs );
@@ -1060,7 +1064,7 @@ public class DatabaseService {
 	public List<Vec2> loadXY(float x1, float y1, float x2, float y2) throws Exception {
 		try ( Connection conn = db.getConnection();){
 			PreparedStatement stmt = conn.prepareStatement(SEARCH_SQL_ALL_MAX_RANK);
-//			stmt.setFloat(1, maxRank);
+			//			stmt.setFloat(1, maxRank);
 			stmt.setFloat(1, x1);
 			stmt.setFloat(2, x2);
 			stmt.setFloat(3, y1);
@@ -1081,9 +1085,26 @@ public class DatabaseService {
 		}
 	}
 
-	public List<Vec2> loadXY() throws Exception {
+	public List<Vec2> loadXY(List<IDocument> documents, float x1, float y1, float x2, float y2) throws Exception {
 		try ( Connection conn = db.getConnection();){
-			PreparedStatement stmt = conn.prepareStatement(SEARCH_SQL_ALL_XY);
+
+			StringBuilder sql = new StringBuilder(LOAD_XY_SQL);
+			if ( documents != null && !documents.isEmpty()){
+				sql.append(" AND doc_id NOT IN (");
+				for(IDocument doc : documents){
+					sql.append(doc.getId());
+					sql.append(",");
+				}
+				sql.delete(sql.length()-1, sql.length());
+				sql.append(")");
+			}
+
+			PreparedStatement stmt = conn.prepareStatement(sql.toString());
+			stmt.setFloat(1, x1);
+			stmt.setFloat(2, x2);
+			stmt.setFloat(3, y1);
+			stmt.setFloat(4, y2);
+
 			try (ResultSet rs = stmt.executeQuery()){
 				List<Vec2> points = new ArrayList<>();
 				while ( rs.next() ){
@@ -1120,7 +1141,7 @@ public class DatabaseService {
 		}
 	}
 
-	public void getAllSimpleDocuments(List<Document> docs, List<Vec2> densities, int maxDocs) throws Exception {
+	public List<IDocument> getAllSimpleDocuments(List<Vec2> densities, int maxDocs) throws Exception {
 
 		try ( Connection conn = db.getConnection();){
 			Configuration config = Configuration.getInstance();
@@ -1128,6 +1149,7 @@ public class DatabaseService {
 					String.format(SEARCH_SQL_ALL, config.getDocumentRelevanceFactor(), config.getAuthorsRelevanceFactor()));
 
 			try (ResultSet rs = stmt.executeQuery()){
+				List<IDocument> docs = new ArrayList<>(maxDocs);
 				boolean next = rs.next();
 				for(int i = 0; i < maxDocs && next; i++){
 					Document doc = newSimpleDocument( rs );
@@ -1142,6 +1164,8 @@ public class DatabaseService {
 					densities.add(new Vec2(x, y));
 					next = rs.next();
 				}
+				
+				return docs;
 
 			}catch (SQLException e) {
 				throw e;
@@ -1152,8 +1176,8 @@ public class DatabaseService {
 
 	}
 
-	public List<Document> getAdvancedSimpleDocuments(String querySearch, String authors, String yearStart, 
-			String yearEnd, int limit, List<Document> docs, List<Vec2> densities, int maxDocs ) throws Exception {
+	public List<IDocument> getAdvancedSimpleDocuments(String querySearch, String authors, String yearStart, 
+			String yearEnd, int limit, List<Vec2> densities, int maxDocs ) throws Exception {
 		try ( Connection conn = db.getConnection();){
 
 			StringBuilder where = new StringBuilder();
@@ -1177,7 +1201,7 @@ public class DatabaseService {
 			else{
 				where.append(" WHERE d.enabled is TRUE ");
 			}
-			
+
 			if ( !yearStart.isEmpty() )
 				where.append(" AND publication_date >= ? ");
 			if ( !yearEnd.isEmpty() )
@@ -1203,11 +1227,11 @@ public class DatabaseService {
 				stmt.setInt(index++, config.getNormalization());
 				stmt.setString(index++, authors);
 			}
-			
+
 			if (querySearch != null){
 				stmt.setString(index++, querySearch);
 			}
-			
+
 			// Ano
 			if ( !yearStart.isEmpty() )
 				stmt.setInt(index++, Integer.parseInt(yearStart));
@@ -1221,6 +1245,7 @@ public class DatabaseService {
 				stmt.setNull(index, java.sql.Types.INTEGER);
 
 			try (ResultSet rs = stmt.executeQuery()){
+				List<IDocument> docs = new ArrayList<IDocument>(maxDocs);
 				boolean next = rs.next();
 				for(int i = 0; i < maxDocs && next; i++){
 					Document doc = newSimpleDocument( rs );
@@ -1258,7 +1283,7 @@ public class DatabaseService {
 		doc.setRank(rs.getFloat(8));
 		doc.setAuthors(Utils.getAuthors(rs.getString(9)));
 		doc.setBibTEX(rs.getString(10));
-//		doc.setScore(rs.getDouble(11));
+		//		doc.setScore(rs.getDouble(11));
 
 		return doc;
 	}
@@ -1287,20 +1312,25 @@ public class DatabaseService {
 		}
 	}
 
-	public List<IDocument> getDocumentsFromNode(long nodeId, int offset, int limit) throws Exception{
+	public List<IDocument> getDocumentsFromNode(long nodeId, String query, int offset, int limit) throws Exception{
 		List<IDocument> docs = new ArrayList<>();
 		try (Connection conn = db.getConnection();) {
 			Configuration config = Configuration.getInstance();
 			String sql = String.format(DOCUMENTS_NODE_SQL, config.getDocumentRelevanceFactor(), config.getAuthorsRelevanceFactor());
 			PreparedStatement stmt = conn.prepareStatement(sql);
-			//SELECT " + SQL_SELECT_COLUMNS + ", dd.relevance FROM (SELECT * FROM "
-			//			+ "documents_data dd WHERE dd.node_id = ? ) dd INNER JOIN documents d ON d.doc_id = dd.doc_id LEFT JOIN "
-			//			+ "(SELECT doc_id, string_agg(a.aut_name,';') authors_name, sum(a.relevance) relevance FROM document_authors da INNER JOIN authors a "
-			//			+ "ON da.aut_id = a.aut_id GROUP BY da.doc_id) a ON d.doc_id = a.doc_id WHERE d.enabled is TRUE ORDER BY rank "
-			//			+ "DESC LIMIT ? OFFSET ?
-			stmt.setLong(1, nodeId);
+			//			SELECT s.*, ts_rank(?, tsv, query, ?) score FROM ("
+			//			+ "SELECT " + SQL_SELECT_COLUMNS + ", dd.node_id, "
+			//			+ "rank() over (partition by dd.node_id order by dd.rank desc) as r "
+			//			+ "FROM documents_data dd INNER JOIN documents d "
+			//			+ "ON d.doc_id = dd.doc_id WHERE dd.node_id = ? ORDER BY node_id, rank DESC LIMIT ? OFFSET ?) s, "
+			//			+ "to_tsquery(?) query WHERE query @@ tsv AND s.enabled is TRUE ORDER BY s.rank DESC
+			Array array = conn.createArrayOf("float4", config.getWeights());
+			stmt.setArray(1, array);
+			stmt.setInt(2, config.getNormalization());
+			stmt.setLong(3, nodeId);
 			stmt.setInt(2, limit);
 			stmt.setInt(3, offset);
+			stmt.setString(4, query);
 			try (ResultSet rs = stmt.executeQuery()) {
 				while (rs.next()) {
 					//d.doc_id, d.doi, d.title, d.keywords, d.publication_date, d.x, d.y, 
@@ -1428,7 +1458,7 @@ public class DatabaseService {
 					QuadTreeLeafNode leaf = (QuadTreeLeafNode) node;
 					PreparedStatement leafStmt = conn.prepareStatement(INSERT_DOC_DATA_SQL);
 					for (int i = 0; i < leaf.size(); i++) {
-						IDocument d = leaf.getDocument(i);
+						IDocument d = leaf.getDocument(i, null);
 						leafStmt.setLong(1, d.getId());
 						leafStmt.setLong(2, node.getNodeId());
 						leafStmt.setFloat(3, d.getPos().x);

@@ -94,8 +94,9 @@ public class InfoVis {
 
                 List<IDocument> selectedDocuments = new ArrayList<>();
                 List<QuadTreeNode> selectedNodes = new ArrayList<>();
-                //quadTree.findInRectangle(new Bounds(pointClickReal, new Vec2(pointReleaseReal.x - pointClickReal.x, pointReleaseReal.y - pointClickReal.y)), selectedElements, selectedNodes);
-                selectedDocuments = quadTree.findInRectangleByRank(new Bounds(pointClickReal, new Vec2(pointReleaseReal.x - pointClickReal.x, pointReleaseReal.y - pointClickReal.y)), selectedDocuments, selectedNodes, 1);
+                quadTree.findInRectangle(new Bounds(pointClickReal, new Vec2(pointReleaseReal.x - pointClickReal.x, pointReleaseReal.y - pointClickReal.y)), null, 
+                		selectedDocuments, selectedNodes);
+//                selectedDocuments = quadTree.findInRectangleByRank(new Bounds(pointClickReal, new Vec2(pointReleaseReal.x - pointClickReal.x, pointReleaseReal.y - pointClickReal.y)), selectedDocuments, selectedNodes, 1);
 
                 points.setSelectedList(selectedDocuments);
                 points.setSelectedNodes(selectedNodes);
@@ -120,7 +121,7 @@ public class InfoVis {
                     Bounds rectangle = new Bounds(pReal,new Vec2(0.4f,0.4f));
                     List<IDocument> selectedList = new ArrayList<>();
                     List<QuadTreeNode> selectedNodes = new ArrayList<>();
-                    quadTree.findInRectangle(rectangle, selectedList, selectedNodes, 100);
+                    quadTree.findInRectangle(rectangle, null, selectedList, selectedNodes);
 //                    quadTree.findNeighbors(pReal, radius, selectedList, selectedNodes, 0);
                     points.setSelectedList(selectedList);
                     points.setSelectedNodes(selectedNodes);

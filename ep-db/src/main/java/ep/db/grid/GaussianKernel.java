@@ -17,9 +17,4 @@ public class GaussianKernel extends Kernel{
     float eval(float x) {
         return (float)Math.exp(-0.5f*x*x) * (float)invSqrt2xPI;
     }
-    
-    @Override
-    double eval(double x) {
-        return Math.exp(-0.5*x*x) * invSqrt2xPI;
-    }
 }

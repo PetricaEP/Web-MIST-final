@@ -84,14 +84,14 @@ public class QuadTreeLeafNode extends QuadTreeNode {
         return nTotalDocuments;
     }
 
-    public IDocument getDocument(int index) {
+    public IDocument getDocument(int index, String query) {
         if (index >= nTotalDocuments) {
             return null;
         }
         int bunchIndex = index / QuadTree.maxElementsPerBunch;
         if (data[bunchIndex] == null || data[bunchIndex].isEmpty()) {
             data[bunchIndex] = new Bunch();
-            loadBunch(bunchIndex);
+            loadBunch(bunchIndex, query);
         }
         int elementIndex = index % QuadTree.maxElementsPerBunch;
         if(elementIndex < data[bunchIndex].size()){
@@ -100,11 +100,11 @@ public class QuadTreeLeafNode extends QuadTreeNode {
         return null;
     }
 
-    public void loadBunch(int indexBunch) {
+    public void loadBunch(int indexBunch, String query) {
         //Load the Documents from the Bunch from Data Base
         List<IDocument> documents;
 		try {
-			documents = QuadTree.dbService.getDocumentsFromNode(nodeId, indexBunch*QuadTree.maxElementsPerBunch, QuadTree.maxElementsPerBunch);
+			documents = QuadTree.dbService.getDocumentsFromNode(nodeId, query, indexBunch*QuadTree.maxElementsPerBunch, QuadTree.maxElementsPerBunch);
 		} catch (Exception e) {
 			e.printStackTrace();
 			documents = null;
@@ -141,55 +141,6 @@ public class QuadTreeLeafNode extends QuadTreeNode {
         }
     }
 
-    //@Override
-    //ReWrite in other Method.
-    public void getElementsByRankBeta(List<IDocument> documents, float totalRankArea, Bounds rectangle) {
-
-        int i = 0, j = 0;
-        float totalRankAreaTemp = 0;
-
-        while (true) {
-            float rankList = 0, rankLeaf = 0;
-            //Finalize the two lists
-            if (i >= documents.size() && (j >= nDocuments)) {
-                break;
-            }
-
-            //If has document to analise in the Docuents List
-            if (i < documents.size()) {
-                if (totalRankAreaTemp >= totalRankArea) {
-                    documents.remove(i);
-                    j = nDocuments;
-                    continue;
-                }
-                rankList = documents.get(i).getRank();
-            }
-            //If has document to analise in Leaf Documents List
-            if (j < nDocuments) {
-                //Test if the rectangle exists, and if document position is in the rectangle.
-                if (rectangle != null && !rectangle.contains(getDocument(j).getPos())) {
-                    j++;
-                    continue;
-                }
-                rankLeaf = getDocument(j).getRank();
-            }
-            //test which document to get
-            if (rankList >= rankLeaf) {
-                if (rankList + totalRankAreaTemp <= totalRankArea) {
-                    totalRankAreaTemp += rankList;
-                }
-                i++;
-            } else {
-                if (rankLeaf + totalRankAreaTemp <= totalRankArea) {
-                    totalRankAreaTemp += rankLeaf;
-                    documents.add(i, getDocument(j));
-                    i++;
-                }
-                j++;
-            }
-        }
-    }
-
     @Override
     public List<IDocument> getElementsByRank(List<IDocument> documents, float totalRankArea, Bounds rectangle, Boolean filledArea) {
         //Se a lista está preenchida e o RankMáximo do nó é menor que o Rank menor da lista, não há necessidade de percorrer o nó.
@@ -207,7 +158,7 @@ public class QuadTreeLeafNode extends QuadTreeNode {
                 docList = documents.get(iList);
             }
             if (iLeaf < nDocuments) {
-                docLeaf = getDocument(iLeaf);
+                docLeaf = getDocument(iLeaf, null);
             }
 
             if (docList == null && docLeaf == null) {

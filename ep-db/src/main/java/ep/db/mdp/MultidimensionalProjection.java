@@ -30,17 +30,17 @@ import ep.db.utils.Configuration;
  *
  */
 public class MultidimensionalProjection {
-	
+
 	/**
 	 * Logger
 	 */
 	private static Logger logger = LoggerFactory.getLogger(MultidimensionalProjection.class);
-	
+
 	/**
 	 * Serviço para manipulação do banco de dados.
 	 */
 	private DatabaseService dbService;
-	
+
 	/**
 	 * Normalizar projeção para intervalo [-1,1]
 	 */
@@ -59,7 +59,7 @@ public class MultidimensionalProjection {
 	public MultidimensionalProjection( Configuration config ) {
 		this(config,true);
 	}
-	
+
 	/**
 	 * Cria novo objeto para projeção multidimensional
 	 * com a configuração dada.
@@ -82,12 +82,12 @@ public class MultidimensionalProjection {
 		// ordenada decrescentemente pela relevancia.
 		// Primeira coluna contém docIds.
 		FloatMatrix2D matrix = null;
-		
+
 		TFIDF tfidf = getTFIDFWeightingScheme();
-		
+
 		try {
 			System.out.println("Building frequency matrix (bag of words)...");
-			 matrix = dbService.buildFrequencyMatrix(null, tfidf);
+			matrix = dbService.buildFrequencyMatrix(null, tfidf);
 		} catch (Exception e) {
 			logger.error("Error building frequency matrix", e);
 			throw e;
@@ -95,42 +95,42 @@ public class MultidimensionalProjection {
 
 		// Colunas selecionadas = todas colunas - coluna doc_id
 		final int[] cols = IntStream.range(1, matrix.columns()).distinct().sorted().toArray();
-				
+
 		// Realiza projeção multidimensional utilizando LAMP
 		System.out.println("Projecting...");
 		Lamp lamp = new Lamp();
 		FloatMatrix2D y = lamp.project(matrix.viewSelection(null, cols), 
 				Configuration.getInstance().isRandomControlPoints());
-		
+
 		List<Integer> outliers = null;
-		if ( Configuration.getInstance().isDisableOutliers()  ){
+		if ( Configuration.getInstance().isDisableOutliers()  ) {
 			System.out.println("Outliers detection...");
 			outliers = disableOutliers(y);
 			System.out.println("Number of documents disabled (outliers detected): " + outliers.size());
 		}
-		
+
 		int[] rows = null;
-		
+
 		if ( outliers != null && outliers.size() > 0){
 			rows = new int[y.rows() - outliers.size()];
 			for(int i = 0, k = 0; i < y.rows(); i++)
 				if ( !outliers.contains(i) )
 					rows[k++] = i;
-			
-			
+
+
 		}
-		
-//		 Normaliza projeção para intervalo [-1,1]
+
+		//		 Normaliza projeção para intervalo [-1,1]
 		if ( normalize ){
 			System.out.println("Normalizing to range [-1,1]...");
 			normalizeProjections(y.viewSelection(rows, null));
 		} 
-		
+
 		// Atualiza projeções no banco de dados.
 		System.out.println("Updating databse...");
 		updateProjections(matrix.viewColumn(0), y, outliers);
 	}
-	
+
 	private TFIDF getTFIDFWeightingScheme() {
 		TFIDF tfidf;
 		switch (config.getTfidfWeightingScheme()) {
@@ -152,13 +152,13 @@ public class MultidimensionalProjection {
 
 	private List<Integer> disableOutliers(FloatMatrix2D y) {
 		FloatMatrix1D distances = FloatFactory1D.dense.make(y.rows());
-		
+
 		// Calcula media
 		for( int i = 0; i < y.rows(); i++){
 			float dist = (float) Math.sqrt(y.viewRow(i).zDotProduct(y.viewRow(i)));
 			distances.setQuick(i, dist);
 		}
-		
+
 		FloatQuantileFinder quantile = 
 				FloatQuantileFinderFactory.newFloatQuantileFinder(false, y.rows(), 0.001f, 0.0001f, 10000, null);
 		FloatArrayList values = new FloatArrayList(distances.toArray());
@@ -168,14 +168,14 @@ public class MultidimensionalProjection {
 		float Q1 = q1q3.getQuick(0),
 				Q3 = q1q3.get(1),
 				IQR = 1.5f*(Q3-Q1);
-		
+
 		List<Integer> indices = new ArrayList<>();
 		for(int i = 0; i < distances.size(); i++){
 			float d = distances.getQuick(i);
 			if ( d < Q1 - IQR || d > Q3 + IQR)
 				indices.add(i);
 		}
-		
+
 		return indices;
 	}
 
@@ -184,7 +184,7 @@ public class MultidimensionalProjection {
 				maxY = y.viewColumn(1).getMaxLocation()[0];
 		final float minX = y.viewColumn(0).getMinLocation()[0],
 				minY = y.viewColumn(1).getMinLocation()[0];
-		
+
 		y.viewColumn(0).assign( (v) -> 2 * (v - minX)/(maxX - minX) - 1 );
 		y.viewColumn(1).assign( (v) -> 2 * (v - minY)/(maxY - minY) - 1 );
 	}
@@ -206,17 +206,17 @@ public class MultidimensionalProjection {
 			throw e;
 		}
 	}
-	
+
 	/**
 	 * Método main para calcúlo das projeções.
 	 * @param args
 	 */
 	public static void main(String[] args) {
 		try {
-			
+
 			Configuration config = Configuration.getInstance();
 			config.loadConfiguration();
-			
+
 			System.out.println("Updating MDP...");
 			MultidimensionalProjection mdp = new MultidimensionalProjection(config);
 			mdp.project();

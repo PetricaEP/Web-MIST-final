@@ -158,8 +158,8 @@ public class QuadTree {
 
 		//Dividing the elements
 		for (int i = 0; i < leaf.size(); i++) {
-			QuadTreeLeafNode newLeaf = makeLeaf(calculateKey(leaf.getDocument(i).getPos()));
-			newLeaf.addElement(leaf.getDocument(i));
+			QuadTreeLeafNode newLeaf = makeLeaf(calculateKey(leaf.getDocument(i, null).getPos()));
+			newLeaf.addElement(leaf.getDocument(i, null));
 		}
 	}
 
@@ -245,18 +245,18 @@ public class QuadTree {
 		}
 	}
 	
-	public int findInRectangle(Bounds rectangle, List<IDocument> documents, List<QuadTreeNode> nodes) {
+	public int findInRectangle(Bounds rectangle, String query, List<IDocument> documents, List<QuadTreeNode> nodes) {
 		documents.clear();
 		nodes.clear();
-		rectangleSearchAll(rectangle, new QuadTreeKey(0), getRoot(), documents, nodes);
+		rectangleSearchAll(rectangle, query, new QuadTreeKey(0), getRoot(), documents, nodes);
 		return documents.size();
 	}
 
-	public int findInRectangle(Bounds rectangle, List<IDocument> documents, List<QuadTreeNode> nodes, 
+	public int findInRectangle(Bounds rectangle, String query, List<IDocument> documents, List<QuadTreeNode> nodes, 
 			int maxDocs) {
 		documents.clear();
 		nodes.clear();
-		rectangleSearchAll(rectangle, new QuadTreeKey(0), getRoot(), documents, nodes, maxDocs);
+		rectangleSearchAll(rectangle, query, new QuadTreeKey(0), getRoot(), documents, nodes, maxDocs);
 		return documents.size();
 	}
 	
@@ -325,7 +325,7 @@ public class QuadTree {
 		return documents;
 	}
 
-	public void rectangleSearchAll(Bounds rectangle, QuadTreeKey key, QuadTreeBranchNode branch, 
+	public void rectangleSearchAll(final Bounds rectangle, final String query, QuadTreeKey key, QuadTreeBranchNode branch, 
 			List<IDocument> documentList, List<QuadTreeNode> nodes, int maxDocs) {
 		int depth = branch.getDepth() + 1;
 		
@@ -345,11 +345,11 @@ public class QuadTree {
 					addNodeAndChildrenInList(nodes, child);
 				} else if (inter == 1) { //Test if point intersects the Rect
 					if (!child.isLeaf()) {
-						rectangleSearchAll(rectangle, childKey, (QuadTreeBranchNode) child, documentList, nodes, maxDocs);
+						rectangleSearchAll(rectangle, query, childKey, (QuadTreeBranchNode) child, documentList, nodes, maxDocs);
 					} else {
 						QuadTreeLeafNode leaf = (QuadTreeLeafNode) child;
 						for (int j = 0; j < leaf.size() && documentList.size() <= maxDocs; j++) {
-							IDocument d = leaf.getDocument(j);
+							IDocument d = leaf.getDocument(j, query);
 							if (rectangle.contains(d.getPos())) {
 								documentList.add(d);
 							}
@@ -361,7 +361,7 @@ public class QuadTree {
 		}
 	}
 	
-	public void rectangleSearchAll(Bounds rectangle, QuadTreeKey key, QuadTreeBranchNode branch, 
+	public void rectangleSearchAll(Bounds rectangle, String query, QuadTreeKey key, QuadTreeBranchNode branch, 
 			List<IDocument> documentList, List<QuadTreeNode> nodes) {
 		int depth = branch.getDepth() + 1;
 		
@@ -378,11 +378,11 @@ public class QuadTree {
 					addNodeAndChildrenInList(nodes, child);
 				} else if (inter == 1) { //Test if point intersects the Rect
 					if (!child.isLeaf()) {
-						rectangleSearchAll(rectangle, childKey, (QuadTreeBranchNode) child, documentList, nodes);
+						rectangleSearchAll(rectangle, query, childKey, (QuadTreeBranchNode) child, documentList, nodes);
 					} else {
 						QuadTreeLeafNode leaf = (QuadTreeLeafNode) child;
 						for (int j = 0; j < leaf.size(); j++) {
-							IDocument d = leaf.getDocument(j);
+							IDocument d = leaf.getDocument(j, query);
 							if (rectangle.contains(d.getPos())) {
 								documentList.add(d);
 							}
@@ -415,7 +415,7 @@ public class QuadTree {
 						QuadTreeLeafNode leaf = (QuadTreeLeafNode) child;
 
 						for (int j = 0; j < leaf.size(); j++) {
-							IDocument d = leaf.getDocument(j);
+							IDocument d = leaf.getDocument(j, null);
 							int index = Arrays.binarySearch(selectedDocIds, d.getId());
 							if (rectangle.contains(d.getPos()) && index >= 0) {
 								documentList.add(d);
@@ -453,7 +453,7 @@ public class QuadTree {
 					QuadTreeLeafNode leaf = (QuadTreeLeafNode) child;
 
 					for (int j = 0; j < leaf.size(); j++) {
-						IDocument d = leaf.getDocument(j);
+						IDocument d = leaf.getDocument(j, null);
 						//O documento não satisfaz a busca
 						if(d.getRank() < rankMinLimit){
 							continue;

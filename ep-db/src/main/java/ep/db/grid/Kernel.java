@@ -11,6 +11,4 @@ package ep.db.grid;
  */
 public abstract class Kernel {
     abstract float eval(float x);
-    
-    abstract double eval(double x);
 }

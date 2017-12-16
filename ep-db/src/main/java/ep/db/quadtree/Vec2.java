@@ -1,4 +1,5 @@
 package ep.db.quadtree;
+
 /**
  *
  * @author Márcio Peres
@@ -9,11 +10,15 @@ package ep.db.quadtree;
 // ======================
 public class Vec2 {
 
-    public static float distance(Vec2 p1, Vec2 p2) {
+	public static float squaredDistance(Vec2 p1, Vec2 p2) {
         float dx = p2.x - p1.x;
         float dy = p2.y - p1.y;
 
-        return (float) Math.sqrt(dx * dx + dy * dy);
+        return dx * dx + dy * dy;
+    }
+
+    public static float distance(Vec2 p1, Vec2 p2) {
+        return (float) Math.sqrt(squaredDistance(p1, p2));
     }
 
     public float x;

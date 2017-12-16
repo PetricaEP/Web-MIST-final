@@ -20,9 +20,4 @@ public class EpanechnikovKernel extends Kernel{
     float eval(float x) {
         return Math.abs(x /= k) <= 1 ? 0.75f * (1 - x * x) / k : 0;
     }
-    
-    @Override
-    double eval(double x) {
-        return Math.abs(x /= k) <= 1 ? 0.75f * (1 - x * x) / k : 0;
-    }
 }
