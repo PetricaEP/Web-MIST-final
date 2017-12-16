@@ -8,7 +8,7 @@ GET     	/                           	controllers.HomeController.index()
 
 GET			/search							controllers.HomeController.search()
 
-POST		/zoom							controllers.HomeController.zoom()
+#POST		/zoom							controllers.HomeController.zoom()
 
 GET			/references						controllers.HomeController.references(docIds: java.util.List[java.lang.Long])
 
