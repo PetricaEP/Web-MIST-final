@@ -15,8 +15,13 @@ public class QueryData {
 	
 	protected String yearEnd;
 	
-	protected int numClusters = 10;
+	protected float[] start;
 	
+	protected float[] end;
+	
+	private int numClusters = 10; 
+	
+	@Required
 	protected int maxDocs;
 	
 	public QueryData() {
@@ -24,17 +29,19 @@ public class QueryData {
 	}
 	
 	public QueryData(String terms, String operator, float width, float height, int maxDocs) {
-		this(terms, operator, null, null, null, 10, maxDocs);
+		this(terms, operator, null, null, null, null, null, 10, maxDocs);
 	}
 
-	public QueryData(String terms, String operator, String author, String yearStart, String yearEnd, int numClusters, 
-			int maxDocs) {
+	public QueryData(String terms, String operator, String author, String yearStart, String yearEnd, 
+			float[] start,  float[] end, int numClusters, int maxDocs) {
 		super();
 		this.terms = terms;
 		this.operator = operator;
 		this.author = author;
 		this.yearStart = yearStart;
 		this.yearEnd = yearEnd;
+		this.start = start;
+		this.end = end;
 		this.numClusters = numClusters;
 	}
 
@@ -76,6 +83,22 @@ public class QueryData {
 
 	public void setYearEnd(String yearEnd) {
 		this.yearEnd = yearEnd;
+	}
+
+	public float[] getStart() {
+		return start;
+	}
+
+	public void setStart(float[] start) {
+		this.start = start;
+	}
+
+	public float[] getEnd() {
+		return end;
+	}
+
+	public void setEnd(float[] end) {
+		this.end = end;
 	}
 
 	public int getNumClusters() {

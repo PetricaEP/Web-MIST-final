@@ -72,7 +72,7 @@ createVisualization = function(jsonData){
 	// Cria nova aba
 	var	currentTab = addNewTab(jsonData.op);
 	currentTab.step = 1;
-
+	
 	$("#reset-btn").prop('disabled', false);
 	$("#step-btn").prop('disabled', false);
 	$("#show-list-btn").prop('disabled', false);
@@ -146,28 +146,30 @@ createVisualization = function(jsonData){
 			.x(function(d){ return selectedTab.x(d.x);})
 			.y(function(d){ return selectedTab.y(d.y);})
 			.size([width,height])
-			.bandwidth(10);
-			
-			contourColor = d3.scaleSequential(d3.interpolateOranges)
-			.domain(d3.extent(contours.map(function(p) { return p.value;}))); // Points per square pixel.
+			.thresholds(20)
+			.bandwidth(20)
+			(currentTab.densities);
 		}
 		else{
-			var thresholds = d3.range(0,20)
+			var thresholds = d3.range(0,5)
 			.map(function(p){ return  Math.pow(2,p);});
 
 			gridSize = jsonData.gridSize;
 			contours = d3.contours()
+			.thresholds(6)
 			.size(gridSize)
-			.thresholds(thresholds);
-			
-			// Coloração dos contornos
-			contourColor = d3.scaleLog()
-			.domain([d3.extent(thresholds)])
-			.interpolate(function() { return d3.interpolateYlGnBu;});
-		}
-		contours = contours(currentTab.densities);
-		
+			(currentTab.densities);
+//			.map(transformContours);
 
+			// Coloração dos contornos
+//			contourColor = d3.scaleLog()
+//			.domain([d3.extent(thresholds)])
+//			.interpolate(function() { return d3.interpolateOranges;});
+		}
+		
+		// Cria contornos
+		contourColor = d3.scaleSequential(d3.interpolateOranges)
+		.domain(d3.extent(contours.map(function(p) { return p.value;}))); // Points per square pixel.
 	}
 
 	// Inicializa coloração dos clusters
@@ -179,7 +181,7 @@ createVisualization = function(jsonData){
 	}
 	jsonData = null;
 
-	
+
 	// Array para armazenar o maior nó de cada cluster (centroide)
 	currentTab.clusters = new Array(m);
 
@@ -225,7 +227,7 @@ createVisualization = function(jsonData){
 		))
 		.attr("fill", function(d){ return contourColor(d.value);});
 	}
-	
+
 	contours = null;
 
 	var g = svg.append("g");
@@ -389,25 +391,30 @@ function selectArea(p){
 	}
 
 	var numClusters = $("#num-clusters").val();
-	var r = jsRoutes.controllers.HomeController.zoom(),
+	var r = jsRoutes.controllers.HomeController.search(),
 	selectionWidth = $(".selection")[0].style.width.replace("px", ""),
 	selectionHeight = $(".selection")[0].style.height.replace("px",""),
 	maxDocs = $("#max-number-of-docs").val();
-
-	// Transforma coordenada para espaço original
-	// no intervalo [-1,1]
+	
 	$.ajaxPrefilter(function (options, originalOptions, jqXHR) {
 		jqXHR.setRequestHeader('Csrf-Token', $("input[name='csrfToken']").val());
 	});
 
+	// Transforma coordenada para espaço original
+	// no intervalo [-1,1]
 	var start = [ selectedTab.x_inv(p[0] - selectionWidth/2 ) , selectedTab.y_inv(p[1] - selectionHeight/2) ],
 	end = [ selectedTab.x_inv(p[0] + selectionWidth/2), selectedTab.y_inv(p[1] + selectionHeight/2)];
-	$.ajax({url: r.url, type: r.type, data: {
-		start: start,
-		end: end,
-		numClusters: numClusters,
-		maxDocs: maxDocs
-	},
+	
+	selectedTab.query.start = start;
+	selectedTab.query.end = end;
+	
+	$.ajax({url: r.url, type: r.type, data: selectedTab.query,
+//		{
+//		start: start,
+//		end: end,
+//		numClusters: numClusters,
+//		maxDocs: maxDocs
+//	}
 	success: createVisualization, error: errorFn, dataType: "json"});
 }
 

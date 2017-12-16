@@ -34,6 +34,7 @@ function Tab(id, parentId){
 	this.parentId = parentId;
 	this.rankFactor = 1;
 	this.selectedCircles = [];
+	this.query = null;
 }
 
 Tab.prototype.loadData = function(data, maxArea, maxDocs){
@@ -48,6 +49,7 @@ Tab.prototype.loadData = function(data, maxArea, maxDocs){
 
 	this.densities = data.densities;
 	this.ncluster = data.nclusters;
+	this.query = data.query;
 	
 	return i;
 };

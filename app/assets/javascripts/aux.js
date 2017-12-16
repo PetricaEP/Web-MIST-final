@@ -44,12 +44,12 @@ function createNodes(documents){
  * @returns
  */
 function fetchReferencesAjax(docIds){
-	
+
 
 	$.ajaxPrefilter(function (options, originalOptions, jqXHR) {
 		jqXHR.setRequestHeader('Csrf-Token', $("input[name='csrfToken']").val());
 	});
-	
+
 	var r = jsRoutes.controllers.HomeController.references(docIds);
 	$.ajax({
 		url: r.url, 
@@ -120,25 +120,25 @@ function showTip(n){
 
 	tipHtml = createToolTip(n);
 	tip.html(tipHtml);
-	
+
 	var svg = $('#' + selectedTab.id + " svg");
 	var x = d3.event.clientX, 
 	y = d3.event.clientY;
 	var tipW = $('.node-tooltip').width(),
 	tipH = $('.node-tooltip').height();
-	
+
 	if ( x + tipW >= svg.width())
 		x -= tipW + 10;
 	if ( y + tipH >= svg.height())
 		y -= tipH + 10;
-	
+
 	y = Math.max(0, y);
 	x = Math.max(0, x);
-	
+
 	tip
 	.style("left", (x) + "px")
 	.style("top", (y) + "px");
-	
+
 //	d3.select(this).style("stroke-opacity", 1);
 	d3.select(this)
 	.transition()
@@ -177,7 +177,7 @@ function createToolTip(n){
  * @returns
  */
 function hideTip(d){
-	
+
 	d3.select(this)
 	.transition()
 	.duration(300)
@@ -186,7 +186,7 @@ function hideTip(d){
 			return fixRadius;
 		return d.r * 0.6; 
 	});
-	
+
 	var tip = d3.selectAll('.node-tooltip');
 	tip.transition()
 	.duration(500)
@@ -200,9 +200,9 @@ function hideTip(d){
  * @param index indice do nó selecionado.
  */
 function toggleLinks(d,index){
-	
+
 	removeToolTip();
-	
+
 	// Adiciona ou remove documento do array 
 	// de documentos selecionados
 	var selectCircle = selectedTab.selectedCircles[d.id] === undefined;
@@ -212,14 +212,14 @@ function toggleLinks(d,index){
 	else{
 		delete selectedTab.selectedCircles[d.id];
 	}
-	
+
 	// Marca docs selecionados
 	highligthSelectedCircle(this, selectCircle);
-	
+
 	if ( !selectedTab.links ) return;
-	
+
 	d3.event.stopPropagation();
-	
+
 	var i;
 	var paths = d3.selectAll('#' + selectedTab.id + ' path.link');
 	var nodes = paths.nodes();
@@ -231,12 +231,12 @@ function toggleLinks(d,index){
 			l.classed('active', !l.classed('active'));
 		}
 	}
-	
+
 	// Cria tooltip fixa
 	var tip = d3.select("body").append("div")
 	.attr('class', 'fixed-tooltip')
 	.style("opacity", 0);
-	
+
 	tip.transition()
 	.duration(200)
 	.style("opacity", 0.9)
@@ -244,13 +244,13 @@ function toggleLinks(d,index){
 
 	tipHtml = createToolTip(d);
 	tip.html(tipHtml);
-	
+
 	var svg = $('#' + selectedTab.id + " svg");
 	var x = d3.event.clientX, 
 	y = d3.event.clientY;
 	var tipW = $('.node-tooltip').width(),
 	tipH = $('.node-tooltip').height();
-	
+
 	if ( x + tipW >= svg.width())
 		x -= tipW + 10;
 	if ( y + tipH >= svg.height())
@@ -258,7 +258,7 @@ function toggleLinks(d,index){
 	tip
 	.style("left", (x) + "px")
 	.style("top", (y) + "px");
-	
+
 	// Marca linhas na lista de documentos como ativas
 	var row = $("#" + selectedTab.id + " .documents-table table tbody tr")[index];
 	$(row).toggleClass('success');
@@ -275,7 +275,7 @@ function removeToolTip(){
 	.duration(500)
 	.style('opacity', 0)
 	.style('display', 'none');
-	
+
 	d3.selectAll('.fixed-tooltip')
 	.transition()
 	.duration(500)
@@ -457,17 +457,17 @@ function hideDocumentList(){
 function addDocumentToTable(index, node){
 	var doc = node.data;
 	var title;
-	
+
 	if ( doc.doi )
 		title = '<a href="https://dx.doi.org/' + doc.doi + '" target="_blank">' + 
 		doc.title + '</a>';
 	else
 		title = doc.title;
-	
+
 	var row = '<tr><td class="doc-index">' + index + '</td><td class="doc-title">' + title +
 	'</td><td class="doc-authors">';
-	
-	
+
+
 	if ( doc.authors && doc.authors.length > 0){
 		row += doc.authors[0].name;
 		for(var i = 1; i < doc.authors.length; i++){
@@ -478,9 +478,9 @@ function addDocumentToTable(index, node){
 	if ( doc.publicationDate )
 		row += doc.publicationDate;
 	row += '</td>';
-	
+
 	var rank = (doc.documentRank * 100).toFixed(3) + " / " + (doc.authorsRank * 100).toFixed(3) + " = " + (doc.rank * 100 ).toFixed(3);
-	
+
 	row += '<td class="doc-relevance">' + rank + '</td><td class="doc-cluster">' + 
 	'<svg><circle cx="15" cy="15" r="10" stroke-width="0" fill="' + selectedTab.coloring(doc) + '"/></svg>'  +
 	'</td></tr>';
@@ -560,7 +560,7 @@ function activeZoom(svg){
 		svg.select('.selection')
 		.attr("d", rect(start[0], start[1], newWidth, newHeight));
 	});
-	
+
 	if ( selectedTab.circles.length > 0 ){
 		selectedTab.circles
 		.on("mouseover", null)
@@ -581,7 +581,7 @@ function desactiveZoom(svg){
 	svg.on('click.selection', null);
 	d3.selectAll('.selection')
 	.attr("visibility", "hidden");
-	
+
 	selectedTab.circles
 	.on("mouseover", showTip)
 	.on("mouseout", hideTip);
@@ -591,17 +591,17 @@ function desactiveZoom(svg){
 function startSelection(start, svg) {
 	var selectionWidth = $(".selection")[0].style.width,
 	selectionHeight = $(".selection")[0].style.height;
-	
+
 	if ( selectionWidth === "" || selectionHeight === ""){
 		$(".selection")[0].style.width = "200px";
 		$(".selection")[0].style.height = "75px";
 		selectionWidth = "200px";
 		selectionHeight = "75px";
 	}
-	
+
 	selectionWidth = selectionWidth.replace("px", "");
 	selectionHeight = selectionHeight.replace("px", "");
-	
+
 	svg.select('.selection')
 	.attr("d", rect(start[0], start[1], selectionWidth, selectionHeight));
 }
@@ -708,4 +708,24 @@ function downloadDocuments(){
 		docIds.push(key);
 	var r = jsRoutes.controllers.HomeController.download(docIds);
 	window.location=r.absoluteURL();
+}
+
+function transformContours(geometry){
+	geometry.value *= Math.pow(2, -2 * 2); // Density in points per square pixel.
+	geometry.coordinates.forEach(transformPolygon);
+	return geometry;
+}
+
+function transformPolygon(coordinates) {
+	coordinates.forEach(transformRing);
+}
+
+function transformRing(coordinates) {
+	coordinates.forEach(transformPoint);
+}
+
+//TODO Optimize.
+function transformPoint(coordinates) {
+	coordinates[0] = coordinates[0] * Math.pow(2, 2) - 30;
+	coordinates[1] = coordinates[1] * Math.pow(2, 2) - 30;
 }
