@@ -263,7 +263,8 @@ public class LocalDocumentSearcher implements DocumentSearcher {
 			float[] densities = null;
 
 			if ( documents.size() > 0){
-
+				result = new HashMap<>();
+				
 				int numberOfPoints = Math.max(0, documents.size() - maxDocs);
 				List<Vec2> points = new ArrayList<>(numberOfPoints);
 				for(int i = 0; i < numberOfPoints && maxDocs + i < documents.size(); i++){
@@ -271,10 +272,8 @@ public class LocalDocumentSearcher implements DocumentSearcher {
 					points.add(doc.getPos());
 				}
 				documents = documents.subList(0, Math.min(documents.size(), maxDocs));
-
+				
 				if ( numberOfPoints > 0 ){
-
-					result = new HashMap<>();
 
 					int densityMap = configuration.getDensityMapCalculation();
 					if ( densityMap == Configuration.DENSITY_MAP_SERVER ){
