@@ -157,12 +157,14 @@ public class DatabaseService {
 			+ "ON da.aut_id = a.aut_id GROUP BY da.doc_id) a ON d.doc_id = a.doc_id WHERE r <= ? AND d.enabled is TRUE "
 			+ "ORDER BY node_id,rank DESC";
 
-	private static final String DOCUMENTS_NODE_SQL = "SELECT s.*, ts_rank(?, tsv, query, ?) score FROM ("
-			+ "SELECT " + SQL_SELECT_COLUMNS + ", dd.node_id, "
+	private static final String PRE_DOCUMENTS_NODE_SQL = "SELECT s.*, ts_rank(?, tsv, query, ?) score FROM (";
+	
+	private static final String DOCUMENTS_NODE_SQL = "SELECT " + SQL_SELECT_COLUMNS + ", dd.node_id, d.tsv, d.enabled,"
 			+ "rank() over (partition by dd.node_id order by dd.rank desc) as r "
 			+ "FROM documents_data dd INNER JOIN documents d "
-			+ "ON d.doc_id = dd.doc_id WHERE dd.node_id = ? ORDER BY node_id, rank DESC LIMIT ? OFFSET ?) s, "
-			+ "to_tsquery(?) query WHERE query @@ tsv AND s.enabled is TRUE ORDER BY s.rank DESC";
+			+ "ON d.doc_id = dd.doc_id WHERE dd.node_id = ? ORDER BY node_id, rank DESC LIMIT ? OFFSET ?";
+	
+	private static final String POST_DOCUMENTS_NODE_SQL = ") s, to_tsquery(?) query WHERE query @@ tsv AND s.enabled is TRUE ORDER BY s.rank DESC";
 
 	private static final String NODE_DATA_SQL = "SELECT *, (select count(*) as nDocuments FROM documents_data dn "
 			+ "where dn.node_id=n.node_id)  FROM nodes n ORDER BY node_id";
@@ -1316,21 +1318,34 @@ public class DatabaseService {
 		List<IDocument> docs = new ArrayList<>();
 		try (Connection conn = db.getConnection();) {
 			Configuration config = Configuration.getInstance();
-			String sql = String.format(DOCUMENTS_NODE_SQL, config.getDocumentRelevanceFactor(), config.getAuthorsRelevanceFactor());
-			PreparedStatement stmt = conn.prepareStatement(sql);
-			//			SELECT s.*, ts_rank(?, tsv, query, ?) score FROM ("
-			//			+ "SELECT " + SQL_SELECT_COLUMNS + ", dd.node_id, "
+			StringBuilder sb = new StringBuilder();
+			if ( query == null)
+				sb.append(DOCUMENTS_NODE_SQL);
+			else{
+				sb.append(PRE_DOCUMENTS_NODE_SQL);
+				sb.append(DOCUMENTS_NODE_SQL);
+				sb.append(POST_DOCUMENTS_NODE_SQL);
+			}
+			
+			PreparedStatement stmt = conn.prepareStatement(sb.toString());
+			//			SELECT SQL_SELECT_COLUMNS, ts_rank(?, tsv, query, ?) score FROM ("
+			//			+ "SELECT " + SQL_SELECT_COLUMNS + ", dd.node_id, d.tsv, "
 			//			+ "rank() over (partition by dd.node_id order by dd.rank desc) as r "
 			//			+ "FROM documents_data dd INNER JOIN documents d "
 			//			+ "ON d.doc_id = dd.doc_id WHERE dd.node_id = ? ORDER BY node_id, rank DESC LIMIT ? OFFSET ?) s, "
 			//			+ "to_tsquery(?) query WHERE query @@ tsv AND s.enabled is TRUE ORDER BY s.rank DESC
-			Array array = conn.createArrayOf("float4", config.getWeights());
-			stmt.setArray(1, array);
-			stmt.setInt(2, config.getNormalization());
-			stmt.setLong(3, nodeId);
-			stmt.setInt(2, limit);
-			stmt.setInt(3, offset);
-			stmt.setString(4, query);
+			int p = 1;
+			if ( query != null){
+				Array array = conn.createArrayOf("float4", config.getWeights());
+				stmt.setArray(p++, array);
+				stmt.setInt(p++, config.getNormalization());
+				stmt.setString(6, query);
+			}
+			
+			stmt.setLong(p++, nodeId);
+			stmt.setInt(p++, limit);
+			stmt.setInt(p++, offset);
+			
 			try (ResultSet rs = stmt.executeQuery()) {
 				while (rs.next()) {
 					//d.doc_id, d.doi, d.title, d.keywords, d.publication_date, d.x, d.y, 
