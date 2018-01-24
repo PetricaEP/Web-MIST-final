@@ -9,6 +9,10 @@ import java.util.Properties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import ep.db.mdp.dissimilarity.DissimilarityType;
+import ep.db.mdp.projection.ControlPointsType;
+import ep.db.mdp.projection.ProjectorType;
+
 public class Configuration {
 
 	/**
@@ -49,6 +53,9 @@ public class Configuration {
 	private static final String PAGE_RANK_ALPHA = "page_rank_alpha";
 	private static final String TFIDF_WEIGHTING_SCHEME = "tfidf_weighting_scheme";
 	private static final String DENSITY_MAP_CALCULATION = "density_map";
+	private static final String CONTROL_POINTS_CHOICE = "control_points_choice";
+	private static final String DISSIMILARITY_TYPE = "dissimilarity_type";
+	private static final String PROJECTOR_TYPE = "projector_type";
 
 	public static final int DENSITY_MAP_CLIENT = 1;
 
@@ -119,6 +126,12 @@ public class Configuration {
 	private int tfidfWeightingScheme;
 
 	private int densityMapCalculation;
+
+	private ControlPointsType controlPointsChoice;
+
+	private DissimilarityType dissimilarityType;
+
+	private ProjectorType projectorType;
 	
 	private static Configuration instance;
 
@@ -325,6 +338,10 @@ public class Configuration {
 		randomControlPoints  = Boolean.parseBoolean(properties.getProperty(RANDOM_CONTROL_POINTS));
 		disableOutliers  = Boolean.parseBoolean(properties.getProperty(DISABLE_OUTLIERS));
 		
+		controlPointsChoice = ControlPointsType.valueOf(properties.getProperty(CONTROL_POINTS_CHOICE, "KMEANS").trim());
+		dissimilarityType = DissimilarityType.valueOf(properties.getProperty(DISSIMILARITY_TYPE, "EUCLIDEAN").trim());
+		projectorType = ProjectorType.valueOf(properties.getProperty(PROJECTOR_TYPE, "FASTMAP").trim());
+		
 		return this;
 	}
 
@@ -377,6 +394,10 @@ public class Configuration {
 		
 		properties.setProperty(DENSITY_MAP_CALCULATION, densityMapCalculation == DENSITY_MAP_CLIENT ? 
 				"client" : "server");
+		
+		properties.setProperty(CONTROL_POINTS_CHOICE, controlPointsChoice.name());
+		properties.setProperty(DISSIMILARITY_TYPE, dissimilarityType.name());
+		properties.setProperty(PROJECTOR_TYPE, projectorType.name());
 		
 		properties.store(new FileOutputStream(configFile), null);
 	}
@@ -623,5 +644,29 @@ public class Configuration {
 	
 	public void setDensityMapCalculation(int densityMapCalculation) {
 		this.densityMapCalculation = densityMapCalculation;
+	}
+
+	public ControlPointsType getControlPointsChoice() {
+		return controlPointsChoice;
+	}
+	
+	public void setControlPointsChoice(ControlPointsType controlPointsChoice) {
+		this.controlPointsChoice = controlPointsChoice;
+	}
+
+	public DissimilarityType getDissimilarityType() {
+		return dissimilarityType;
+	}
+	
+	public void setDissimilarityType(DissimilarityType dissimilarityType) {
+		this.dissimilarityType = dissimilarityType;
+	}
+
+	public ProjectorType getProjectorType() {
+		return projectorType;
+	}
+	
+	public void setProjectorType(ProjectorType projectorType) {
+		this.projectorType = projectorType;
 	}
 }

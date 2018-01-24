@@ -111,11 +111,6 @@ public class Document implements IDocument, Serializable{
 	private String bibTEX;
 	
 	/**
-	 * Score relativo a consulta (PostgreSQL rank)
-	 */
-//	private double score;
-	
-	/**
 	 * Número do cluster
 	 */
 	private int cluster;
@@ -439,23 +434,6 @@ public class Document implements IDocument, Serializable{
 	public void setAuthorsRank(float authorsRank) {
 		this.authorsRank = authorsRank;
 	}
-
-//	/**
-//	 * Retorna rank do documento segundo consulta
-//	 * feita no banco de dados (PostgreSQL rank).
-//	 * @return rank do documento.
-//	 */
-//	public double getScore() {
-//		return score;
-//	}
-//
-//	/**
-//	 * Atribui rank do documento.
-//	 * @param score rank (PostgreSQL).
-//	 */
-//	public void setScore(double score) {
-//		this.score = score;
-//	}
 	
 	/**
 	 * Retorna o caminho no sistema de arquivos

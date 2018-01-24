@@ -39,11 +39,6 @@ $(function(){
 createVisualization = function(jsonData){
 
 	var svg;
-//	var n = jsonData.documents.length; // no. total de documentos
-//	if ( n === 0 ){
-//	noDocumentsFound();
-//	return;
-//	}
 
 	// Esconde loading...
 	$('#loading').addClass('hidden');
@@ -156,19 +151,18 @@ createVisualization = function(jsonData){
 
 			gridSize = jsonData.gridSize;
 			contours = d3.contours()
-			.thresholds(6)
+			.thresholds(20)
 			.size(gridSize)
 			(currentTab.densities);
 //			.map(transformContours);
-
-			// Coloração dos contornos
-//			contourColor = d3.scaleLog()
-//			.domain([d3.extent(thresholds)])
-//			.interpolate(function() { return d3.interpolateOranges;});
 		}
 		
 		// Cria contornos
-		contourColor = d3.scaleSequential(d3.interpolateOranges)
+		contourColor = d3.scaleSequential(function(t) {
+			if ( t > 0)
+				return d3.interpolateOranges(t);
+			return "rgb(255,255,255)";
+		})
 		.domain(d3.extent(contours.map(function(p) { return p.value;}))); // Points per square pixel.
 	}
 
@@ -408,14 +402,14 @@ function selectArea(p){
 	selectedTab.query.start = start;
 	selectedTab.query.end = end;
 	
-	$.ajax({url: r.url, type: r.type, data: selectedTab.query,
-//		{
-//		start: start,
-//		end: end,
-//		numClusters: numClusters,
-//		maxDocs: maxDocs
-//	}
-	success: createVisualization, error: errorFn, dataType: "json"});
+	$.ajax({
+		url: r.url, 
+		type: r.type, 
+		data: selectedTab.query,
+		success: createVisualization, 
+		error: errorFn, 
+		dataType: "json"
+	});
 }
 
 /** Finaliza simulação.

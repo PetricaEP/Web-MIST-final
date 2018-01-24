@@ -26,7 +26,7 @@ import cern.colt.matrix.tint.IntMatrix1D;
 import edu.uci.ics.jung.graph.Graph;
 import ep.db.database.DatabaseService;
 import ep.db.grid.EpanechnikovKernel;
-import ep.db.grid.GridNew;
+import ep.db.grid.Grid;
 import ep.db.model.Author;
 import ep.db.model.Document;
 import ep.db.model.IDocument;
@@ -285,10 +285,8 @@ public class LocalDocumentSearcher implements DocumentSearcher {
 						elapsed = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start);
 						timeLogger.info(String.format("Creating Grid (KDE 2D): %d", elapsed));
 
-						
 						result.put("densities", densities);
 						result.put("gridSize", gridSize);
-						result.put("bounds", new float[]{x1,y1,x2,y2});
 						result.put("densityMap", Configuration.DENSITY_MAP_SERVER);
 					}
 					else {
@@ -335,8 +333,8 @@ public class LocalDocumentSearcher implements DocumentSearcher {
 		}
 
 		EpanechnikovKernel k = new EpanechnikovKernel(1.0f);
-		float bandwidth = GridNew.calcBandWidth(points);
-		GridNew grid = new GridNew(new Bounds(minmax[0],minmax[1],minmax[2],minmax[3]), bandwidth);
+		float bandwidth = Grid.calcBandWidth(points);
+		Grid grid = new Grid(new Bounds(minmax[0],minmax[1],minmax[2],minmax[3]), bandwidth);
 		grid.evaluate(points, k);
 		gridSize[0] = grid.getWidth();
 		gridSize[1] = grid.getHeight();

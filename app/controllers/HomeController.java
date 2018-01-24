@@ -88,33 +88,6 @@ public class HomeController extends Controller {
 		}
 	}
 
-//	/**
-//	 * Zoom to user selected area 
-//	 * @param term the search term
-//	 * @return Play result as Json
-//	 */
-//	public CompletionStage<Result> zoom(){
-//
-//		Form<QueryData> selectionData = formFactory.form(QueryData.class).bindFromRequest();
-//
-//		if ( selectionData.hasErrors() ){
-//			return CompletableFuture.completedFuture(
-//					Results.ok(""));
-//		}
-//
-//		try {
-//			CompletionStage<String> jsonResult = CompletableFuture.supplyAsync(() -> docSearcher.zoom(selectionData.get()) );
-//			return jsonResult.thenApplyAsync((json) -> {
-//				return ok(json);
-//			}, databaseContext);
-//		} catch (Exception e) {
-//			Logger.error("Can't search for documents. Query: " + selectionData.toString(), e);
-//		}
-//
-//		return CompletableFuture.completedFuture(
-//				Results.ok(""));
-//	}
-
 	public CompletionStage<Result> references(List<Long> docIds){
 		if ( docIds.size() > 0){
 			try {
@@ -150,10 +123,9 @@ public class HomeController extends Controller {
 		return ok(
 				JavaScriptReverseRouter.create("jsRoutes",
 						routes.javascript.HomeController.search(),
-//						routes.javascript.HomeController.zoom(),
 						routes.javascript.HomeController.references(),
-						routes.javascript.HomeController.download(),
-						routes.javascript.GraphController.getGraph()
+						routes.javascript.HomeController.download()
+//						routes.javascript.GraphController.getGraph()
 						)).as("text/javascript");
 	}
 }

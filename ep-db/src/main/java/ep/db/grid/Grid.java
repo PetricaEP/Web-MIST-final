@@ -14,6 +14,8 @@ import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import org.apache.commons.math3.stat.descriptive.rank.Median;
+
 import ep.db.model.IDocument;
 import ep.db.quadtree.Bounds;
 import ep.db.quadtree.QuadTree;
@@ -25,56 +27,50 @@ import ep.db.quadtree.Vec2;
  */
 public class Grid {
 
+	private static final float sqtr1Ln2 = (float)Math.sqrt(1/Math.log(2));
+	
 	private float data[];
 	private Vec2 points[];
 	private int width;
 	private int height;
+	private float bandwidth;
 	private float cellSizeX;
 	private float cellSizeY;
-	private float bandwidth = 10;
 
-	public Grid(int width, int height, Bounds bounds) {
-		this.width = width;
-		this.height = height;
-		data = new float[width*height];
-		points = new Vec2[width*height];
+	public Grid(Bounds bounds, float bandwidth) {
+		this.bandwidth = bandwidth;
 
+		this.width = (int) Math.ceil(bounds.size().y / bandwidth) + 1;
+		this.height =  width * 6 / 16;
+//		this.height = (int) Math.ceil(bounds.size().x / bandiwidth) + 1;
+		
 		cellSizeX = bounds.size().x / (height - 1);
-		cellSizeY = bounds.size().y / (width- 1);
+		cellSizeY = bandwidth;
+
+		
+		data = new float[height * width];
+		points = new Vec2[height * width];
+
+
 
 		//Canto superior esquerdo
 		Vec2 p0 = new Vec2(bounds.getP1().x, bounds.getP1().y);
 
 		//Creating Grid points from bound of qTree and bandwidth
-		createPoints(p0);  
+		createPoints(p0);
 	}
 
-	public float[] getData(){
+	public float[] getData() {
 		return data;
 	}
 
-//	public float[] getData(Bounds bounds, int[] gridSize) {
-//		Vec2 p0 = points[0];
-//		int i1 = (int) (Math.abs(bounds.getP1().x - p0.x) / cellSizeX);
-//		int j1 = (int) (Math.abs(bounds.getP1().y - p0.y) / cellSizeY);
-//		int i2 = (int) (Math.abs(bounds.getP2().x - p0.x) / cellSizeX);
-//		int j2 = (int) (Math.abs(bounds.getP2().y - p0.y) / cellSizeY);
-//		int height = j1 - j2;
-//		int width = i2-i1;
-//
-//		float[] data = new float[width * height];
-//		for(int i = i1, k = 0; i < i2; i++ ){
-//			for(int j = j1; j < j2; j++, k++)
-//				data[k] = this.data[i*height + j];
-//		}
-//
-//		if ( gridSize != null && gridSize.length == 2){
-//			gridSize[0] = width;
-//			gridSize[1] = height;
-//		}
-//
-//		return data;
-//	}
+	public float[] getDataVec() {
+		float[] vecData = new float[width*height];
+		for (int i = 0; i < height; i++) {
+			System.arraycopy(data[i], 0, vecData, i*width, width);
+		}
+		return vecData;
+	}
 
 	public Vec2[] getPoints() {
 		return points;
@@ -84,7 +80,7 @@ public class Grid {
 		System.out.println("\nData:");
 		for (int i = 0; i < height; i++) {
 			for (int j = 0; j < width; j++) {
-				String d = String.format("%.4f", data[j + i*width]).replace(',', '.');
+				String d = String.format("%.4f", data[j +i*width]).replace(',', '.');
 				System.out.printf("%s, ", d);
 			}
 			System.out.printf("\n");
@@ -107,22 +103,6 @@ public class Grid {
 			Logger.getLogger(Grid.class.getName()).log(Level.SEVERE, null, ex);
 		}
 	}
-	
-	public void printPoints(String filePath, List<Vec2> values) {
-		try {
-			Writer writer = new BufferedWriter(new OutputStreamWriter(
-					new FileOutputStream(filePath), "utf-8"));
-
-			for (Vec2 v : values) {
-					String d = String.format("%e, %e", v.x, v.y);
-					writer.write(d);
-					writer.write("\n");
-			}
-			writer.close();
-		} catch (Exception ex) {
-			Logger.getLogger(Grid.class.getName()).log(Level.SEVERE, null, ex);
-		}
-	}
 
 	private void createPoints(Vec2 p0){
 		//p0 = top left corner
@@ -130,6 +110,7 @@ public class Grid {
 		for (int i = 0; i < height; i++) {
 			for (int j = 0; j < width; j++) {
 				points[i*width + j] = new Vec2(p.x + cellSizeX/2, p.y + cellSizeY/2);
+//				points[i*width + j] = new Vec2(p);
 				p.y += cellSizeY;
 			}
 			p.x += cellSizeX;
@@ -144,7 +125,7 @@ public class Grid {
 
 		for (int i = 0; i < height; i++) {
 			for (int j = 0; j < width; j++) {
-				data[i*height + j] = evaluatePointQuadTree(qTree, cellSizeX, k, points[i*width + j]);
+				data[i*width + j] = evaluatePointQuadTree(qTree, bandwidth, k, points[i * width + j]);
 			}
 		}
 	}
@@ -153,7 +134,7 @@ public class Grid {
 
 		List<IDocument> elements = new ArrayList<>();
 		//Buscando os elementos próximos do ponto p
-		qTree.findNeighbors(p, bandwidth, elements, new ArrayList<>(), 0);
+		qTree.findNeighbors(p, bandwidth, elements,  new ArrayList<>(), 0);
 
 		if (elements.isEmpty()) {
 			return 0;
@@ -180,22 +161,12 @@ public class Grid {
 
 	private void valuate(List<Vec2> values, Kernel k, int evalDeval) {
 
-//		double[] xValues = new double[values.size()];
-//		final int size = values.size();
-//		for(int i = 0; i < size; i++)
-//			xValues[i] = values.get(i).x;
-//		
-//		//Calculate bandwidth based on standard deviation of data
-//		StandardDeviation std = new StandardDeviation();
-//		final double stdDev = std.evaluate(xValues);
-//		bandwidth = (float) (stdDev * 2.20 * Math.pow(size, -1/5));
-		
 		List<Vec2> pointListCellGrid[][] = new ArrayList[height - 1][width - 1];
 		createPointListCellGrid(values, pointListCellGrid);
 
 		for (int i = 0; i < height; i++) {
 			for (int j = 0; j < width; j++) {
-				data[i*width+ j] += evalDeval * evaluatePointGrid(pointListCellGrid, i, j, k) / (values.size() * bandwidth);
+				data[i*width + j] += evalDeval * evaluatePointGrid(pointListCellGrid, i, j, k); // / (values.size() * bandwidth);
 			}
 		}
 	}
@@ -237,9 +208,9 @@ public class Grid {
 	private void selectPointListCell(List<Vec2> pointListCell, Vec2 p, List<Float> distances) {
 		for (Vec2 value : pointListCell) {
 			float distance = Vec2.distance(p, value);
-//			if (distance < bandwidth) {
+			if (distance < bandwidth) {
 				distances.add(distance);
-//			}
+			}
 		}
 	}
 
@@ -262,4 +233,48 @@ public class Grid {
 			pointListCellGrid[i][j].add(value);
 		}
 	}
+
+	//From: http://pro.arcgis.com/en/pro-app/tool-reference/spatial-analyst/how-kernel-density-works.htm#ESRI_SECTION1_B6405A4584AA4250BE7CB071928B60F1
+	public static float calcBandWidth(List<Vec2> values) {
+
+		int n = values.size();
+
+		//Calculate the mean center of the input points
+		Vec2 mean = new Vec2();
+		for (Vec2 value : values) {
+			mean.add(value);
+		}
+		mean.multiply(1f/n);
+
+		//Calculate the distance from the mean center for all points.
+		float distanceMedian = 0;
+		float stdDistance = 0;        
+		double[] distances = new double[n];
+		int i = 0;
+		for (Vec2 value : values) {
+			float squaredDistance = Vec2.squaredDistance(value, mean);
+			distances[i] = Math.sqrt(squaredDistance);
+			stdDistance += squaredDistance;
+			++i;
+		}
+		
+		//Calculate the Standard Distance, SD.
+		stdDistance = (float)Math.sqrt(stdDistance/n);
+
+		//Calculate the median of these distances, Dm.
+		Median median = new Median();
+		distanceMedian = (float) median.evaluate(distances);
+//		distanceMedian = distanceTotal/n;
+
+		return 0.9f*Math.min(stdDistance, sqtr1Ln2*distanceMedian)*(float)Math.pow(n, -0.2);        
+	}
+
+	public int getWidth() {
+		return width;
+	}
+	
+	public int getHeight() {
+		return height;
+	}
+
 }

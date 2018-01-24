@@ -3,7 +3,6 @@ package ep.db.mdp;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.IntStream;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -12,10 +11,13 @@ import cern.colt.list.tfloat.FloatArrayList;
 import cern.colt.matrix.tfloat.FloatFactory1D;
 import cern.colt.matrix.tfloat.FloatMatrix1D;
 import cern.colt.matrix.tfloat.FloatMatrix2D;
+import cern.colt.matrix.tfloat.impl.DenseFloatMatrix2D;
 import cern.jet.stat.tfloat.quantile.FloatQuantileFinder;
 import cern.jet.stat.tfloat.quantile.FloatQuantileFinderFactory;
 import ep.db.database.DatabaseService;
 import ep.db.database.DefaultDatabase;
+import ep.db.mdp.lamp.Lamp;
+import ep.db.mdp.projection.ProjectionData;
 import ep.db.tfidf.LogaritmicInverseDocumentFrequencyTFIDF;
 import ep.db.tfidf.LogaritmicTFIDF;
 import ep.db.tfidf.RawInverseDocumentFrequencyTFIDF;
@@ -78,29 +80,22 @@ public class MultidimensionalProjection {
 	 */
 	public void project() throws Exception {
 
-		// Constroi matriz de frequência de termos
-		// ordenada decrescentemente pela relevancia.
-		// Primeira coluna contém docIds.
-		FloatMatrix2D matrix = null;
-
-		TFIDF tfidf = getTFIDFWeightingScheme();
-
-		try {
-			System.out.println("Building frequency matrix (bag of words)...");
-			matrix = dbService.buildFrequencyMatrix(null, tfidf);
-		} catch (Exception e) {
-			logger.error("Error building frequency matrix", e);
-			throw e;
-		}
-
-		// Colunas selecionadas = todas colunas - coluna doc_id
-		final int[] cols = IntStream.range(1, matrix.columns()).distinct().sorted().toArray();
+		FloatMatrix1D[] docIds = new FloatMatrix1D[1];
+		FloatMatrix2D matrix = getBagOfWordsMatrix(docIds);
 
 		// Realiza projeção multidimensional utilizando LAMP
 		System.out.println("Projecting...");
+
+		int numberControlPoints = (int) Math.sqrt(matrix.rows());
+		ProjectionData pdata = new ProjectionData();
+		pdata.setControlPointsChoice(config.getControlPointsChoice());
+		pdata.setDissimilarityType(config.getDissimilarityType());
+		pdata.setProjectorType(config.getProjectorType());
+		pdata.setNumberControlPoints(numberControlPoints);
+
 		Lamp lamp = new Lamp();
-		FloatMatrix2D y = lamp.project(matrix.viewSelection(null, cols), 
-				Configuration.getInstance().isRandomControlPoints());
+		float[][] proj = lamp.project(matrix, pdata);
+		FloatMatrix2D y = new DenseFloatMatrix2D(proj);
 
 		List<Integer> outliers = null;
 		if ( Configuration.getInstance().isDisableOutliers()  ) {
@@ -116,8 +111,6 @@ public class MultidimensionalProjection {
 			for(int i = 0, k = 0; i < y.rows(); i++)
 				if ( !outliers.contains(i) )
 					rows[k++] = i;
-
-
 		}
 
 		//		 Normaliza projeção para intervalo [-1,1]
@@ -128,7 +121,25 @@ public class MultidimensionalProjection {
 
 		// Atualiza projeções no banco de dados.
 		System.out.println("Updating databse...");
-		updateProjections(matrix.viewColumn(0), y, outliers);
+		updateProjections(docIds[0], y, outliers);
+	}
+
+	private FloatMatrix2D getBagOfWordsMatrix(FloatMatrix1D[] docIds) throws Exception {
+		// Constroi matriz de frequência de termos
+		// ordenada decrescentemente pela relevancia.
+		// Primeira coluna contém docIds.
+		FloatMatrix2D matrix = null;	
+		TFIDF tfidf = getTFIDFWeightingScheme();
+
+		try {
+			System.out.println("Building frequency matrix (bag of words)...");
+			matrix = dbService.buildFrequencyMatrix(null, tfidf, docIds);
+		} catch (Exception e) {
+			logger.error("Error building frequency matrix", e);
+			throw e;
+		}
+		
+		return matrix;
 	}
 
 	private TFIDF getTFIDFWeightingScheme() {

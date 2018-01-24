@@ -21,6 +21,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import cern.colt.matrix.tfloat.FloatMatrix1D;
 import cern.colt.matrix.tfloat.FloatMatrix2D;
+import cern.colt.matrix.tfloat.impl.DenseFloatMatrix1D;
 import cern.colt.matrix.tfloat.impl.SparseFloatMatrix2D;
 import edu.uci.ics.jung.algorithms.scoring.PageRank;
 import edu.uci.ics.jung.graph.DirectedGraph;
@@ -299,6 +300,58 @@ public class DatabaseService {
 			buildFrequencyMatrix(matrix, termsToColumnMap, where, tfidfCalc );
 		else
 			buildFrequencyMatrixFromTSV(matrix, termsToColumnMap, where, tfidfCalc );
+
+		return matrix;
+	}
+	
+	public FloatMatrix2D buildFrequencyMatrix(long[] docIds, TFIDF tfidfCalc, FloatMatrix1D[] selectedDocIds) throws Exception {
+
+		// Retorna numero de documentos e ocorrencia total dos termos
+		int numberOfDocuments;
+		if ( docIds == null )
+			numberOfDocuments = getNumberOfDocuments();
+		else
+			numberOfDocuments = docIds.length;
+
+		// Constroi consulta caso docIds != null
+		StringBuilder sql = new StringBuilder();
+		if ( docIds != null ){
+			sql.append(" WHERE doc_id IN (");
+			sql.append(docIds[0]);
+			for(int i = 1; i < docIds.length; i++){
+				sql.append(",");
+				sql.append(docIds[i]);
+			}
+			sql.append(")");
+		}
+
+		String where = sql.toString();
+		Configuration config = Configuration.getInstance();
+
+		int minNumOfDocs = (int) Math.ceil(numberOfDocuments * config.getMinimumPercentOfDocuments());
+		int maxNumOfDocs = (int) Math.ceil(numberOfDocuments * config.getMaximumPercentOfDocuments());
+
+		// Recupera frequencia indiviual de cada termo na base de dados (todos os documentos)
+		final Map<String, Integer> termsCount = getTermsCounts(where, minNumOfDocs, maxNumOfDocs);
+
+		// Mapeamento termo -> coluna na matriz (bag of words)
+		final Map<String, Integer> termsToColumnMap = new HashMap<>();
+		int c = 0;
+		for(String key : termsCount.keySet()){
+			termsToColumnMap.put(key, c);
+			++c;
+		}
+
+		// No. de linhas = no. de documentos e no.de colunas = no. de termos + 1 (coluna de doc_id's)
+		FloatMatrix2D matrix = new SparseFloatMatrix2D(numberOfDocuments, termsCount.size()); 
+
+		tfidfCalc.setTermsCount(termsCount);
+
+		// Popula matriz com frequencia dos termos em cada documento
+		if ( config.isUsePreCalculatedFreqs() )
+			selectedDocIds[0] = buildFrequencyMatrix(matrix, termsToColumnMap, where, tfidfCalc );
+		else
+			selectedDocIds[0] = buildFrequencyMatrixFromTSV(matrix, termsToColumnMap, where, tfidfCalc );
 
 		return matrix;
 	}
@@ -612,7 +665,7 @@ public class DatabaseService {
 	 * caso contrário a frequência absoluta é considerada.
 	 * @throws Exception erro ao executar consulta.
 	 */
-	private void buildFrequencyMatrix(FloatMatrix2D matrix,Map<String, Integer> termsToColumnMap,
+	private FloatMatrix1D buildFrequencyMatrix(FloatMatrix2D matrix,Map<String, Integer> termsToColumnMap,
 			String where, TFIDF tfidfCalc) throws Exception {
 		try ( Connection conn = db.getConnection();){
 
@@ -627,13 +680,14 @@ public class DatabaseService {
 			int doc = 0;
 
 			// Numero de documentos
-			long n = matrix.rows();
+			int n = matrix.rows();
 			ObjectMapper mapper = new ObjectMapper();
 
+			FloatMatrix1D docIds = new DenseFloatMatrix1D(n);
 			while( rs.next() ){
 				long docId = rs.getLong(1);
 				String terms = rs.getString(2);
-				matrix.set(doc, 0, docId); //Coloca docId na primeira coluna
+				docIds.set(doc, docId);
 
 				if ( terms != null && !terms.isEmpty() ){
 
@@ -658,6 +712,7 @@ public class DatabaseService {
 				}
 				++doc;
 			}
+			return docIds;
 
 		}catch( Exception e){
 			throw e;
@@ -673,7 +728,7 @@ public class DatabaseService {
 	 * caso contrário a frequência absoluta é considerada.
 	 * @throws Exception erro ao executar consulta.
 	 */
-	private void buildFrequencyMatrixFromTSV(FloatMatrix2D matrix,Map<String, Integer> termsToColumnMap,
+	private FloatMatrix1D buildFrequencyMatrixFromTSV(FloatMatrix2D matrix,Map<String, Integer> termsToColumnMap,
 			String where, TFIDF tfidfCalc) throws Exception {
 		try ( Connection conn = db.getConnection();){
 
@@ -683,11 +738,13 @@ public class DatabaseService {
 			int doc = 0;
 
 			// Numero de documentos
-			long n = matrix.rows();
+			int n = matrix.rows();
+			FloatMatrix1D docIds = new DenseFloatMatrix1D(n);
 			while( rs.next() ){
 				long docId = rs.getLong(1);
 				Map<String, String> terms = parseTSV(rs.getString(2));
-				matrix.set(doc, 0, docId); // Coloca docId na primeira coluna
+				docIds.set(doc, docId);
+				
 				if ( terms != null && !terms.isEmpty() ){
 					for(String term : terms.keySet()){
 						if ( termsToColumnMap.containsKey(term)){
@@ -702,6 +759,9 @@ public class DatabaseService {
 				}
 				++doc;
 			}
+			
+			return docIds;
+			
 		}catch( Exception e){
 			throw e;
 		}
