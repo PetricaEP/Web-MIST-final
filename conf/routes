@@ -8,17 +8,15 @@ GET     	/                           	controllers.HomeController.index()
 
 GET			/search							controllers.HomeController.search()
 
-#POST		/zoom							controllers.HomeController.zoom()
-
 GET			/references						controllers.HomeController.references(docIds: java.util.List[java.lang.Long])
 
 GET			/download						controllers.HomeController.download(docIds : java.util.List[java.lang.Long])
 
 GET     	/javascriptRoutes      			controllers.HomeController.javascriptRoutes
 
-GET			/graph/:graph					controllers.GraphController.graph(graph : String)
+#GET			/graph/:graph					controllers.GraphController.graph(graph : String)
 
-GET			/getGraph/:graph				controllers.GraphController.getGraph(graph : String)
+#GET			/getGraph/:graph				controllers.GraphController.getGraph(graph : String)
 
 # Map static resources from the /public folder to the /assets URL path
 GET     /assets/*file               controllers.Assets.versioned(path="/public", file: Asset)
