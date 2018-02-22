@@ -51,11 +51,7 @@ public class LocalDocumentSearcher implements DocumentSearcher {
 	private static final Pattern TERM_PATTERN = Pattern.compile(".*(\".*?\").*");
 
 	private static final String TEMP_DIRECTORY = System.getProperty("java.io.tmpdir");
-
-	private static final int GRID_SIZE_X = 256;
-
-	private static final int GRID_SIZE_Y = 96;
-
+	
 	private static Configuration configuration;
 
 	private QuadTree quadTree;

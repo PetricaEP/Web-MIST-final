@@ -184,7 +184,7 @@ function hideTip(d){
 	.attr('r', function(d) {
 		if ( selectedTab.step == 1)
 			return fixRadius;
-		return d.r * 0.6; 
+		return d.r/1.4; 
 	});
 
 	var tip = d3.selectAll('.node-tooltip');

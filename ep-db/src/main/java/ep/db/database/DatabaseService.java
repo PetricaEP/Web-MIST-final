@@ -16,13 +16,11 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import org.jblas.FloatMatrix;
+
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import cern.colt.matrix.tfloat.FloatMatrix1D;
-import cern.colt.matrix.tfloat.FloatMatrix2D;
-import cern.colt.matrix.tfloat.impl.DenseFloatMatrix1D;
-import cern.colt.matrix.tfloat.impl.SparseFloatMatrix2D;
 import edu.uci.ics.jung.algorithms.scoring.PageRank;
 import edu.uci.ics.jung.graph.DirectedGraph;
 import edu.uci.ics.jung.graph.DirectedSparseGraph;
@@ -239,7 +237,7 @@ public class DatabaseService {
 		}
 	}
 
-	public FloatMatrix2D buildFrequencyMatrix(long[] docIds) throws Exception {
+	public FloatMatrix buildFrequencyMatrix(long[] docIds) throws Exception {
 		return buildFrequencyMatrix(docIds, new LogaritmicTFIDF());
 	}
 
@@ -252,7 +250,7 @@ public class DatabaseService {
 	 * termos.
 	 * @throws Exception erro ao executar consulta.
 	 */
-	public FloatMatrix2D buildFrequencyMatrix(long[] docIds, TFIDF tfidfCalc) throws Exception {
+	public FloatMatrix buildFrequencyMatrix(long[] docIds, TFIDF tfidfCalc) throws Exception {
 
 		// Retorna numero de documentos e ocorrencia total dos termos
 		int numberOfDocuments;
@@ -291,7 +289,7 @@ public class DatabaseService {
 		}
 
 		// No. de linhas = no. de documentos e no.de colunas = no. de termos + 1 (coluna de doc_id's)
-		FloatMatrix2D matrix = new SparseFloatMatrix2D(numberOfDocuments, termsCount.size()+1); 
+		FloatMatrix matrix = new FloatMatrix(numberOfDocuments, termsCount.size()+1); 
 
 		tfidfCalc.setTermsCount(termsCount);
 
@@ -304,7 +302,7 @@ public class DatabaseService {
 		return matrix;
 	}
 	
-	public FloatMatrix2D buildFrequencyMatrix(long[] docIds, TFIDF tfidfCalc, FloatMatrix1D[] selectedDocIds) throws Exception {
+	public FloatMatrix buildFrequencyMatrix(long[] docIds, TFIDF tfidfCalc, FloatMatrix[] selectedDocIds) throws Exception {
 
 		// Retorna numero de documentos e ocorrencia total dos termos
 		int numberOfDocuments;
@@ -316,7 +314,7 @@ public class DatabaseService {
 		// Constroi consulta caso docIds != null
 		StringBuilder sql = new StringBuilder();
 		if ( docIds != null ){
-			sql.append(" WHERE doc_id IN (");
+			sql.append(" WHERE d.doc_id IN (");
 			sql.append(docIds[0]);
 			for(int i = 1; i < docIds.length; i++){
 				sql.append(",");
@@ -343,7 +341,7 @@ public class DatabaseService {
 		}
 
 		// No. de linhas = no. de documentos e no.de colunas = no. de termos + 1 (coluna de doc_id's)
-		FloatMatrix2D matrix = new SparseFloatMatrix2D(numberOfDocuments, termsCount.size()); 
+		FloatMatrix matrix = new FloatMatrix(numberOfDocuments, termsCount.size()); 
 
 		tfidfCalc.setTermsCount(termsCount);
 
@@ -633,7 +631,7 @@ public class DatabaseService {
 			int minNumberOfDocs, int maxNumberOfDocs) throws Exception {
 		try ( Connection conn = db.getConnection();){
 
-			String sql = "SELECT word,ndoc FROM ts_stat('SELECT tsv FROM documents";
+			String sql = "SELECT word,ndoc FROM ts_stat('SELECT tsv FROM documents d";
 			if ( where != null && !where.isEmpty() )
 				sql += where;
 			sql += String.format("') WHERE nentry > %d AND nentry < %d AND ndoc > %d AND ndoc < %d", 
@@ -665,7 +663,7 @@ public class DatabaseService {
 	 * caso contrário a frequência absoluta é considerada.
 	 * @throws Exception erro ao executar consulta.
 	 */
-	private FloatMatrix1D buildFrequencyMatrix(FloatMatrix2D matrix,Map<String, Integer> termsToColumnMap,
+	private FloatMatrix buildFrequencyMatrix(FloatMatrix matrix,Map<String, Integer> termsToColumnMap,
 			String where, TFIDF tfidfCalc) throws Exception {
 		try ( Connection conn = db.getConnection();){
 
@@ -680,14 +678,14 @@ public class DatabaseService {
 			int doc = 0;
 
 			// Numero de documentos
-			int n = matrix.rows();
+			int n = matrix.rows;
 			ObjectMapper mapper = new ObjectMapper();
 
-			FloatMatrix1D docIds = new DenseFloatMatrix1D(n);
+			FloatMatrix docIds = new FloatMatrix(n);
 			while( rs.next() ){
 				long docId = rs.getLong(1);
 				String terms = rs.getString(2);
-				docIds.set(doc, docId);
+				docIds.put(doc, docId);
 
 				if ( terms != null && !terms.isEmpty() ){
 
@@ -705,7 +703,7 @@ public class DatabaseService {
 
 							if ( tfidf != 0){
 								int col = termsToColumnMap.get(term);
-								matrix.set(doc, col, (float) tfidf);
+								matrix.put(doc, col, (float) tfidf);
 							}
 						}
 					}
@@ -728,7 +726,7 @@ public class DatabaseService {
 	 * caso contrário a frequência absoluta é considerada.
 	 * @throws Exception erro ao executar consulta.
 	 */
-	private FloatMatrix1D buildFrequencyMatrixFromTSV(FloatMatrix2D matrix,Map<String, Integer> termsToColumnMap,
+	private FloatMatrix buildFrequencyMatrixFromTSV(FloatMatrix matrix,Map<String, Integer> termsToColumnMap,
 			String where, TFIDF tfidfCalc) throws Exception {
 		try ( Connection conn = db.getConnection();){
 
@@ -738,12 +736,12 @@ public class DatabaseService {
 			int doc = 0;
 
 			// Numero de documentos
-			int n = matrix.rows();
-			FloatMatrix1D docIds = new DenseFloatMatrix1D(n);
+			int n = matrix.rows;
+			FloatMatrix docIds = new FloatMatrix(n);
 			while( rs.next() ){
 				long docId = rs.getLong(1);
 				Map<String, String> terms = parseTSV(rs.getString(2));
-				docIds.set(doc, docId);
+				docIds.put(doc, docId);
 				
 				if ( terms != null && !terms.isEmpty() ){
 					for(String term : terms.keySet()){
@@ -753,7 +751,7 @@ public class DatabaseService {
 							float[] freqWeight = splitValue(value);
 							double tfidf = tfidfCalc.calculate(freqWeight[1], (int) n, term);
 							int col = termsToColumnMap.get(term);
-							matrix.set(doc, col, (float) tfidf) ; 
+							matrix.put(doc, col, (float) tfidf) ; 
 						}	
 					}
 				}
@@ -813,7 +811,7 @@ public class DatabaseService {
 	 * número de documentos.
 	 * @throws Exception erro ao executar atualização.
 	 */
-	public void updateXYProjections(FloatMatrix1D docIds, FloatMatrix2D y) throws Exception {
+	public void updateXYProjections(FloatMatrix docIds, FloatMatrix y) throws Exception {
 		Connection conn = null;
 		try { 
 			conn = db.getConnection();
@@ -822,8 +820,8 @@ public class DatabaseService {
 			PreparedStatement pstmt = conn.prepareStatement(UPDATE_XY);
 
 			int doc = 0;
-			for(int i = 0; i < docIds.size(); i++){
-				long id = (long) docIds.getQuick(i);
+			for(int i = 0; i < docIds.length; i++){
+				long id = (long) docIds.get(i);
 				pstmt.setDouble(1, y.get(doc, 0));
 				pstmt.setDouble(2, y.get(doc, 1));
 				pstmt.setLong(3, id);
@@ -1560,7 +1558,7 @@ public class DatabaseService {
 		return result;
 	}
 
-	public void disableDocuments(FloatMatrix1D docIds) throws SQLException {
+	public void disableDocuments(FloatMatrix docIds) throws SQLException {
 		Connection conn = null;
 		try { 
 			conn = db.getConnection();
@@ -1569,8 +1567,8 @@ public class DatabaseService {
 			PreparedStatement pstmt = conn.prepareStatement("UPDATE documents SET enabled = FALSE WHERE doc_id = ?");
 
 			int doc = 0;
-			for(int i = 0; i < docIds.size(); i++){
-				long id = (long) docIds.getQuick(i);
+			for(int i = 0; i < docIds.length; i++){
+				long id = (long) docIds.get(i);
 				pstmt.setDouble(1, id);
 				pstmt.addBatch();
 				++doc;

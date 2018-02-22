@@ -2,9 +2,9 @@ package ep.db.mdp;
 
 import java.util.ArrayList;
 
-import cern.colt.matrix.tfloat.FloatMatrix2D;
-import ep.db.mdp.dissimilarity.Dissimilarity;
+import org.jblas.FloatMatrix;
 
+import ep.db.mdp.dissimilarity.Dissimilarity;
 
 public class ForceScheme {
 
@@ -129,7 +129,7 @@ public class ForceScheme {
 		return error;
 	}
 
-	public float iteration(FloatMatrix2D matrix, Dissimilarity diss, float[][] projection) {
+	public float iteration(FloatMatrix matrix, Dissimilarity diss, float[][] projection) {
 		DistanceMatrix dmat = new DistanceMatrix(matrix, diss);
 		return iteration(dmat, projection);
 	}

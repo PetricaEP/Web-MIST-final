@@ -56,6 +56,11 @@ public class Configuration {
 	private static final String CONTROL_POINTS_CHOICE = "control_points_choice";
 	private static final String DISSIMILARITY_TYPE = "dissimilarity_type";
 	private static final String PROJECTOR_TYPE = "projector_type";
+	private static final String LAMP_NUMBER_OF_ITERATIONS = "lamp_number_of_interations";
+	private static final String LAMP_FRACTION_DELTA = "lamp_fraction_delta";
+	private static final String LAMP_PERCENTAGE = "lamp_percentage";
+	private static final String LAMP_NUMBER_OF_THREADS = "lamp_threads";
+	
 
 	public static final int DENSITY_MAP_CLIENT = 1;
 
@@ -132,6 +137,14 @@ public class Configuration {
 	private DissimilarityType dissimilarityType;
 
 	private ProjectorType projectorType;
+
+	private int lampNumberOfIterations;
+
+	private float lampFractionDelta;
+
+	private float lampPercentage;
+
+	private int lampNumberOfThreads;
 	
 	private static Configuration instance;
 
@@ -328,6 +341,42 @@ public class Configuration {
 			}
 		}
 		
+		prop = properties.getProperty(LAMP_NUMBER_OF_ITERATIONS);
+		if ( prop != null ){
+			try {
+				lampNumberOfIterations = Integer.parseInt(prop.trim());	
+			} catch( NumberFormatException e){
+				logger.warn("Cannot parse LAMP number of iterations: " + prop, e);
+			}
+		}
+		
+		prop = properties.getProperty(LAMP_FRACTION_DELTA);
+		if ( prop != null ){
+			try {
+				lampFractionDelta = Float.parseFloat(prop.trim());	
+			} catch( NumberFormatException e){
+				logger.warn("Cannot parse LAMP fraction delta: " + prop, e);
+			}
+		}
+		
+		prop = properties.getProperty(LAMP_PERCENTAGE);
+		if ( prop != null ){
+			try {
+				lampPercentage = Float.parseFloat(prop.trim());	
+			} catch( NumberFormatException e){
+				logger.warn("Cannot parse LAMP percentage: " + prop, e);
+			}
+		}
+		
+		prop = properties.getProperty(LAMP_NUMBER_OF_THREADS);
+		if ( prop != null ){
+			try {
+				lampNumberOfThreads = Integer.parseInt(prop.trim());	
+			} catch( NumberFormatException e){
+				logger.warn("Cannot parse LAMP number of threads: " + prop, e);
+			}
+		}
+		
 		prop = properties.getProperty(DENSITY_MAP_CALCULATION);
 		if ( prop.trim().equals("client"))
 			densityMapCalculation = DENSITY_MAP_CLIENT;
@@ -341,6 +390,7 @@ public class Configuration {
 		controlPointsChoice = ControlPointsType.valueOf(properties.getProperty(CONTROL_POINTS_CHOICE, "KMEANS").trim());
 		dissimilarityType = DissimilarityType.valueOf(properties.getProperty(DISSIMILARITY_TYPE, "EUCLIDEAN").trim());
 		projectorType = ProjectorType.valueOf(properties.getProperty(PROJECTOR_TYPE, "FASTMAP").trim());
+		
 		
 		return this;
 	}
@@ -394,6 +444,11 @@ public class Configuration {
 		
 		properties.setProperty(DENSITY_MAP_CALCULATION, densityMapCalculation == DENSITY_MAP_CLIENT ? 
 				"client" : "server");
+		
+		properties.setProperty(LAMP_NUMBER_OF_ITERATIONS, Integer.toString(lampNumberOfIterations));
+		properties.setProperty(LAMP_FRACTION_DELTA, Float.toString(lampFractionDelta));
+		properties.setProperty(LAMP_PERCENTAGE, Float.toString(lampPercentage));
+		properties.setProperty(LAMP_NUMBER_OF_THREADS, Integer.toString(lampNumberOfThreads));
 		
 		properties.setProperty(CONTROL_POINTS_CHOICE, controlPointsChoice.name());
 		properties.setProperty(DISSIMILARITY_TYPE, dissimilarityType.name());
@@ -668,5 +723,37 @@ public class Configuration {
 	
 	public void setProjectorType(ProjectorType projectorType) {
 		this.projectorType = projectorType;
+	}
+
+	public int getLampNumberOfIterations() {
+		return lampNumberOfIterations;
+	}
+	
+	public void setLampNumberOfIterations(int lampNumberOfIterations) {
+		this.lampNumberOfIterations = lampNumberOfIterations;
+	}
+
+	public float getLampFractionDelta() {
+		return lampFractionDelta;
+	}
+	
+	public void setLampFractionDelta(float lampFractionDelta) {
+		this.lampFractionDelta = lampFractionDelta;
+	}
+
+	public float getLampPercentage() {
+		return lampPercentage;
+	}
+	
+	public void setLampPercentage(float lampPercentage) {
+		this.lampPercentage = lampPercentage;
+	}
+
+	public int getLampNumberOfThreads() {
+		return lampNumberOfThreads;
+	}
+	
+	public void setLampNumberOfThreads(int lampNumberOfThreads) {
+		this.lampNumberOfThreads = lampNumberOfThreads;
 	}
 }
