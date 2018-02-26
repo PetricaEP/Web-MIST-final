@@ -24,6 +24,6 @@ public class LogaritmicInverseDocumentFrequencyTFIDF implements TFIDF {
 	@Override
 	public void setTermsCount(Map<String, Integer> termsCount) {
 		this.termsCount = termsCount;
-	}
+	}	
 
 }

@@ -47,22 +47,22 @@ address = {Washington, DC, USA},
 
 package ep.db.mdp.clustering;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 
-import org.jblas.FloatMatrix;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import ep.db.matrix.Matrix;
+import ep.db.matrix.MatrixFactory;
+import ep.db.matrix.SparseMatrix;
+import ep.db.matrix.Vector;
 import ep.db.mdp.dissimilarity.Dissimilarity;
 import ep.db.mdp.dissimilarity.Euclidean;
+import ep.db.utils.Utils;
 import me.tongfei.progressbar.ProgressBar;
 import me.tongfei.progressbar.ProgressBarStyle;
 
@@ -78,7 +78,7 @@ public class BKMeans {
 
 	protected ArrayList<ArrayList<Integer>> clusters;
 
-	protected List<FloatMatrix> centroids;
+	protected Matrix centroids;
 
 	protected Dissimilarity diss;
 
@@ -86,30 +86,23 @@ public class BKMeans {
 
 	protected int nrIterations = 15;
 
-	private int nThreads;
-
-	
-	public BKMeans(int nrclusters) {
-		this(nrclusters, Runtime.getRuntime().availableProcessors()-1);
-	}
 	
 	/** Creates a new instance of BKmeans
 	 * @param nrclusters 
 	 * @param nThreads
 	 */
-	public BKMeans(int nrclusters, int nThreads) {
+	public BKMeans(int nrclusters) {
 		this.nrclusters = nrclusters;
-		this.nThreads = nThreads;
 	}
 
-	public ArrayList<ArrayList<Integer>> execute(Dissimilarity diss, FloatMatrix matrix) {
+	public ArrayList<ArrayList<Integer>> execute(Dissimilarity diss, Matrix matrix) throws IOException {
 		long start = System.currentTimeMillis();
 		this.diss = diss;
 		this.clusters = new ArrayList<ArrayList<Integer>>();
-		this.centroids = new ArrayList<>();
+		this.centroids = MatrixFactory.getInstance(matrix.getClass());
 
 		//initially the gCluster has all elements
-		int size1 = matrix.rows;
+		int size1 = matrix.getRowCount();
 		ArrayList<Integer> gCluster = new ArrayList<Integer>(size1);
 		for (int i = 0; i < size1; i++) {
 			gCluster.add(i);
@@ -118,7 +111,12 @@ public class BKMeans {
 		this.clusters.add(gCluster);
 
 		//considering just one element as the centroid
-		this.centroids.add(matrix.getRow(0));
+		try {
+			this.centroids.addRow((Vector)matrix.getRow(0).clone());
+		} catch (CloneNotSupportedException e) {
+			logger.error("Clone not supported", e);
+			return null;
+		}
 		
 		ProgressBar pb = new ProgressBar("BKmeans",this.nrclusters, 1000, System.out, ProgressBarStyle.ASCII);
 		pb.start();
@@ -150,7 +148,7 @@ public class BKMeans {
 		for (int i = this.clusters.size() - 1; i >= 0; i--) {
 			if (this.clusters.get(i).size() == 0) {
 				this.clusters.remove(i);
-				this.centroids.remove(i);
+				this.centroids.removeRow(i);
 				removed++;
 			}
 		}
@@ -173,19 +171,19 @@ public class BKMeans {
 		return this.clusters;
 	}
 
-	public List<FloatMatrix> getCentroids() {
+	public Matrix getCentroids() {
 		return this.centroids;
 	}
 
-	public int[] getMedoids(FloatMatrix matrix) {
-		int[] m = new int[this.centroids.size()];
+	public int[] getMedoids(Matrix matrix) {
+		int[] m = new int[this.centroids.getRowCount()];
 
 		for (int i = 0; i < m.length; i++) {
 			int point = -1;
 			float distance = Float.MAX_VALUE;
 
 			for (int j = 0; j < this.clusters.get(i).size(); j++) {
-				float distance2 = this.diss.calculate(this.centroids.get(i),
+				float distance2 = this.diss.calculate(this.centroids.getRow(i),
 						matrix.getRow(this.clusters.get(i).get(j)));
 
 				if (distance > distance2) {
@@ -212,10 +210,10 @@ public class BKMeans {
 		return gCluster;
 	}
 
-	protected void splitCluster(FloatMatrix matrix, Dissimilarity diss, ArrayList<Integer> gCluster) {
+	protected void splitCluster(Matrix matrix, Dissimilarity diss, ArrayList<Integer> gCluster) {
 
 		long start = System.nanoTime();
-		this.centroids.remove(clusters.indexOf(gCluster));
+		this.centroids.removeRow(clusters.indexOf(gCluster));
 		this.clusters.remove(gCluster);
 		long end = System.nanoTime();
 		logger.info("Remove centronids: " + ((end  - start) / 1e9f));
@@ -228,19 +226,26 @@ public class BKMeans {
 
 		//Create two new clusters
 		ArrayList<Integer> cluster_1 = new ArrayList<Integer>();
-		cluster_1.add(pivots[0]);
-		FloatMatrix centroid_1 = matrix.getRow(pivots[0]);
+		cluster_1.add(pivots[0]);		
 
 		ArrayList<Integer> cluster_2 = new ArrayList<Integer>();
 		cluster_2.add(pivots[1]);
-		FloatMatrix centroid_2 = matrix.getRow(pivots[1]);
-
+		
+		Vector centroid_1, centroid_2;
+		try {
+			centroid_1 = (Vector) matrix.getRow(pivots[0]).clone();
+			centroid_2 = (Vector) matrix.getRow(pivots[1]).clone();
+		} catch (CloneNotSupportedException e) {
+			logger.error("Clone no supported", e);
+			return;
+		}
+		
 		int iterations = 0;
 
 		do {
 			start = System.nanoTime();
-			centroid_1 = this.calculateMean(matrix, cluster_1, cluster_1.stream().mapToInt(i -> i).toArray());
-			centroid_2 = this.calculateMean(matrix, cluster_2, cluster_2.stream().mapToInt(i -> i).toArray());
+			centroid_1 = this.calculateMean(matrix, cluster_1);
+			centroid_2 = this.calculateMean(matrix, cluster_2);
 			end = System.nanoTime();
 			logger.info("Calc. means: " + ((end-start)/1e9));
 
@@ -250,7 +255,7 @@ public class BKMeans {
 			//For each cluster
 			int size = gCluster.size();
 			for (int i = 0; i < size; i++) {
-				FloatMatrix aux = matrix.getRow(gCluster.get(i));
+				Vector aux = matrix.getRow(gCluster.get(i));
 				float distCentr_1 = diss.calculate(aux, centroid_1);
 				float distCentr_2 = diss.calculate(aux, centroid_2);
 
@@ -282,24 +287,23 @@ public class BKMeans {
 		this.clusters.add(cluster_2);
 
 		//add the new centroids
-		this.centroids.add(centroid_1);
-		this.centroids.add(centroid_2);
+		this.centroids.addRow(centroid_1);
+		this.centroids.addRow(centroid_2);
 	}
 
-	protected int[] getPivots(FloatMatrix matrix, Dissimilarity diss, ArrayList<Integer> gCluster) {
+	protected int[] getPivots(Matrix matrix, Dissimilarity diss, ArrayList<Integer> gCluster) {
 		ArrayList<Pivot> pivots_aux = new ArrayList<Pivot>();
 		int[] pivots = new int[2];
 
 		//choosing the first pivot
-		FloatMatrix mean = this.calculateMean(matrix, gCluster, gCluster.stream().mapToInt(i -> i).toArray());
+		Vector mean = this.calculateMean(matrix, gCluster);
 
 		float size = 1 + (gCluster.size() / 10);
 		for (int i = 0; i < size; i++) {
 			int el = (int) ((gCluster.size() / size) * i);
-			int cl = gCluster.get(el);
-			FloatMatrix aux = matrix.getRow(cl);
-			float distance = diss.calculate(mean, aux);
-			pivots_aux.add(new Pivot(distance, cl));
+			int aux = gCluster.get(el);			
+			float distance = diss.calculate(mean, matrix.getRow(aux));
+			pivots_aux.add(new Pivot(distance, aux));
 		}
 
 		Collections.sort(pivots_aux);
@@ -323,45 +327,13 @@ public class BKMeans {
 		return pivots;
 	}
 
-	protected FloatMatrix calculateMean(FloatMatrix matrix, ArrayList<Integer> cluster, int[] indices) {
-		int size = cluster.size();
-		float[] mean = new float[matrix.columns];				
-		
-		FloatMatrix selected;
-		if ( size == matrix.rows)
-			selected = matrix;
-		else
-			selected = matrix.getRows(indices);
-		
-		List<ColumnMeanCalc> threads = new ArrayList<>(indices.length);
-		for(int i = 0; i < selected.columns; i++) {
-			ColumnMeanCalc colMean = new ColumnMeanCalc(selected, i);
-			threads.add(colMean);
-		}
-
-		long start = System.nanoTime();
-		try {
-			ExecutorService executor = Executors.newFixedThreadPool(nThreads);
-			List<Future<Float>> futures = executor.invokeAll(threads);
-			executor.shutdown();
-			
-			for(int i = 0; i < futures.size(); i++) {
-				try {
-					Float f = futures.get(i).get();
-					mean[i] = f / size;
-				} catch (ExecutionException e) {
-					logger.error("Column mean calc. failed: " + i, e);
-				}				
-			}
-		} catch (InterruptedException e) {
-			logger.error("CalculateMean was interrupted", e);
-		}
-						
+	protected Vector calculateMean(Matrix matrix, ArrayList<Integer> cluster) {									
+		long start = System.nanoTime();		
+		Vector mean = Utils.mean(matrix, cluster);												
 		long end = System.nanoTime(); 
 		logger.info("Mean: " + ((end-start)/1e9));
-		
-		FloatMatrix meanMatrix = new FloatMatrix(mean);
-		return meanMatrix;
+	
+		return mean;
 	}
 
 	public class Pivot implements Comparable<Pivot> {
@@ -384,76 +356,75 @@ public class BKMeans {
 
 		public float distance;
 		public int id;
-	}
-	
-	class ColumnMeanCalc implements Callable<Float> {
-
-		private FloatMatrix matrix;
-		private int column;
-		
-		public ColumnMeanCalc(FloatMatrix matrix, int column) {
-			this.matrix = matrix;
-			this.column = column;
-		}
-		
-		@Override
-		public Float call() throws Exception {
-			return matrix.getColumn(column).sum();			
-		}		
-	}
+	}		
 	
 	public static void main(String[] args) {
 		Dissimilarity diss = new Euclidean();
 		BKMeans bkmeans = new BKMeans(10);
-		float[][] values = new float[][]{
-			{5.1f,3.5f,1.4f,0.2f},
-			{4.9f,3f,1.4f,0.2f},
-			{4.7f,3.2f,1.3f,0.2f},
-			{4.6f,3.1f,1.5f,0.2f},
-			{5f,3.6f,1.4f,0.2f},
-			{5.4f,3.9f,1.7f,0.4f},
-			{4.6f,3.4f,1.4f,0.3f},
-			{5f,3.4f,1.5f,0.2f},
-			{4.4f,2.9f,1.4f,0.2f},
-			{4.9f,3.1f,1.5f,0.1f},
-			{5.4f,3.7f,1.5f,0.2f},
-			{4.8f,3.4f,1.6f,0.2f},
-			{4.8f,3f,1.4f,0.1f},
-			{4.3f,3f,1.1f,0.1f},
-			{5.8f,4f,1.2f,0.2f},
-			{5.7f,4.4f,1.5f,0.4f},
-			{5.4f,3.9f,1.3f,0.4f},
-			{5.1f,3.5f,1.4f,0.3f},
-			{5.7f,3.8f,1.7f,0.3f},
-			{5.1f,3.8f,1.5f,0.3f},
-			{5.4f,3.4f,1.7f,0.2f},
-			{5.1f,3.7f,1.5f,0.4f},
-			{4.6f,3.6f,1f,0.2f},
-			{5.1f,3.3f,1.7f,0.5f},
-			{4.8f,3.4f,1.9f,0.2f},
-			{5f,3f,1.6f,0.2f},
-			{5f,3.4f,1.6f,0.4f},
-			{5.2f,3.5f,1.5f,0.2f},
-			{5.2f,3.4f,1.4f,0.2f},
-			{4.7f,3.2f,1.6f,0.2f},
-			{4.8f,3.1f,1.6f,0.2f},
-			{5.4f,3.4f,1.5f,0.4f},
-			{5.2f,4.1f,1.5f,0.1f},
-			{5.5f,4.2f,1.4f,0.2f},
-			{4.9f,3.1f,1.5f,0.2f},
-			{5f,3.2f,1.2f,0.2f},
-			{5.5f,3.5f,1.3f,0.2f},
-			{4.9f,3.6f,1.4f,0.1f},
-			{4.4f,3f,1.3f,0.2f},
-			{5.1f,3.4f,1.5f,0.2f},
-			{5f,3.5f,1.3f,0.3f},
-			{4.5f,2.3f,1.3f,0.3f},
-			{4.4f,3.2f,1.3f,0.2f},
-			{5f,3.5f,1.6f,0.6f},		
-		};
+//		float[][] values = new float[][]{
+//			{5.1f,3.5f,1.4f,0.2f},
+//			{4.9f,3f,1.4f,0.2f},
+//			{4.7f,3.2f,1.3f,0.2f},
+//			{4.6f,3.1f,1.5f,0.2f},
+//			{5f,3.6f,1.4f,0.2f},
+//			{5.4f,3.9f,1.7f,0.4f},
+//			{4.6f,3.4f,1.4f,0.3f},
+//			{5f,3.4f,1.5f,0.2f},
+//			{4.4f,2.9f,1.4f,0.2f},
+//			{4.9f,3.1f,1.5f,0.1f},
+//			{5.4f,3.7f,1.5f,0.2f},
+//			{4.8f,3.4f,1.6f,0.2f},
+//			{4.8f,3f,1.4f,0.1f},
+//			{4.3f,3f,1.1f,0.1f},
+//			{5.8f,4f,1.2f,0.2f},
+//			{5.7f,4.4f,1.5f,0.4f},
+//			{5.4f,3.9f,1.3f,0.4f},
+//			{5.1f,3.5f,1.4f,0.3f},
+//			{5.7f,3.8f,1.7f,0.3f},
+//			{5.1f,3.8f,1.5f,0.3f},
+//			{5.4f,3.4f,1.7f,0.2f},
+//			{5.1f,3.7f,1.5f,0.4f},
+//			{4.6f,3.6f,1f,0.2f},
+//			{5.1f,3.3f,1.7f,0.5f},
+//			{4.8f,3.4f,1.9f,0.2f},
+//			{5f,3f,1.6f,0.2f},
+//			{5f,3.4f,1.6f,0.4f},
+//			{5.2f,3.5f,1.5f,0.2f},
+//			{5.2f,3.4f,1.4f,0.2f},
+//			{4.7f,3.2f,1.6f,0.2f},
+//			{4.8f,3.1f,1.6f,0.2f},
+//			{5.4f,3.4f,1.5f,0.4f},
+//			{5.2f,4.1f,1.5f,0.1f},
+//			{5.5f,4.2f,1.4f,0.2f},
+//			{4.9f,3.1f,1.5f,0.2f},
+//			{5f,3.2f,1.2f,0.2f},
+//			{5.5f,3.5f,1.3f,0.2f},
+//			{4.9f,3.6f,1.4f,0.1f},
+//			{4.4f,3f,1.3f,0.2f},
+//			{5.1f,3.4f,1.5f,0.2f},
+//			{5f,3.5f,1.3f,0.3f},
+//			{4.5f,2.3f,1.3f,0.3f},
+//			{4.4f,3.2f,1.3f,0.2f},
+//			{5f,3.5f,1.6f,0.6f},		
+//		};
+//		
+		Matrix matrix = new SparseMatrix();
+		try {
+			matrix.load("documents200k.data");
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+			return;
+		}
 		
-		FloatMatrix matrix = new FloatMatrix(values);
-		ArrayList<ArrayList<Integer>> clusters = bkmeans.execute(diss, matrix);
+		ArrayList<ArrayList<Integer>> clusters;
+		try {
+			clusters = bkmeans.execute(diss, matrix);
+		} catch (IOException e) {
+			e.printStackTrace();
+			return;
+		}
+		
 		int[] controlPoints = bkmeans.getMedoids(matrix);
 		
 		for(List<Integer> cl : clusters) {

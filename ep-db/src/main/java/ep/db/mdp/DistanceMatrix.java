@@ -1,7 +1,8 @@
 package ep.db.mdp;
 
-import org.jblas.FloatMatrix;
+import java.util.Arrays;
 
+import ep.db.matrix.Matrix;
 import ep.db.mdp.dissimilarity.Dissimilarity;
 
 public class DistanceMatrix {
@@ -9,41 +10,40 @@ public class DistanceMatrix {
 	private float maxDistance;
 	private float minDistance;
 	private int numElements;
-	private FloatMatrix distmatrix;
+	private float[] distmatrix;
 
-	public DistanceMatrix(FloatMatrix matrix, Dissimilarity diss) {
+	public DistanceMatrix(Matrix matrix, Dissimilarity diss) {
 		super();
-		numElements = matrix.rows;
-		distmatrix = computeDistances(matrix, diss);							
-	}
+		numElements = matrix.getRowCount();
 
-	private FloatMatrix computeDistances(FloatMatrix matrix, Dissimilarity diss) {
 		int size = numElements * (numElements - 1) / 2;
-		FloatMatrix distmatrix = new FloatMatrix(size);
+		distmatrix = new float[size];
 		maxDistance = Float.MIN_VALUE;
 		minDistance = Float.MAX_VALUE;
-		
+
 		for(int i = numElements-1; i >= 0; i--) {
 			for(int j = i-1; j >= 0; j--) {
 				float dist = diss.calculate(matrix.getRow(i), matrix.getRow(j));				
 				int p = numElements * j - j * (j +1)/2 + i - 1 - j;
-				distmatrix.put(p, dist);	
-				if ( dist > maxDistance ) 
-					maxDistance = dist;
-				if ( dist < minDistance)
-					minDistance = dist;
+				distmatrix[p] = dist;	
 				
+				if ( dist > maxDistance && dist >= 0.0f) 
+					maxDistance = dist;
+				if ( dist < minDistance && dist >= 0.0f)
+					minDistance = dist;
 			}
 		}
-		return distmatrix;
-	}
+	}	
 
 	public DistanceMatrix(DistanceMatrix m) {
 		super();		
-		distmatrix = new FloatMatrix(m.distmatrix.toArray2());
+		distmatrix = Arrays.copyOf(m.distmatrix, m.distmatrix.length);
 		numElements = m.numElements;
 		maxDistance = m.maxDistance;
 		minDistance = m.minDistance;
+	}
+	
+	protected DistanceMatrix() {		
 	}
 
 	public float getDistance(int i, int j) {
@@ -54,12 +54,9 @@ public class DistanceMatrix {
 			j = aux;
 		}
 		int p = numElements * j - j * (j +1)/2 + i - 1 - j;
-		return distmatrix.get(p);
+		assert p < distmatrix.length : "Index cannot be greater than matrix size " + distmatrix.length;
+		return distmatrix[p];
 	}
-
-//	public FloatMatrix getDistanceMatrix() {
-//		return distmatrix;
-//	}
 
 	public int getElementCount() {
 		return numElements;
@@ -78,14 +75,15 @@ public class DistanceMatrix {
 			i = j;
 			j = aux;
 		}
-		int p = numElements * j - j * (j +1)/2 + i - 1 - j; 
-		distmatrix.put(p, value);
+		int p = numElements * j - j * (j +1)/2 + i - 1 - j;
+		assert p < distmatrix.length : "Index cannot be greater than matrix size " + distmatrix.length;
+		distmatrix[p] = value;
 	}
 
 	public float getMaxDistance() {
 		return maxDistance;
 	}
-	
+
 	public float getMinDistance() {
 		return minDistance;
 	}

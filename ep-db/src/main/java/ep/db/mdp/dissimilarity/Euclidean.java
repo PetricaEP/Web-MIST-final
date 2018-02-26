@@ -47,7 +47,7 @@ address = {Washington, DC, USA},
 
 package ep.db.mdp.dissimilarity;
 
-import org.jblas.FloatMatrix;
+import ep.db.matrix.Vector;
 
 /**
  *
@@ -55,12 +55,14 @@ import org.jblas.FloatMatrix;
  */
 public class Euclidean implements Dissimilarity {
 
-	public Euclidean() {
-
-	}
-
-	public float calculate(FloatMatrix v1, FloatMatrix v2) {
-		return v1.distance2(v2);		
-	}
+    public float calculate(Vector v1, Vector v2) {
+        assert (v1.size() == v2.size()) : "ERROR: vectors of different sizes!";
+        
+        float n1 = v1.norm();
+        float n2 = v2.norm();
+        float dot = v1.dot(v2);
+        
+        return (float) Math.sqrt(Math.abs(n1 * n1 + n2 * n2 - 2 * dot));
+    }
 
 }

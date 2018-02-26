@@ -46,10 +46,10 @@ address = {Washington, DC, USA},
  * ***** END LICENSE BLOCK ***** */
 package ep.db.mdp.projection;
 
-import org.jblas.FloatMatrix;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import ep.db.matrix.Matrix;
 import ep.db.mdp.DistanceMatrix;
 import ep.db.mdp.ForceScheme;
 import ep.db.mdp.dissimilarity.Dissimilarity;
@@ -59,12 +59,12 @@ import ep.db.mdp.dissimilarity.Euclidean;
  *
  * @author Fernando Vieira Paulovich
  */
-public class IDMAPProjection  extends Projection {
+public class IDMAPProjection extends Projection {
 
 	
 	private static Logger logger = LoggerFactory.getLogger(IDMAPProjection.class);
 	
-	public float[][] project(FloatMatrix matrix, ProjectionData pdata) {
+	public float[][] project(Matrix matrix, ProjectionData pdata) {
 		Dissimilarity diss = new Euclidean();
 		DistanceMatrix dmat_aux = new DistanceMatrix(matrix, diss);
 		float[][] projection = this.project(dmat_aux, pdata);

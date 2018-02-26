@@ -47,7 +47,9 @@ address = {Washington, DC, USA},
 
 package ep.db.mdp.dissimilarity;
 
-import org.jblas.FloatMatrix;
+import ep.db.matrix.DenseVector;
+import ep.db.matrix.SparseVector;
+import ep.db.matrix.Vector;
 
 /**
  *
@@ -55,22 +57,75 @@ import org.jblas.FloatMatrix;
  */
 public class CityBlock implements Dissimilarity {
 
-	public float calculate(FloatMatrix v1, FloatMatrix v2) {
-		assert (v1.length == v2.length) : "ERROR: vectors of different sizes!";
-		assert (v1.getClass() == v2.getClass()) :
-			"Error: only supported comparing vectors of the same type";
+    public float calculate(Vector v1, Vector v2) {
+        assert (v1.size() == v2.size()) : "ERROR: vectors of different sizes!";
+        assert (v1.getClass() == v2.getClass()) :
+                "Error: only supported comparing vectors of the same type";
 
-		float[] vector1 = v1.toArray();
-		float[] vector2 = v2.toArray();
+        if (v1 instanceof SparseVector) {
+            if (((SparseVector) v2).getIndex().length > ((SparseVector) v1).getIndex().length) {
+                SparseVector tmp = (SparseVector) v1;
+                v1 = v2;
+                v2 = tmp;
+            }
 
-		float dist = 0.0f;
+            int v1length = ((SparseVector) v1).getIndex().length;
+            int v2length = ((SparseVector) v2).getIndex().length;
+            int[] v1index = ((SparseVector) v1).getIndex();
+            int[] v2index = ((SparseVector) v2).getIndex();
+            float[] v1values = v1.getValues();
+            float[] v2values = v2.getValues();
 
-		int length = vector1.length;
-		for (int i = 0; i < length; i++) {
-			dist += Math.abs(vector1[i] - vector2[i]);
-		}
+            int i = 0;
+            int j = 0;
+            float dist = 0.0f;
 
-		return dist;
-	}
+            while (i < v1length) {
+                if (j < v2length) {
+                    if (v1index[i] == v2index[j]) {
+                        dist += Math.abs(v1values[i] - v2values[j]);
+                        i++;
+                        j++;
+                    } else if (v1index[i] < v2index[j]) {
+                        dist += Math.abs(v1values[i]);
+                        i++;
+                    } else {
+                        dist += Math.abs(v2values[j]);
+                        j++;
+                    }
+                } else {
+                    break;
+                }
+            }
+
+            while (i < v1length) {
+                dist += Math.abs(v1values[i]);
+                i++;
+            }
+
+            while (j < v2length) {
+                dist += Math.abs(v2values[j]);
+                j++;
+            }
+
+            return dist;
+
+        } else if (v1 instanceof DenseVector) {
+
+            float[] vector1 = v1.getValues();
+            float[] vector2 = v2.getValues();
+
+            float dist = 0.0f;
+
+            int length = vector1.length;
+            for (int i = 0; i < length; i++) {
+                dist += Math.abs(vector1[i] - vector2[i]);
+            }
+
+            return dist;
+        }
+
+        return 0.0f;
+    }
 
 }

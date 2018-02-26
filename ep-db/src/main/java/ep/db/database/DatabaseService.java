@@ -16,14 +16,16 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
-import org.jblas.FloatMatrix;
-
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import edu.uci.ics.jung.algorithms.scoring.PageRank;
 import edu.uci.ics.jung.graph.DirectedGraph;
 import edu.uci.ics.jung.graph.DirectedSparseGraph;
+import ep.db.matrix.Matrix;
+import ep.db.matrix.Pair;
+import ep.db.matrix.SparseMatrix;
+import ep.db.matrix.SparseVector;
 import ep.db.model.Author;
 import ep.db.model.Document;
 import ep.db.model.IDocument;
@@ -33,7 +35,6 @@ import ep.db.quadtree.QuadTreeBranchNode;
 import ep.db.quadtree.QuadTreeLeafNode;
 import ep.db.quadtree.QuadTreeNode;
 import ep.db.quadtree.Vec2;
-import ep.db.tfidf.LogaritmicTFIDF;
 import ep.db.tfidf.TFIDF;
 import ep.db.utils.Configuration;
 import ep.db.utils.Utils;
@@ -237,88 +238,88 @@ public class DatabaseService {
 		}
 	}
 
-	public FloatMatrix buildFrequencyMatrix(long[] docIds) throws Exception {
-		return buildFrequencyMatrix(docIds, new LogaritmicTFIDF());
-	}
-
-	/**
-	 * Retorna matrix de frequência de todos os termos presentes
-	 * nos documentos especificados.
-	 * @param docIds id's dos documentos considerados para obtenção dos termos ou 
-	 * <code>null</code> para recuperar termos de todos os documentos. 
-	 * @return matrix N x M onde N é o número de documentos e M o número de
-	 * termos.
-	 * @throws Exception erro ao executar consulta.
-	 */
-	public FloatMatrix buildFrequencyMatrix(long[] docIds, TFIDF tfidfCalc) throws Exception {
-
-		// Retorna numero de documentos e ocorrencia total dos termos
-		int numberOfDocuments;
-		if ( docIds == null )
-			numberOfDocuments = getNumberOfDocuments();
-		else
-			numberOfDocuments = docIds.length;
-
-		// Constroi consulta caso docIds != null
-		StringBuilder sql = new StringBuilder();
-		if ( docIds != null ){
-			sql.append(" WHERE doc_id IN (");
-			sql.append(docIds[0]);
-			for(int i = 1; i < docIds.length; i++){
-				sql.append(",");
-				sql.append(docIds[i]);
-			}
-			sql.append(")");
-		}
-
-		String where = sql.toString();
-		Configuration config = Configuration.getInstance();
-
-		int minNumOfDocs = (int) Math.ceil(numberOfDocuments * config.getMinimumPercentOfDocuments());
-		int maxNumOfDocs = (int) Math.ceil(numberOfDocuments * config.getMaximumPercentOfDocuments());
-
-		// Recupera frequencia indiviual de cada termo na base de dados (todos os documentos)
-		final Map<String, Integer> termsCount = getTermsCounts(where, minNumOfDocs, maxNumOfDocs);
-
-		// Mapeamento termo -> coluna na matriz (bag of words)
-		final Map<String, Integer> termsToColumnMap = new HashMap<>();
-		int c = 1;
-		for(String key : termsCount.keySet()){
-			termsToColumnMap.put(key, c);
-			++c;
-		}
-
-		// No. de linhas = no. de documentos e no.de colunas = no. de termos + 1 (coluna de doc_id's)
-		FloatMatrix matrix = new FloatMatrix(numberOfDocuments, termsCount.size()+1); 
-
-		tfidfCalc.setTermsCount(termsCount);
-
-		// Popula matriz com frequencia dos termos em cada documento
-		if ( config.isUsePreCalculatedFreqs() )
-			buildFrequencyMatrix(matrix, termsToColumnMap, where, tfidfCalc );
-		else
-			buildFrequencyMatrixFromTSV(matrix, termsToColumnMap, where, tfidfCalc );
-
-		return matrix;
-	}
+	//TODO: remove
+//	public FloatMatrix2D buildFrequencyMatrix(long[] docIds) throws Exception {
+//		return buildFrequencyMatrix(docIds, new LogaritmicTFIDF());
+//	}
+//	/**
+//	 * Retorna matrix de frequência de todos os termos presentes
+//	 * nos documentos especificados.
+//	 * @param docIds id's dos documentos considerados para obtenção dos termos ou 
+//	 * <code>null</code> para recuperar termos de todos os documentos. 
+//	 * @return matrix N x M onde N é o número de documentos e M o número de
+//	 * termos.
+//	 * @throws Exception erro ao executar consulta.
+//	 */
+//	public FloatMatrix2D buildFrequencyMatrix(long[] docIds, TFIDF tfidfCalc) throws Exception {
+//
+//		// Retorna numero de documentos e ocorrencia total dos termos
+//		int numberOfDocuments;
+//		if ( docIds == null )
+//			numberOfDocuments = getNumberOfDocuments();
+//		else
+//			numberOfDocuments = docIds.length;
+//
+//		// Constroi consulta caso docIds != null
+//		StringBuilder sql = new StringBuilder();
+//		if ( docIds != null ){
+//			sql.append(" WHERE doc_id IN (");
+//			sql.append(docIds[0]);
+//			for(int i = 1; i < docIds.length; i++){
+//				sql.append(",");
+//				sql.append(docIds[i]);
+//			}
+//			sql.append(")");
+//		}
+//
+//		String where = sql.toString();
+//		Configuration config = Configuration.getInstance();
+//
+//		int minNumOfDocs = (int) Math.ceil(numberOfDocuments * config.getMinimumPercentOfDocuments());
+//		int maxNumOfDocs = (int) Math.ceil(numberOfDocuments * config.getMaximumPercentOfDocuments());
+//
+//		// Recupera frequencia indiviual de cada termo na base de dados (todos os documentos)
+//		final Map<String, Integer> termsCount = getTermsCounts(where, minNumOfDocs, maxNumOfDocs);
+//
+//		// Mapeamento termo -> coluna na matriz (bag of words)
+//		final Map<String, Integer> termsToColumnMap = new HashMap<>();
+//		int c = 1;
+//		for(String key : termsCount.keySet()){
+//			termsToColumnMap.put(key, c);
+//			++c;
+//		}
+//
+//		// No. de linhas = no. de documentos e no.de colunas = no. de termos + 1 (coluna de doc_id's)
+//		FloatMatrix2D matrix = new SparseFloatMatrix2D(numberOfDocuments, termsCount.size()+1); 
+//
+//		tfidfCalc.setTermsCount(termsCount);
+//
+//		// Popula matriz com frequencia dos termos em cada documento
+//		if ( config.isUsePreCalculatedFreqs() )
+//			buildFrequencyMatrix(matrix, numberOfDocuments, termsCount.size(), termsToColumnMap, where, tfidfCalc );
+//		else
+//			buildFrequencyMatrixFromTSV(matrix, termsToColumnMap, where, tfidfCalc );
+//
+//		return matrix;
+//	}
 	
-	public FloatMatrix buildFrequencyMatrix(long[] docIds, TFIDF tfidfCalc, FloatMatrix[] selectedDocIds) throws Exception {
+	public Matrix getFrequencyMatrix(long[] seletecDocIds, TFIDF tfidfCalc, List<Long> docIds) throws Exception {
 
 		// Retorna numero de documentos e ocorrencia total dos termos
 		int numberOfDocuments;
-		if ( docIds == null )
+		if ( seletecDocIds == null )
 			numberOfDocuments = getNumberOfDocuments();
 		else
-			numberOfDocuments = docIds.length;
+			numberOfDocuments = seletecDocIds.length;
 
 		// Constroi consulta caso docIds != null
 		StringBuilder sql = new StringBuilder();
-		if ( docIds != null ){
+		if ( seletecDocIds != null ){
 			sql.append(" WHERE d.doc_id IN (");
-			sql.append(docIds[0]);
-			for(int i = 1; i < docIds.length; i++){
+			sql.append(seletecDocIds[0]);
+			for(int i = 1; i < seletecDocIds.length; i++){
 				sql.append(",");
-				sql.append(docIds[i]);
+				sql.append(seletecDocIds[i]);
 			}
 			sql.append(")");
 		}
@@ -339,18 +340,15 @@ public class DatabaseService {
 			termsToColumnMap.put(key, c);
 			++c;
 		}
-
-		// No. de linhas = no. de documentos e no.de colunas = no. de termos + 1 (coluna de doc_id's)
-		FloatMatrix matrix = new FloatMatrix(numberOfDocuments, termsCount.size()); 
-
+		
 		tfidfCalc.setTermsCount(termsCount);
 
 		// Popula matriz com frequencia dos termos em cada documento
+		Matrix matrix;
 		if ( config.isUsePreCalculatedFreqs() )
-			selectedDocIds[0] = buildFrequencyMatrix(matrix, termsToColumnMap, where, tfidfCalc );
+			matrix = buildFrequencyMatrix(numberOfDocuments, termsCount.size(), termsToColumnMap, where, tfidfCalc, docIds);
 		else
-			selectedDocIds[0] = buildFrequencyMatrixFromTSV(matrix, termsToColumnMap, where, tfidfCalc );
-
+			matrix = buildFrequencyMatrixFromTSV(numberOfDocuments, termsCount.size(), termsToColumnMap, where, tfidfCalc, docIds);
 		return matrix;
 	}
 
@@ -656,17 +654,16 @@ public class DatabaseService {
 
 	/**
 	 * Constroi matrix de frequência de termos (bag of words). 
-	 * @param matrix matrix de frequência de termos já inicializada
 	 * @param termsCount mapa com os termos ordenados por frequência. 
 	 * @param termsToColumnMap mapa de termos para indice da coluna na matrix de frequência.
 	 * @param where clause WHERE em SQL para filtragem de documentos por id's.
 	 * caso contrário a frequência absoluta é considerada.
+	 * @param docIds
 	 * @throws Exception erro ao executar consulta.
 	 */
-	private FloatMatrix buildFrequencyMatrix(FloatMatrix matrix,Map<String, Integer> termsToColumnMap,
-			String where, TFIDF tfidfCalc) throws Exception {
-		try ( Connection conn = db.getConnection();){
-
+	private Matrix buildFrequencyMatrix(int numberOfDocs, int numTerms, Map<String, Integer> termsToColumnMap,
+			String where, TFIDF tfidfCalc, List<Long> docIds) throws Exception {		
+		try ( Connection conn = db.getConnection();){			
 			String sql = "SELECT d.doc_id, freqs FROM documents d INNER JOIN documents_data da "
 					+ "ON d.doc_id = da.doc_id";
 			if ( where != null)
@@ -677,41 +674,48 @@ public class DatabaseService {
 			ResultSet rs = stmt.executeQuery(sql);
 			int doc = 0;
 
-			// Numero de documentos
-			int n = matrix.rows;
+			// Numero de documentos			
 			ObjectMapper mapper = new ObjectMapper();
 
-			FloatMatrix docIds = new FloatMatrix(n);
+			if (docIds != null )
+				docIds.clear();
+			else
+				docIds = new ArrayList<>(numberOfDocs);
+			
+			Matrix matrix = new SparseMatrix();
 			while( rs.next() ){
 				long docId = rs.getLong(1);
 				String terms = rs.getString(2);
-				docIds.put(doc, docId);
+				docIds.add(docId);
 
 				if ( terms != null && !terms.isEmpty() ){
 
 					List<Map<String,Object>> t = mapper.readValue(terms, 
 							new TypeReference<List<Map<String,Object>>>(){});
-
+					ArrayList<Pair> values = new ArrayList<>();					
 					for(Map<String,Object> o : t){
 						String term = (String) o.get("word");
 						if ( termsToColumnMap.containsKey(term)){
 							double freq = ((Number) o.get("nentry")).doubleValue();
 
-							double tfidf = tfidfCalc.calculate(freq, (int) n, term);
+							double tfidf = tfidfCalc.calculate(freq, (int) numberOfDocs, term);
 							if ( freq != 0 )
 								tfidf += Math.log(freq);
 
 							if ( tfidf != 0){
 								int col = termsToColumnMap.get(term);
-								matrix.put(doc, col, (float) tfidf);
+								values.add(new Pair(col, (float) tfidf)); 								
 							}
 						}
 					}
+					
+					matrix.addRow(new SparseVector(values, Long.toString(docId), 1.0f, numTerms));
 				}
+				
 				++doc;
 			}
-			return docIds;
 
+			return matrix;
 		}catch( Exception e){
 			throw e;
 		}
@@ -724,10 +728,11 @@ public class DatabaseService {
 	 * @param termsToColumnMap mapa de termos para indice da coluna na matrix de frequência.
 	 * @param where clause WHERE em SQL para filtragem de documentos por id's.
 	 * caso contrário a frequência absoluta é considerada.
+	 * @param docIds 
 	 * @throws Exception erro ao executar consulta.
 	 */
-	private FloatMatrix buildFrequencyMatrixFromTSV(FloatMatrix matrix,Map<String, Integer> termsToColumnMap,
-			String where, TFIDF tfidfCalc) throws Exception {
+	private Matrix buildFrequencyMatrixFromTSV(int numberOfDocs, int numTerms, Map<String, Integer> termsToColumnMap,
+			String where, TFIDF tfidfCalc, List<Long> docIds) throws Exception {
 		try ( Connection conn = db.getConnection();){
 
 			String sql = String.format(SELECT_TERMS_FREQ_FROM_TSV, where != null ? where : "");
@@ -736,30 +741,38 @@ public class DatabaseService {
 			int doc = 0;
 
 			// Numero de documentos
-			int n = matrix.rows;
-			FloatMatrix docIds = new FloatMatrix(n);
+			if (docIds != null )
+				docIds.clear();
+			else
+				docIds = new ArrayList<>(numberOfDocs);
+			
+			Matrix matrix = new SparseMatrix();
 			while( rs.next() ){
 				long docId = rs.getLong(1);
 				Map<String, String> terms = parseTSV(rs.getString(2));
-				docIds.put(doc, docId);
+				docIds.add(docId);
 				
 				if ( terms != null && !terms.isEmpty() ){
+					ArrayList<Pair> values = new ArrayList<>();
+					
 					for(String term : terms.keySet()){
+					
 						if ( termsToColumnMap.containsKey(term)){
 							String value = terms.get(term);
 							// Divide valores para contagem de termos e pesos
 							float[] freqWeight = splitValue(value);
-							double tfidf = tfidfCalc.calculate(freqWeight[1], (int) n, term);
+							double tfidf = tfidfCalc.calculate(freqWeight[1], numberOfDocs, term);
 							int col = termsToColumnMap.get(term);
-							matrix.put(doc, col, (float) tfidf) ; 
+							values.add(new Pair(col, (float) tfidf));							
 						}	
 					}
+					matrix.addRow(new SparseVector(values, Long.toString(docId), 1.0f, numTerms));					
 				}
+				
 				++doc;
-			}
+			}		
 			
-			return docIds;
-			
+			return matrix;
 		}catch( Exception e){
 			throw e;
 		}
@@ -807,11 +820,11 @@ public class DatabaseService {
 	/**
 	 * Atualiza projeção dos documentos
 	 * @param docIds matrix 1D (vetor) com docId's.
-	 * @param y matrix de projeção N x 2, onde N é o 
+	 * @param proj matrix de projeção N x 2, onde N é o 
 	 * número de documentos.
 	 * @throws Exception erro ao executar atualização.
 	 */
-	public void updateXYProjections(FloatMatrix docIds, FloatMatrix y) throws Exception {
+	public void updateXYProjections(List<Long> docIds, float[] proj) throws Exception {
 		Connection conn = null;
 		try { 
 			conn = db.getConnection();
@@ -819,11 +832,12 @@ public class DatabaseService {
 
 			PreparedStatement pstmt = conn.prepareStatement(UPDATE_XY);
 
+			int size = proj.length / 2;
 			int doc = 0;
-			for(int i = 0; i < docIds.length; i++){
+			for(int i = 0; i < docIds.size(); i++){
 				long id = (long) docIds.get(i);
-				pstmt.setDouble(1, y.get(doc, 0));
-				pstmt.setDouble(2, y.get(doc, 1));
+				pstmt.setDouble(1, proj[doc]);
+				pstmt.setDouble(2, proj[doc + size]);
 				pstmt.setLong(3, id);
 				pstmt.addBatch();
 				++doc;
@@ -1558,7 +1572,7 @@ public class DatabaseService {
 		return result;
 	}
 
-	public void disableDocuments(FloatMatrix docIds) throws SQLException {
+	public void disableDocuments(long[] docIds) throws SQLException {
 		Connection conn = null;
 		try { 
 			conn = db.getConnection();
@@ -1568,7 +1582,7 @@ public class DatabaseService {
 
 			int doc = 0;
 			for(int i = 0; i < docIds.length; i++){
-				long id = (long) docIds.get(i);
+				long id = docIds[i];
 				pstmt.setDouble(1, id);
 				pstmt.addBatch();
 				++doc;

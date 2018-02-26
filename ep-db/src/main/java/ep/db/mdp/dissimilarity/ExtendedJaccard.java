@@ -47,7 +47,7 @@ address = {Washington, DC, USA},
 
 package ep.db.mdp.dissimilarity;
 
-import org.jblas.FloatMatrix;
+import ep.db.matrix.Vector;
 
 /**
  *
@@ -55,11 +55,11 @@ import org.jblas.FloatMatrix;
  */
 public class ExtendedJaccard implements Dissimilarity {
 
-    public float calculate(FloatMatrix v1, FloatMatrix v2) {
-        assert (v1.length == v2.length) : "ERROR: vectors of different sizes!";
+    public float calculate(Vector v1, Vector v2) {
+        assert (v1.size() == v2.size()) : "ERROR: vectors of different sizes!";
 
-        float n1 = v1.norm2();
-        float n2 = v2.norm2();
+        float n1 = v1.norm();
+        float n2 = v2.norm();
 
         if (n1 != 0.0f && n2 != 0.0f) {
             float dot = v1.dot(v2);

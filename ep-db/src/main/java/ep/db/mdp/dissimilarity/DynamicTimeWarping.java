@@ -4,7 +4,8 @@
  */
 package ep.db.mdp.dissimilarity;
 
-import org.jblas.FloatMatrix;
+import ep.db.matrix.SparseVector;
+import ep.db.matrix.Vector;
 
 /**
  *
@@ -12,15 +13,20 @@ import org.jblas.FloatMatrix;
  */
 public class DynamicTimeWarping implements Dissimilarity {
 
-	 private static float[][] g;
-	 private static final float WWINDOW = 0.25f;
-	    
     @Override
-    public float calculate(FloatMatrix v1, FloatMatrix v2) {
-        assert (v1.length == v2.length) : "ERROR: vectors of different sizes!";
+    public float calculate(Vector v1, Vector v2) {
+        assert (v1.size() == v2.size()) : "ERROR: vectors of different sizes!";
 
-        float[] a = v1.toArray();
-        float[] b = v2.toArray();
+        float[] a = v1.getValues();
+        float[] b = v2.getValues();
+
+        if (v1 instanceof SparseVector) {
+            a = v1.toArray();
+        }
+
+        if (v2 instanceof SparseVector) {
+            b = v2.toArray();
+        }
 
         //creating the matrix
         if (g == null || g.length < a.length) {
@@ -60,4 +66,7 @@ public class DynamicTimeWarping implements Dissimilarity {
         float diff = a - b;
         return (float)Math.sqrt(diff * diff);
     }
+    
+    private static float[][] g;
+    private static final float WWINDOW = 0.25f;
 }

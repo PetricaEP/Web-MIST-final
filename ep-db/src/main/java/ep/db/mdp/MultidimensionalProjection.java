@@ -1,19 +1,16 @@
 package ep.db.mdp;
 
 
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileWriter;
 import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.commons.math3.stat.descriptive.rank.Percentile;
-import org.jblas.FloatMatrix;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import ep.db.database.DatabaseService;
 import ep.db.database.DefaultDatabase;
+import ep.db.matrix.Matrix;
 import ep.db.mdp.lamp.Lamp;
 import ep.db.mdp.projection.ProjectionData;
 import ep.db.tfidf.LogaritmicInverseDocumentFrequencyTFIDF;
@@ -78,16 +75,16 @@ public class MultidimensionalProjection {
 	 */
 	public void project() throws Exception {
 
-		FloatMatrix[] docIds = new FloatMatrix[1];		
-		FloatMatrix matrix = getBagOfWordsMatrix(docIds);						
+		List<Long> docIds = new ArrayList<>();		
+		Matrix matrix = getBagOfWordsMatrix(docIds);						
 
-//		FloatMatrix matrix = Lamp.load("/Users/jose/Documents/freelancer/petricaep/ep-project/ep-db/documents100.data");
-		save(matrix);
-
+//		FloatMatrix2D matrix = Lamp.load("/Users/jose/Documents/freelancer/petricaep/ep-project/ep-db/documents100.data");
+		matrix.save("documents200k.data");
+		
 		// Realiza projeção multidimensional utilizando LAMP
 		System.out.println("Projecting...");
 
-		final int numberControlPoints = (int) Math.sqrt(matrix.rows);
+		final int numberControlPoints = (int) Math.sqrt(matrix.getRowCount());
 		ProjectionData pdata = new ProjectionData();
 		pdata.setControlPointsChoice(config.getControlPointsChoice());
 		pdata.setDissimilarityType(config.getDissimilarityType());
@@ -99,23 +96,22 @@ public class MultidimensionalProjection {
 
 		final int nThreads = config.getLampNumberOfThreads();
 		Lamp lamp = new Lamp(nThreads);
-		float[] proj = lamp.project(matrix, pdata);
-		FloatMatrix y = new FloatMatrix(proj);
-		y = y.reshape(matrix.rows, 2);
+		float[] proj = lamp.project(matrix, pdata);	
+		int nrows = proj.length / 2;
 		
-		Lamp.save("documents200k.prj", y.toArray2());
+		Lamp.save("documents200k.prj", proj);		
 
 		List<Integer> outliers = null;
 		if ( Configuration.getInstance().isDisableOutliers()  ) {
 			System.out.println("Outliers detection...");
-			outliers = disableOutliers(y);
+			outliers = disableOutliers(proj);
 			System.out.println("Number of documents disabled (outliers detected): " + outliers.size());
 		}
 
 		int[] rows = null;
 		if ( outliers != null && outliers.size() > 0){
-			rows = new int[y.rows - outliers.size()];
-			for(int i = 0, k = 0; i < y.rows; i++)
+			rows = new int[nrows - outliers.size()];
+			for(int i = 0, k = 0; i < nrows; i++)
 				if ( !outliers.contains(i) )
 					rows[k++] = i;
 		}
@@ -123,52 +119,26 @@ public class MultidimensionalProjection {
 		//		 Normaliza projeção para intervalo [-1,1]
 		if ( normalize ){
 			System.out.println("Normalizing to range [-1,1]...");
-			normalizeProjections(y, rows);
+			normalizeProjections(proj, rows);
 		} 
 
-		Lamp.save("documents200k-norm.prj", y.toArray2());		
+		Lamp.save("documents200k-norm.prj", proj);		
 
 		// Atualiza projeções no banco de dados.
 		System.out.println("Updating databse...");
-		updateProjections(docIds[0], y, outliers);
+		updateProjections(docIds, proj, outliers);
 	}
 
-	private void save(FloatMatrix matrix) {
-		try(BufferedWriter bw = new BufferedWriter(new FileWriter(new File("documents200k.data")));)
-		{
-
-			bw.write("DY");
-			bw.newLine();
-			bw.write(Integer.toString(matrix.rows))	;
-			bw.newLine();
-			bw.write(Integer.toString(matrix.columns));
-			bw.newLine();
-			bw.newLine();
-
-			for(int i = 0; i < matrix.rows; i++) {
-				bw.write(Integer.toString(i));
-				for(int j = 0; j < matrix.columns; j++) {
-					bw.write(";");
-					bw.write(Float.toString(matrix.get(i, j)));
-				}
-				bw.newLine();
-			}						
-		}catch (Exception e) {
-			e.printStackTrace();
-		}
-
-	}
-
-	private FloatMatrix getBagOfWordsMatrix(FloatMatrix[] docIds) throws Exception {
+	private Matrix getBagOfWordsMatrix(List<Long> docIds) throws Exception {
 		// Constroi matriz de frequência de termos
 		// ordenada decrescentemente pela relevancia.
 		// Primeira coluna contém docIds.
-		FloatMatrix matrix = null;	
+		Matrix matrix = null;	
 		TFIDF tfidf = getTFIDFWeightingScheme();
 
 		try {
 			System.out.println("Building frequency matrix (bag of words)...");			
-			matrix = dbService.buildFrequencyMatrix(null, tfidf, docIds);
+			matrix = dbService.getFrequencyMatrix(null, tfidf, docIds);
 		} catch (Exception e) {
 			logger.error("Error building frequency matrix", e);
 			throw e;
@@ -196,11 +166,12 @@ public class MultidimensionalProjection {
 		return tfidf;
 	}
 
-	private List<Integer> disableOutliers(FloatMatrix proj) {		
-		double[] x = new double[proj.rows], y = new double[proj.rows];
-		for( int i = 0; i < proj.rows; i++) {
-			x[i] = proj.get(i, 0);
-			y[i] = proj.get(i, 1);
+	private List<Integer> disableOutliers(float[] proj) {	
+		int size = proj.length / 2;
+		double[] x = new double[size], y = new double[size];
+		for( int i = 0; i < size; i++) {
+			x[i] = proj[i];
+			y[i] = proj[i + size];
 		}
 
 		Percentile percentile = new Percentile();
@@ -214,9 +185,10 @@ public class MultidimensionalProjection {
 				IQR_y = 1.5*(Q3_y-Q1_y);
 
 		List<Integer> indices = new ArrayList<>();
-		for(int i = 0; i < proj.rows; i++){
-			float xp = proj.get(i, 0),
-					yp = proj.get(i, 1);			
+		for(int i = 0; i < size; i++){
+			float xp = proj[i],
+					yp = proj[i + size];
+			
 			if ( ( xp < Q1_x - IQR_x || xp > Q3_x + IQR_x) || 
 					( yp < Q1_y - IQR_y || yp > Q3_y + IQR_y))
 				indices.add(i);
@@ -225,40 +197,49 @@ public class MultidimensionalProjection {
 		return indices;
 	}
 
-	private void normalizeProjections(FloatMatrix proj, int[] rows) {
-		final FloatMatrix maxs, mins;
-		int size;
-		if ( rows != null && rows.length > 0) {
-			mins = proj.getRows(rows).columnMins();
-			maxs = proj.getRows(rows).columnMaxs();
-			size = rows.length;
-		}
-		else {
-			mins = proj.columnMins();
-			maxs = proj.columnMaxs();
-			size = proj.rows;
+	private void normalizeProjections(float[] proj, int[] rows) {
+		final int size = proj.length / 2; 
+		float maxX = proj[0], 
+				maxY = proj[size],
+				minX = proj[0],
+				minY = proj[size];
+
+		for(int i = 1; i < size; i++) {
+			float x = proj[i], y = proj[i + size];
+			
+			//X
+			if ( x > maxX) maxX = x;
+			if ( x < minX) minX = x;
+			
+			//Y
+			if ( y > maxY) maxY = y;
+			if ( y < minY) minY = y;						
 		}
 		
+		//Normaliza em [-1,1]
 		for(int i = 0; i < size; i++) {
-			int ind = rows != null ? rows[i] : i;
-			float vx = proj.get(ind, 0), vy = proj.get(ind, 1);
-			proj.put(ind, 0, 2 * (vx - mins.get(0) / (maxs.get(0) - mins.get(0) - 1 )));
-			proj.put(ind, 1, 2 * (vy - mins.get(1) / (maxs.get(1) - mins.get(1) - 1 )));
-		}
+			proj[i] = 2 * (proj[i] - minX) / (maxX - minX) -1;
+			proj[i + size] = 2 * (proj[i + size] - minY) / (maxY - minY) -1;
+		}		
 	}
 
 	/**
 	 * Atualiza projeções no banco de dados.
-	 * @param y
-	 * @param y 
+	 * @param docIds
+	 * @param proj 
 	 * @param outliers 
 	 * @throws Exception 
 	 */
-	private void updateProjections(FloatMatrix docIds, FloatMatrix y, List<Integer> outliers) throws Exception {
+	private void updateProjections(List<Long> docIds, float[] proj, List<Integer> outliers) throws Exception {
 		try {
-			dbService.updateXYProjections(docIds, y);
-			if ( outliers != null && !outliers.isEmpty())
-				dbService.disableDocuments(docIds.getRows(outliers.stream().mapToInt((i) -> i.intValue()).toArray()));
+			dbService.updateXYProjections(docIds, proj);
+			if ( outliers != null && !outliers.isEmpty()) {		
+				long[] outliersIds = new long[outliers.size()];
+				for(int i = 0; i < outliers.size(); i++) 
+					outliersIds[i] = docIds.get(outliers.get(i));				
+				
+				dbService.disableDocuments(outliersIds);
+			}
 		} catch (Exception e) {
 			logger.error("Error updating projections in database", e);
 			throw e;

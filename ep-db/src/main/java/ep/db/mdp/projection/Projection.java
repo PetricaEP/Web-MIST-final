@@ -47,8 +47,7 @@ address = {Washington, DC, USA},
 
 package ep.db.mdp.projection;
 
-import org.jblas.FloatMatrix;
-
+import ep.db.matrix.Matrix;
 import ep.db.mdp.DistanceMatrix;
 
 /**
@@ -59,9 +58,9 @@ public abstract class Projection {
 
 	protected DistanceMatrix dmat;
 	
-	protected FloatMatrix matrix;
+	protected Matrix matrix;
 
-	public abstract float[][] project(FloatMatrix matrix, ProjectionData pdata);
+	public abstract float[][] project(Matrix matrix, ProjectionData pdata);
 
 	public abstract float[][] project(DistanceMatrix matrix, ProjectionData pdata);
 

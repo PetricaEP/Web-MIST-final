@@ -1,8 +1,8 @@
 package ep.db.mdp.dissimilarity;
 
-import org.jblas.FloatMatrix;
+import ep.db.matrix.Vector;
 
 public interface Dissimilarity {
 
-	  public float calculate(FloatMatrix v1, FloatMatrix v2);
+	  public float calculate(Vector v1, Vector v2);
 }

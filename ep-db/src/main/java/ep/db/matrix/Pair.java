@@ -45,36 +45,31 @@ address = {Washington, DC, USA},
  *
  * ***** END LICENSE BLOCK ***** */
 
-package ep.db.mdp.dissimilarity;
-
-import ep.db.matrix.Vector;
+package ep.db.matrix;
 
 /**
  *
  * @author Fernando Vieira Paulovich
  */
-public class CosineBased implements Dissimilarity {
+public class Pair implements Comparable<Pair> {
 
-    public float calculate(Vector v1, Vector v2) {
-        assert (v1.size() == v2.size()) : "ERROR: vectors of different sizes!";
-        
-        float n1 = v1.norm();
-        float n2 = v2.norm();
+	public Pair(int index, float value) {
+		this.index = index;
+		this.value = value;
+	}
 
-        float cosine = -1.0f;
-        if (n1 != 0.0f && n2 != 0.0f) {
-            cosine = v1.dot(v2) / (n1 * n2);
+	@Override
+	public int compareTo(Pair o) {
+		if (this.value - o.value == EPSILON) {
+			return 0;
+		} else if (this.value - o.value > EPSILON) {
+			return 1;
+		} else {
+			return -1;
+		}
+	}
 
-            if (cosine > 1.0f) {
-                cosine = 1.0f;
-            } else if (cosine < -1.0f) {
-                cosine = -1.0f;
-            }
-
-        } else if (n1 == 0.0f && n2 == 0.0f) {
-            cosine = 1.0f;
-        }
-
-        return (1.0f - cosine);
-    }
+	public static final float EPSILON = 0.00001f;
+	public int index;
+	public float value;
 }

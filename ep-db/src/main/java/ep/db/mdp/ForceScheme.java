@@ -2,8 +2,7 @@ package ep.db.mdp;
 
 import java.util.ArrayList;
 
-import org.jblas.FloatMatrix;
-
+import ep.db.matrix.Matrix;
 import ep.db.mdp.dissimilarity.Dissimilarity;
 
 public class ForceScheme {
@@ -129,7 +128,7 @@ public class ForceScheme {
 		return error;
 	}
 
-	public float iteration(FloatMatrix matrix, Dissimilarity diss, float[][] projection) {
+	public float iteration(Matrix matrix, Dissimilarity diss, float[][] projection) {
 		DistanceMatrix dmat = new DistanceMatrix(matrix, diss);
 		return iteration(dmat, projection);
 	}
