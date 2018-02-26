@@ -3,6 +3,7 @@ package services.search;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -20,13 +21,17 @@ import javax.inject.Inject;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import cern.colt.matrix.tfloat.FloatMatrix2D;
-import cern.colt.matrix.tfloat.impl.DenseFloatMatrix2D;
-import cern.colt.matrix.tint.IntMatrix1D;
 import edu.uci.ics.jung.graph.Graph;
 import ep.db.database.DatabaseService;
 import ep.db.grid.EpanechnikovKernel;
 import ep.db.grid.Grid;
+import ep.db.matrix.DenseMatrix;
+import ep.db.matrix.DenseVector;
+import ep.db.matrix.Matrix;
+import ep.db.mdp.clustering.BKMeans;
+import ep.db.mdp.dissimilarity.Dissimilarity;
+import ep.db.mdp.dissimilarity.DissimilarityFactory;
+import ep.db.mdp.dissimilarity.DissimilarityType;
 import ep.db.model.Author;
 import ep.db.model.Document;
 import ep.db.model.IDocument;
@@ -39,7 +44,6 @@ import ep.db.utils.Configuration;
 import ep.db.utils.Utils;
 import play.Logger;
 import play.db.Database;
-import services.clustering.KMeans;
 import services.database.DatabaseExecutionContext;
 import services.database.PlayDatabaseWrapper;
 import views.formdata.QueryData;
@@ -164,7 +168,7 @@ public class LocalDocumentSearcher implements DocumentSearcher {
 				//Clustering
 				final int numClusters = queryData.getNumClusters();
 				start = System.nanoTime();
-				clustering(docs, numClusters);
+				clustering(docs, numClusters, configuration.getDissimilarityType());
 				elapsed = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start);
 				timeLogger.info(String.format("Clustering: %d", elapsed));
 
@@ -292,7 +296,7 @@ public class LocalDocumentSearcher implements DocumentSearcher {
 				}
 
 				start = System.nanoTime();
-				clustering(documents, queryData.getNumClusters());
+				clustering(documents, queryData.getNumClusters(), configuration.getDissimilarityType());
 				elapsed = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start);
 				timeLogger.info(String.format("Clustering results: %d", elapsed));
 
@@ -412,21 +416,30 @@ public class LocalDocumentSearcher implements DocumentSearcher {
 		return file;
 	}
 
-	private void clustering(final List<IDocument> documents, int numClusters) {
+	private void clustering(final List<IDocument> documents, int numClusters, DissimilarityType type) {
 		// Matrix para K-means
-		FloatMatrix2D matrix = new DenseFloatMatrix2D(documents.size(),2);
+		Matrix matrix = new DenseMatrix();
+		float[] xy = new float[2];
 		for(int i = 0; i < documents.size(); i++){
-			matrix.setQuick(i, 0, documents.get(i).getX());
-			matrix.setQuick(i, 1, documents.get(i).getY());
+			xy[0] = documents.get(i).getX();
+			xy[1] = documents.get(i).getY();
+			matrix.addRow(new DenseVector(xy));			
 		}
 
-		KMeans kmeans = new KMeans();
-		kmeans.cluster(matrix, numClusters);
-		IntMatrix1D clusters = kmeans.getClusterAssignments();
-
+		BKMeans kmeans = new BKMeans(numClusters);		
+		ArrayList<ArrayList<Integer>> clusters;
+		Dissimilarity diss = DissimilarityFactory.getInstance(type);
+		try {
+			clusters = kmeans.execute(diss, matrix);
+		} catch (IOException e) {
+			Logger.error("Can't clustering documents", e);
+			return;			
+		}		
+		
 		//Atribui id cluster
-		IntStream.range(0, documents.size()).parallel().forEach( (i) -> {
-			documents.get(i).setCluster(clusters.get(i));
+		IntStream.range(0, clusters.size()).forEach( (cl) -> {
+			for(int i : clusters.get(cl)) 
+				documents.get(i).setCluster(cl);				
 		});
 	}
 
