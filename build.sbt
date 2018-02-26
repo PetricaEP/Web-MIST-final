@@ -2,6 +2,8 @@ name := """ep-project"""
 
 version := "1.0"
 
+EclipseKeys.skipParents in ThisBuild := false
+
 lazy val root = (project in file("."))
 	.enablePlugins(PlayJava)
 	.enablePlugins(SbtWeb)
