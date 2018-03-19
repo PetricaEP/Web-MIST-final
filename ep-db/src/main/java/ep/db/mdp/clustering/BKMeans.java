@@ -85,14 +85,21 @@ public class BKMeans {
 	protected static final float EPSILON = 0.00001f;
 
 	protected int nrIterations = 15;
+	
+	private boolean showProgressBar;
 
 	
 	/** Creates a new instance of BKmeans
 	 * @param nrclusters 
 	 * @param nThreads
 	 */
-	public BKMeans(int nrclusters) {
+	public BKMeans(int nrclusters, boolean showProgressBar) {
 		this.nrclusters = nrclusters;
+		this.showProgressBar = showProgressBar;
+	}
+	
+	public BKMeans(int nrclusters) {
+		this(nrclusters, false);
 	}
 
 	public ArrayList<ArrayList<Integer>> execute(Dissimilarity diss, Matrix matrix) throws IOException {
@@ -118,8 +125,12 @@ public class BKMeans {
 			return null;
 		}
 		
-		ProgressBar pb = new ProgressBar("BKmeans",this.nrclusters, 1000, System.out, ProgressBarStyle.ASCII);
-		pb.start();
+		
+		ProgressBar pb = null;
+		if ( showProgressBar ) {
+			pb = new ProgressBar("BKmeans",this.nrclusters, 1000, System.out, ProgressBarStyle.ASCII);
+			pb.start();
+		}
 		for (int j = 0; j < this.nrclusters - 1; j++) {
 			//Search the cluster with the bigger number of elements
 			gCluster = this.getClusterToSplit(this.clusters);
@@ -128,10 +139,14 @@ public class BKMeans {
 			if (gCluster.size() > 1) {
 				this.splitCluster(matrix, diss, gCluster);
 			}
-			pb.step();
+			if ( showProgressBar )
+				pb.step();
 		}
-		pb.stepTo(pb.getMax());
-		pb.stop();		
+		
+		if ( showProgressBar ) {
+			pb.stepTo(pb.getMax());
+			pb.stop();		
+		}
 
 		//removing possible empty clusters
 		for (int i = this.clusters.size() - 1; i >= 0; i--) {
@@ -360,7 +375,7 @@ public class BKMeans {
 	
 	public static void main(String[] args) {
 		Dissimilarity diss = new Euclidean();
-		BKMeans bkmeans = new BKMeans(10);
+		BKMeans bkmeans = new BKMeans(10, true);
 //		float[][] values = new float[][]{
 //			{5.1f,3.5f,1.4f,0.2f},
 //			{4.9f,3f,1.4f,0.2f},

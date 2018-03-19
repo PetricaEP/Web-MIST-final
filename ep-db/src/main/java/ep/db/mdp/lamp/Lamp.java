@@ -135,7 +135,7 @@ public class Lamp {
 		if ( pdata.getControlPointsChoice() == ControlPointsType.KMEANS) {
 			Dissimilarity diss = new Euclidean();
 			//clustering points
-			BKMeans bkmeans = new BKMeans(pdata.getNumberControlPoints());
+			BKMeans bkmeans = new BKMeans(pdata.getNumberControlPoints(), true);
 			ArrayList<ArrayList<Integer>> clusters;
 			try {
 				clusters = bkmeans.execute(diss, x);
