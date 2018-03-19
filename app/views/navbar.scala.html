@@ -15,7 +15,7 @@
  		</div>
   		<div class="collapse navbar-collapse" id="navbar-collapse">
     		<ul class="nav navbar-nav">
-    		@menu_item(active, "home")<a href="@routes.HomeController.index">Home</a></li>
+    			@* @menu_item(active, "home")<a href="@routes.HomeController.index">Home</a></li> *@
       		@* @menu_item(active, "graph", "dropdown")
         			<a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" 
         				aria-haspopup="true" aria-expanded="false">Grafo<span class="caret"></span></a>
@@ -29,43 +29,43 @@
     		@if( active == "home"){
     			<form id="searchForm" class="navbar-form row" >
     			@CSRF.formField 
-    			<div class="row form-inline simple-search col-sm-10 row">
+    			<div class="row form-inline simple-search col-sm-11 row">
 	    			<div class="col-sm-4">
 	    				<input type="text" id="terms" name="terms" class="form-control">
 	    			</div>
-	    			<div class="col-sm-1 operator-input">
+	    			<div class="col-sm-1 operator-input col-small">
 		    			<select id="operator" name="operator" class="form-control">
 		                	<option value="or">OR</option>
 		                	<option value="and">AND</option>
 		        		</select>
 	        		 </div>
-	        		 <div class="col-sm-3 search-buttons">
+	        		 <div class="form-group col-sm-3 year-search">
+						<label for="year-start" class="col-sm-2">Year:</label>
+						<div class="col-sm-10">
+							<input type="text" class="form-control auto-width col-sm-4" id="year-start" size="4" maxlength="4" pattern="[0-9]*" placeholder="Start">
+							<span class="col-sm-1 col-small">-</span>  
+							<input type="text" class="form-control auto-width col-sm-4" id="year-end" size="4" maxlength="4" pattern="[0-9]*" placeholder="End">
+						</div>
+				</div>
+	        		 <div class="col-sm-4 search-buttons">
 		        			<button type="submit" id="search" class="btn btn-primary">Search</button>
 		        			<button id="advanced-search-btn" type="button" class="btn btn-default" aria-label="Left Align">
 		  						<span class="glyphicon glyphicon-chevron-down" aria-hidden="true"></span>
 							</button>
-							<button id="viz-settings-btn" type="button" class="btn btn-default" aria-label="Left Align">
+						<button id="viz-settings-btn" type="button" class="btn btn-default" aria-label="Left Align">
 		  						<span class="glyphicon glyphicon-cog" aria-hidden="true"></span>
-							</button>
-					</div>
-					
-					<div class="viz-options nav nav-bar col-sm-4">
-		    			<button type="button" id="reset-btn" class="btn btn-danger glyphicon glyphicon-erase"
-		    			data-toggle="tooltip" data-placement="bottom" title="Reinicia visulização (esconde areas e seleções)."></button>
-		    			<button type="button" id="step-btn" class="btn btn-success glyphicon glyphicon-play"
-		    			data-toggle="tooltip" data-placement="bottom" title="Avançar (avança para próxima passo da visualização)"></button>
-		    			<button type="button" id="reheat-btn" class="btn btn-warning glyphicon glyphicon-fire"
-		    			data-toggle="tooltip" data-placement="bottom" title="Reaquece forças da visualização"></button>
-		    			<button type="button" id="zoom-btn" class="btn btn-primary glyphicon glyphicon-zoom-in" data-toggle="button" 
-	    					data-tooltip="tooltip" aria-pressed="false" data-placement="bottom" title="Zoom através da QuadTree"></button>
-	    				<button type="button" id="show-list-btn" class="btn btn-info glyphicon glyphicon-list-alt" data-toggle="button"
-	    					data-tooltip="tooltip" data-placement="bottom" aria-pressed="false" title="Exibir lista de documentos"></button>
-	    				<button type="button" id="download-btn" class="btn btn-download glyphicon glyphicon-download-alt" data-toggle="button" 
-	    					data-tooltip="tooltip" aria-pressed="false" data-placement="bottom" title="Baixar documentos selecionados"></button> 
-	    				<button type="button" id="show-circles-btn" class="btn btn-default glyphicon glyphicon-eye-close" data-toggle="tooltip" 
-	    					data-tooltip="tooltip" aria-pressed="false" data-placement="bottom" title="Esconde/Exibe círculos"></button>
-    			</div>
-    			
+						</button>
+						<button type="button" id="reset-btn" class="btn btn-danger glyphicon glyphicon-erase"
+		    					data-toggle="tooltip" data-placement="bottom" title="Reinicia visulização (esconde areas e seleções)."></button>		    			
+		    				<button type="button" id="zoom-btn" class="btn btn-primary glyphicon glyphicon-zoom-in" data-toggle="button" 
+		    					data-tooltip="tooltip" aria-pressed="false" data-placement="bottom" title="Zoom através da QuadTree"></button>
+	    					<button type="button" id="show-list-btn" class="btn btn-info glyphicon glyphicon-list-alt" data-toggle="button"
+		    					data-tooltip="tooltip" data-placement="bottom" aria-pressed="false" title="Exibir lista de documentos"></button>
+	    					<button type="button" id="download-btn" class="btn btn-download glyphicon glyphicon-download-alt" data-toggle="button" 
+		    					data-tooltip="tooltip" aria-pressed="false" data-placement="bottom" title="Baixar documentos selecionados"></button> 
+	    					<button type="button" id="show-circles-btn" class="btn btn-default glyphicon glyphicon-eye-close" data-toggle="tooltip" 
+		    					data-tooltip="tooltip" aria-pressed="false" data-placement="bottom" title="Esconde/Exibe círculos"></button>
+					</div>									
 				</div>
 				
 				<div class="viz-settings form-horizontal row">
@@ -120,6 +120,10 @@
 	    						</label>							
 							</div>
 						</div>
+						<button type="button" id="step-btn" class="btn btn-success glyphicon glyphicon-play"
+		    					data-toggle="tooltip" data-placement="bottom" title="Avançar (avança para próxima passo da visualização)"></button>
+		    				<button type="button" id="reheat-btn" class="btn btn-warning glyphicon glyphicon-fire"
+		    					data-toggle="tooltip" data-placement="bottom" title="Reaquece forças da visualização"></button>
 					</div>					
 				</div>
 				<div class="advanced-search form-horizontal row">
@@ -128,15 +132,7 @@
 						<div class="col-sm-9">
 							<input type="text" class="form-control" id="author">
 						</div>
-					</div>
-					<div class="form-group col-sm-4">
-						<label for="year-start" class="col-sm-5">Publication year between:</label>
-						<div class="col-sm-7">
-						<input type="text" class="form-control auto-width col-sm-4" id="year-start" size="4" maxlength="4" pattern="[0-9]*">
-						<span class="col-sm-1"> - </span>  
-						<input type="text" class="form-control auto-width col-sm-4" id="year-end" size="4" maxlength="4" pattern="[0-9]*">
-						</div>
-					</div>
+					</div>					
 					<div class="form-group col-sm-3">
 						<label for="num-clusters" class="col-sm-5">Number of clusters:</label>
 						<div class="col-sm-7">

@@ -693,9 +693,9 @@ function palette(a, b) {
 function sliderRankChange(e){
 	var rankFactor = selectedTab.rankFactor;
 	d3.selectAll('circle')
-	.style('display', null)
+	.style('opacity', "1.0")
 	.filter(function(d,i){return d.data.rank * rankFactor < e.value[0] || d.data.rank * rankFactor > e.value[1];})
-	.style('display', "none");
+	.style('opacity', "0.3");
 }
 
 /**
