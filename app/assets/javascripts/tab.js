@@ -164,12 +164,15 @@ function newTabContent(id){
 	return '<div role="tabpanel" class="tab-pane" id="' + id + '">' + 
 	'<div class="visualization-wrapper">' + 
 	'<svg id="visualization" class="visualization"></svg>' + 
-	'<div id="slider-range" class="slider-range"><input type="text" class="slider" value="/></div>' +
+	'<div class="viz-controls-footer row">' +
+	'<div id="slider-range" class="slider-range col-sm-2"><input type="text" class="slider" value=""/></div>' +
+	'</div>' +
 	'<div class="documents-list_wrapper">' +
 	'<div class="documents-table">' +
 	'<div class="total-documents-info"></div>' +
 	'<table class="table table-hover table-striped hidden">' +
 	'<thead><tr><th class="doc-index"></th><th class="doc-title">Title</th><th class="doc-authors">Authors</th>' +
 	'<th class="doc-year">Pub. Year</th><th class="doc-relevance">Relevance</th>' +
-	'<th class="doc-cluster">Cluster</th></tr></thead><tbody></tbody></table></div></div></div>';
+	//'<th class="doc-cluster">Cluster</th>' +
+	'</tr></thead><tbody></tbody></table></div></div></div>';
 }

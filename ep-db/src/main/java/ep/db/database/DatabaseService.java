@@ -75,7 +75,7 @@ public class DatabaseService {
 			+ "language = coalesce(d.language, excluded.language), "
 			+ "path = coalesce(d.path, excluded.path), "
 			+ "enabled = coalesce(d.enabled, excluded.enabled), "
-			+ "bibtex = coalesce(d.bibtext,excluded.enabled)";
+			+ "bibtex = coalesce(d.bibtex,excluded.bibtex)";
 
 	/**
 	 * SQL para inserção de novo autor

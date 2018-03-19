@@ -481,9 +481,12 @@ function addDocumentToTable(index, node){
 
 	var rank = (doc.documentRank * 100).toFixed(3) + " / " + (doc.authorsRank * 100).toFixed(3) + " = " + (doc.rank * 100 ).toFixed(3);
 
-	row += '<td class="doc-relevance">' + rank + '</td><td class="doc-cluster">' + 
-	'<svg><circle cx="15" cy="15" r="10" stroke-width="0" fill="' + selectedTab.coloring(doc) + '"/></svg>'  +
-	'</td></tr>';
+	row += '<td class="doc-relevance">' + rank + '</td>';
+	/* row += '<td class="doc-cluster">' + 
+		'<svg><circle cx="15" cy="15" r="10" stroke-width="0" fill="' + selectedTab.coloring(doc) + '"/></svg>'  +
+		'</td>';
+	*/
+	row += '</tr>';
 	$('#' + selectedTab.id + ' .documents-table .table tbody').append(row);
 }
 
@@ -634,7 +637,7 @@ function createMiniMap(svg, tab){
 
 	img.onload = function(){
 		// Now that the image has loaded, put the image into a canvas element.
-		var canvas = d3.select('#' + tab.id).insert('canvas', ':first-child')
+		var canvas = d3.select('#' + tab.id + " .viz-controls-footer").append('canvas', ':first-child')
 		.classed('minimap', true).node();
 		canvas.width = $("#" + tab.id + " canvas").width();
 		canvas.height = canvas.width * 6 / 16;
@@ -645,7 +648,7 @@ function createMiniMap(svg, tab){
 
 function copyMiniMapFromParent(svg, tab, minX, minY, maxX, maxY){
 
-	var canvas = d3.select('#' + tab.id).insert('canvas', ':first-child')
+	var canvas = d3.select('#' + tab.id + " .viz-controls-footer").append('canvas', ':first-child')
 	.classed('minimap', true).node(),
 	parentCanvas = $('#' + tab.parentId).children('canvas');
 

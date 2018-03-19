@@ -19,10 +19,7 @@
 	margin: auto;
 }
 
-.minimap {
-	position: absolute;
-	right: 1px;
-	//top: 1px;
+.minimap {			
 	width: 20vw;
 	border: 2px solid;
 	background-color: #ffffff;
@@ -351,4 +348,9 @@ circle {
 	text-align: center;
 	margin-left: auto;
 	margin-right: auto;
+}
+
+.viz-controls-footer {
+	width: 100%;
+	text-align: right;
 }
