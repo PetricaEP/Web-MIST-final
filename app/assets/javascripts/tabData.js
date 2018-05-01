@@ -35,6 +35,9 @@ function Tab(id, parentId){
 	this.rankFactor = 1;
 	this.selectedCircles = [];
 	this.query = null;
+	this.wordCloud = null;
+	this.ndocs = 0;
+	this.page = 0;
 }
 
 Tab.prototype.loadData = function(data, maxArea, maxDocs){

@@ -66,8 +66,8 @@ function processReferences(data){
 		$.each(references, function(docId){
 			references[docId].forEach(function(refId){
 				selectedTab.links.push({	
-					source: docId,
-					target: refId
+					source: docId | 0,
+					target: refId | 0
 				});
 			});
 		});
@@ -81,7 +81,24 @@ function processReferences(data){
 		.enter().append("path")
 		.attr("class", "link")
 		.attr('stroke-width', 1.5)
-		.attr("marker-end", function(d) { return "url(#link" + selectedTab.id + ")"; });
+		.attr("marker-end", function(d) { return "url(#link" + selectedTab.id + ")"; });		
+
+		// Força entre links (citações)
+		// Circulos com alguma ligação serão posicionados 
+		// próximos caso strength != 0.
+		// Default strength == 0 (somente exibe links/setas)
+		var forceLink = d3.forceLink()
+		.id(function(d) { return d.id; })
+		.links(selectedTab.links)
+		.strength(0)
+		.distance(0);
+
+		// Cria uma nova simulacao caso ainda nao tenha sido criada
+		setupSimulation(selectedTab);
+				
+		selectedTab.simulation
+		.force("link", forceLink)
+		.restart();		
 	}
 }
 
@@ -115,8 +132,8 @@ function showTip(n){
 
 	tip.transition()
 	.duration(200)
-	.style("opacity", 0.9)
-	.style("display", "block");
+	.style("opacity", 0.9)	
+	.style('display', 'block');
 
 	tipHtml = createToolTip(n);
 	tip.html(tipHtml);
@@ -139,28 +156,34 @@ function showTip(n){
 	.style("left", (x) + "px")
 	.style("top", (y) + "px");
 
-//	d3.select(this).style("stroke-opacity", 1);
 	d3.select(this)
 	.transition()
 	.duration(300)
 	.attr('r', function(d) {
 		if ( selectedTab.step == 1)
-			return fixRadius *  1.4;
+			return fixRadius *  3;
 		return d.r * 1.4; 
 	});
 }
 
 function createToolTip(n){
 	var d = n.data;
-	var tipHtml = '<a href="https://dx.doi.org/' + d.doi + '" target="_blank"><p>';
+	var tipHtml; 
+	if ( d.doi !== null) {
+		tipHtml = '<a href="https://dx.doi.org/' + d.doi + '" target="_blank"><p>';
+	}
+	else {
+		tipHtml = '<a href="#"><p>';
+	}
+
 	if (d.title)
 		tipHtml += "<strong>" + d.title + "</strong>";
 	if ( d.authors && d.authors.length > 0){
 		tipHtml +=", " + d.authors[0].name;
 		for(var i = 1; i < d.authors.length; i++){
 			tipHtml += "; " + d.authors[i].name;
-			if (i == 3){
-				tipHtml += "; et al.";
+			if (i >= 10){
+				tipHtml += '; <span class="et-al"i>et al.</span>';
 				break;
 			}
 		}
@@ -176,7 +199,7 @@ function createToolTip(n){
  * @param d nó a qual a tooltip pertence.
  * @returns
  */
-function hideTip(d){
+function setDefaultRadius(d){
 
 	d3.select(this)
 	.transition()
@@ -184,13 +207,8 @@ function hideTip(d){
 	.attr('r', function(d) {
 		if ( selectedTab.step == 1)
 			return fixRadius;
-		return d.r/1.4; 
-	});
-
-	var tip = d3.selectAll('.node-tooltip');
-	tip.transition()
-	.duration(500)
-	.style("opacity", 0);
+		return d.r; 
+	});	
 }
 
 /**
@@ -201,7 +219,7 @@ function hideTip(d){
  */
 function toggleLinks(d,index){
 
-	removeToolTip();
+	//removeToolTip();
 
 	// Adiciona ou remove documento do array 
 	// de documentos selecionados
@@ -233,31 +251,31 @@ function toggleLinks(d,index){
 	}
 
 	// Cria tooltip fixa
-	var tip = d3.select("body").append("div")
-	.attr('class', 'fixed-tooltip')
-	.style("opacity", 0);
+//	var tip = d3.select("body").append("div")
+//	.attr('class', 'fixed-tooltip')
+//	.style("opacity", 0);
 
-	tip.transition()
-	.duration(200)
-	.style("opacity", 0.9)
-	.style("display", "block");
+//	tip.transition()
+//	.duration(200)
+//	.style("opacity", 0.9)
+//	.style("display", "block");
 
-	tipHtml = createToolTip(d);
-	tip.html(tipHtml);
+//	tipHtml = createToolTip(d);
+//	tip.html(tipHtml);
 
-	var svg = $('#' + selectedTab.id + " svg");
-	var x = d3.event.clientX, 
-	y = d3.event.clientY;
-	var tipW = $('.node-tooltip').width(),
-	tipH = $('.node-tooltip').height();
+//	var svg = $('#' + selectedTab.id + " svg");
+//	var x = d3.event.clientX, 
+//	y = d3.event.clientY;
+//	var tipW = $('.node-tooltip').width(),
+//	tipH = $('.node-tooltip').height();
 
-	if ( x + tipW >= svg.width())
-		x -= tipW + 10;
-	if ( y + tipH >= svg.height())
-		y -= tipH + 10;
-	tip
-	.style("left", (x) + "px")
-	.style("top", (y) + "px");
+//	if ( x + tipW >= svg.width())
+//	x -= tipW + 10;
+//	if ( y + tipH >= svg.height())
+//	y -= tipH + 10;
+//	tip
+//	.style("left", (x) + "px")
+//	.style("top", (y) + "px");
 
 	// Marca linhas na lista de documentos como ativas
 	var row = $("#" + selectedTab.id + " .documents-table table tbody tr")[index];
@@ -431,7 +449,7 @@ function showListTool(){
  * @returns void
  */
 function showDocumentList(){
-	var info = '<p>Total number of documents: ' + selectedTab.n + '</p>';
+	var info = '<p>' + Messages('js.show.doc.list.info') + ': ' + selectedTab.n + '</p>';
 	$('#' + selectedTab.id + ' .total-documents-info').append(info);
 	selectedTab.nodes.forEach(function(d, ind){
 		//Add to documents table
@@ -485,7 +503,7 @@ function addDocumentToTable(index, node){
 	/* row += '<td class="doc-cluster">' + 
 		'<svg><circle cx="15" cy="15" r="10" stroke-width="0" fill="' + selectedTab.coloring(doc) + '"/></svg>'  +
 		'</td>';
-	*/
+	 */
 	row += '</tr>';
 	$('#' + selectedTab.id + ' .documents-table .table tbody').append(row);
 }
@@ -498,8 +516,11 @@ function addDocumentToTable(index, node){
  * @returns void
  */
 function resetVisualization(e){
+	// Links
 	d3.selectAll("#" + selectedTab.id + ' path.link').classed('active', false);
 	$("#" + selectedTab.id + " .documents-table table tbody tr").removeClass('success');
+	// Circulos selecionados
+	d3.selectAll('circle').style("stroke-opacity", "0");	
 }
 
 /**
@@ -527,6 +548,7 @@ function zoomTool(e){
  * @returns void
  */
 function activeZoom(svg){
+
 	svg
 	.on('mousemove', function(){
 		var start = d3.mouse(this);
@@ -536,9 +558,9 @@ function activeZoom(svg){
 		// Remove event listeners
 //		d3.select(this).on("mousemove", null);
 //		d3.select(this).on("wheel", null);
-//		d3.select(this).on("click.selection", null);
-		$('#loading').removeClass('hidden');
+//		d3.select(this).on("click.selection", null);		
 		endSelection(d3.mouse(this));
+		$('#loading').removeClass('hidden');
 	})
 	.on("wheel", function(){
 		var delta = d3.event.deltaY,
@@ -564,6 +586,8 @@ function activeZoom(svg){
 		.attr("d", rect(start[0], start[1], newWidth, newHeight));
 	});
 
+	// Remove listener para eventos de click
+	// nos circulos
 	if ( selectedTab.circles.length > 0 ){
 		selectedTab.circles
 		.on("mouseover", null)
@@ -587,7 +611,7 @@ function desactiveZoom(svg){
 
 	selectedTab.circles
 	.on("mouseover", showTip)
-	.on("mouseout", hideTip);
+	.on("mouseout", setDefaultRadius);
 }
 
 //Zoom: inicia seleção
@@ -606,7 +630,8 @@ function startSelection(start, svg) {
 	selectionHeight = selectionHeight.replace("px", "");
 
 	svg.select('.selection')
-	.attr("d", rect(start[0], start[1], selectionWidth, selectionHeight));
+	.attr("d", rect(start[0], start[1], selectionWidth, selectionHeight))
+	.attr("text", d3.mouse(svg));
 }
 
 //Zoom: fim da seleção
@@ -621,8 +646,7 @@ function endSelection(end) {
 function showMaxTabsAlert(){
 	var alertHtml = '<div id="tabs-alert" class="alert alert-danger alert-dismissible" role="alert">' +
 	'<button type="button" class="close" data-dismiss="alert" aria-label="Close">' +
-	'<span aria-hidden="true">&times;</span></button>' +
-	'<strong>Warning!</strong> Too may tabs opened. Please, close some of the tabs before continue.</div>';	
+	'<span aria-hidden="true">&times;</span></button>' + Messages('js.max.tabs.alert') + '</div>';	
 	$('#tabs-alert-wrapper').append(alertHtml);
 	$('#tabs-alert').alert();
 }
@@ -637,10 +661,11 @@ function createMiniMap(svg, tab){
 
 	img.onload = function(){
 		// Now that the image has loaded, put the image into a canvas element.
-		var canvas = d3.select('#' + tab.id + " .viz-controls-footer").append('canvas', ':first-child')
+		var headerHeight = $('.navbar').height() + $('.nav-tabs-wrapper').height();
+		var canvas = d3.select('#' + tab.id + " .minimap-wrapper").append('canvas', ':first-child')
 		.classed('minimap', true).node();
-		canvas.width = $("#" + tab.id + " canvas").width();
-		canvas.height = canvas.width * 6 / 16;
+		canvas.width = $("#" + tab.id + " .visualization-wrapper").width() * 0.2;
+		canvas.height = Math.min( canvas.width * 9 / 16, headerHeight);
 		var ctx = canvas.getContext('2d');
 		ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 	};
@@ -648,12 +673,12 @@ function createMiniMap(svg, tab){
 
 function copyMiniMapFromParent(svg, tab, minX, minY, maxX, maxY){
 
-	var canvas = d3.select('#' + tab.id + " .viz-controls-footer").append('canvas', ':first-child')
+	var canvas = d3.select('#' + tab.id + " .minimap-wrapper").append('canvas', ':first-child')
 	.classed('minimap', true).node(),
-	parentCanvas = $('#' + tab.parentId).children('canvas');
+	parentCanvas = $('#' + tab.parentId + ' .minimap-wrapper .minimap');
 
-	canvas.width = $("#" + tab.id + " canvas").width();
-	canvas.height = canvas.width * 6 / 16;
+	canvas.width = $("#" + tab.id + " .minimap").width();
+	canvas.height = $("#" + tab.id + " .minimap").height();
 	var ctx = canvas.getContext('2d');
 	ctx.drawImage(parentCanvas[0], 0, 0, canvas.width, canvas.height);
 
@@ -693,12 +718,34 @@ function palette(a, b) {
  * Trata evento de alteracao 
  * dos sliders de rank min/max
  */
-function sliderRankChange(e){
+function sliderRankSlide(e){	
 	var rankFactor = selectedTab.rankFactor;
-	d3.selectAll('circle')
-	.style('opacity', "1.0")
-	.filter(function(d,i){return d.data.rank * rankFactor < e.value[0] || d.data.rank * rankFactor > e.value[1];})
-	.style('opacity', "0.3");
+	d3.selectAll('#' + selectedTab.id + ' circle')
+	.style('opacity', "0.3")
+	.filter(function(d,i){return d.data.rank * rankFactor >= e.value[0] && d.data.rank * rankFactor <= e.value[1];})
+	.style('opacity', "1.0");
+}
+
+function sliderRankChange(e){
+	// Atualiza nuvem de palavras
+	// Constroi nuvem de palavras	
+	var wordsMap = d3.map(); 
+	var rankFactor = selectedTab.rankFactor;
+	d3.selectAll('#' + selectedTab.id + ' circle')	
+	.filter(function(d,i){return d.data.rank * rankFactor >= e.value[0] && d.data.rank * rankFactor <= e.value[1];})	
+	.each( function(d){		
+		for( var i = 0; i < d.data.words.length; i++){
+			var word = d.data.words[i];
+			if ( wordsMap.has( word.text ) ){
+				wordsMap.get( word.text ).size += word.size;
+			}
+			else{
+				wordsMap.set(word.text, {text: word.text, size: word.size});
+			}			
+		}
+	});	
+
+	selectedTab.wordCloud.update(wordsMap.values());
 }
 
 /**
@@ -727,8 +774,64 @@ function transformRing(coordinates) {
 	coordinates.forEach(transformPoint);
 }
 
-//TODO Optimize.
 function transformPoint(coordinates) {
 	coordinates[0] = coordinates[0] * Math.pow(2, 2) - 30;
 	coordinates[1] = coordinates[1] * Math.pow(2, 2) - 30;
+}
+
+/**
+ * Adiciona elementos para paginacao na
+ * após a visualizacao (botoes next e previous)
+ * @param tab aba de navegacao onde sera inserido a paginacao 
+ * @returns void
+ */  
+function addPagination(tab){
+	var maxDocs = $("#max-number-of-docs").val();
+	var numPages = ( tab.ndocs / maxDocs ) | 0;
+	var paginationHtml = '<div class="pagination col-sm-6"><nav aria-label="..."><ul class="pager">' +
+	'<li class="previous ' + (tab.page === 0 ? 'disabled' : '' ) + '"><a href="#" data-page="prev">' + Messages('js.page.previous') + '</a></li>' +
+	'<li class="total-documents">' + Messages('js.page.total.docs', tab.page * maxDocs + 1, Math.min( (tab.page + 1) * maxDocs, tab.ndocs), tab.ndocs) + '</li>' +
+	'<li class="next ' + ( tab.page === numPages ? 'disabled' : '' ) + '"><a href="#" data-page="next">' + Messages('js.page.next') + '</a></li></ul></nav></div>';
+	$('#' + tab.id + ' .viz-controls-footer').prepend(paginationHtml);
+	$('#' + tab.id + ' .viz-controls-footer .pagination a').click(function(e){
+		if ( $(e.target).parent().hasClass('disabled') !== true ){
+			var newPage = $(e.target).data().page === 'next' ? tab.page + 1 : tab.page - 1;
+			ajaxSubmitForm(newPage);
+		}
+	});
+}
+
+/**
+ * 
+ * @param tab
+ * @returns
+ */
+function cleanVisualization( tab ){
+	$('#' + tab.id).empty().append(newTabContent());
+}
+
+function contourDensityPromise( contours, densityMap, tab, minMaxX, minMaxY ){
+	var deferred = $.Deferred();
+
+	setTimeout( function(){
+		if ( contours === null ){
+			deferred.resolve( null, tab );
+		}
+		else{
+			deferred.resolve( contours( tab.densities ), tab, densityMap, minMaxX, minMaxY );
+		}
+		tab.densities = null;
+	}, 5);
+
+	return deferred.promise();
+}
+
+function getWordCloudPromise( words, cfg, tab ){
+	var defer = $.Deferred();
+	setTimeout(function() {		
+		var wc = wordCloud(cfg);
+		wc.update(words);						
+		defer.resolve(wc, tab);
+	}, 5);
+	return defer.promise();
 }

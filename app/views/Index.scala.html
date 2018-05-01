@@ -13,10 +13,12 @@
        	
        	<link rel="stylesheet" media="screen" href="@routes.Assets.versioned("stylesheets/main.css")">
        	
+       	<script src="@routes.HomeController.jsMessages()" type="text/javascript" ></script>
        	<script src="@routes.Assets.versioned("javascripts/tabData.js")" type="text/javascript"></script>
        	<script src="@routes.Assets.versioned("javascripts/tab.js")" type="text/javascript"></script>
        	<script src="@routes.Assets.versioned("javascripts/aux.js")" type="text/javascript"></script>
        	<script src="@routes.Assets.versioned("javascripts/kde2d.js")" type="text/javascript"></script>
+       	<script src="@routes.Assets.versioned("javascripts/word-cloud.js")" type="text/javascript"></script>
 		<script src="@routes.Assets.versioned("javascripts/visualization.js")" type="text/javascript"></script>
 		<script src="@routes.Assets.versioned("javascripts/main.js")" type="text/javascript"></script>
 		
@@ -40,25 +42,24 @@
     	software like Aldus PageMaker including versions of Lorem Ipsum.</p>
     </div>
     
-    <div>
-    	<ul class="nav nav-tabs hidden" role="tablist" id="viz-tabs">
-    		<!-- <li role="presentation" class="active"><a href="#main" aria-controls="main" role="tab" data-toggle="tab">Visualização</a></li> -->
+    <div class="nav-tabs-wrapper">
+    	<ul class="nav nav-tabs hidden" role="tablist" id="viz-tabs">    		
     	</ul>
     </div>
-    <div class="tab-content" id="minimap">
+    <div class="tab-content" id="map">
 	</div>
 	<div class="modal fade" tabindex="-1" role="dialog"> 
 		<div class="modal-dialog" role="document">
 			<div class="modal-content">
 				<div class="modal-header">
 					<button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
-					<h4 class="modal-title">No documents found!</h4>
+					<h4 class="modal-title">@Messages("modal.no.documents.found.title")</h4>
 				</div>
 				<div class="modal-body">
-					<p>Your search/zoom did not return any result.</p>
+					<p>@Messages("modal.no.documents.found.body")</p>
 				</div>
 				<div class="modal-footer">
-					<button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+					<button type="button" class="btn btn-default" data-dismiss="modal">@Messages("modal.no.documents.found.close")</button>
 				</div>
 			</div>
 		</div>

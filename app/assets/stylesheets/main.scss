@@ -12,23 +12,27 @@
 }
 	
 .visualization {
-	width: 100vw;
-	min-width: 100vw;
+	width: 100%;
+	min-width: 100%;
+	max-width: 100%;
 // 	min-height: 10vh;
 	max-height: 100vh;
 	margin: auto;
 }
 
 .minimap {			
-	width: 20vw;
 	border: 2px solid;
 	background-color: #ffffff;
 	box-shadow: 1px 1px 1px;
+	position: absolute;
+	top: 0;
+	right: 0;
+	margin-right: 5px;
 }
 
 .visualization-wrapper {
 	/* border: 1px solid black; */
-	cursor: pointer;
+	//cursor: pointer;
 	
 	.legend{
 		max-height: 60px;
@@ -152,8 +156,7 @@
 	font-weight: 800;
 }
 
-div.node-tooltip,
-div.fixed-tooltip {
+div.node-tooltip {
 	position: absolute;
 	text-align: center;
 	width: 350px;
@@ -164,8 +167,14 @@ div.fixed-tooltip {
 	border: 0px;
 	border-radius: 8px;
 	
+	
 	p {
 		text-transform: capitalize;
+	}
+
+	span.et-al{
+		text-transform: none;
+		font-style: italic;
 	}
 
 	a {
@@ -178,6 +187,7 @@ circle {
 	stroke: #ea1717e6;
 	stroke-width: 4px;
 	stroke-opacity: 0;
+	cursor: pointer;
 }
 
 .link {
@@ -193,6 +203,10 @@ circle {
 
 .operator-input{
 	padding: 0 5px 0 5px;
+	
+	.form-control {
+		padding: 0;
+	}
 }
 
 #searchForm {
@@ -210,7 +224,7 @@ circle {
 	
 		.search-buttons{
 // 			text-align: right;
-//			width: 18%;
+			width: 40%;
 			padding: 0;
 		}
 	}
@@ -218,6 +232,7 @@ circle {
 	.year-search {
 		
 		padding: 0;
+		width: 20%;
 		div {
 			padding: 0;
 		}
@@ -257,21 +272,22 @@ circle {
 	
 		label {
 			color: #fff;
+			padding: 5px 0 0 10px;
 		}
 	}
+}
+
+#author.form-control {
+	width: 100%;
 }
 
 .slider-selection {
 	background: #BABABA;
 }
 
-.slider-horizontal {
-	width: 100% !important;
-}
-
 .slider-range{
 	width: 300px;
-	margin: 0 0 0 30px;
+	margin: 0 0 0 30px;		
 }
 
 .slider-range .slider-selection{
@@ -292,6 +308,9 @@ circle {
 	margin-right: auto;
     -webkit-animation: spin 2s linear infinite;
     animation: spin 2s linear infinite;
+    position: absolute;
+    left: 50%;
+    margin-top: 50px;
  }
 
 @-webkit-keyframes spin {
@@ -353,4 +372,34 @@ circle {
 .viz-controls-footer {
 	width: 100%;
 	text-align: right;
+	display: table;
+	float: none;
+	
+	.pagination {
+		display: table-cell;
+		float: none;
+		vertical-align: middle;
+	}
+
+	.slider-range {
+		vertical-align: middle;
+		display: table-cell;
+		float: none;
+		
+		.slider {
+			width: 300px;
+		}
+	}
+}
+
+.word-cloud {
+	position: absolute;
+	top: 101px;
+	background-color: rgba(255,255,255,0.7);
+	border: 1px solid;
+	margin: 10px;
+	left: 0;
+	display: block;
+	width: calc(100%/3);
+	height: auto;
 }

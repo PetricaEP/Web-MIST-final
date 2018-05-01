@@ -2,14 +2,21 @@ var maxNumberOfTabs = 10;
 
 //Form submission handle
 $(function() {
-
+	
 	$('[data-toggle="tooltip"]').tooltip({container: 'body'});
 	$('[data-tooltip="tooltip"]').tooltip({container: 'body', trigger : 'hover'});
 	$('.modal').modal({show: false});
 	
 	$( "#searchForm" ).submit(function( e ) {
 		e.preventDefault();
-		ajaxSubmitForm();
+		// Esconde busca avançada se habilitada
+		$(".advanced-search").hide(400, function(){
+			$("#advanced-search-btn span").removeClass("glyphicon-chevron-up");
+			$("#advanced-search-btn span").addClass("glyphicon-chevron-down");
+			$(".advanced-search").removeClass("enabled");
+		});
+		
+		ajaxSubmitForm(0);
 	});
 
 	$('#collision-force').slider({
@@ -55,11 +62,11 @@ $(function() {
 	});
 
 	$(".advanced-search").hide();
-	$(".viz-settings").hide();
+	$(".viz-settings").hide();	
 	
 	$("#show-circles-btn").click(function(e){
 		var closed = $('#show-circles-btn').hasClass('glyphicon-eye-close');
-		if ( closed ){
+		if ( closed ){			
 			d3.selectAll('circle').style('display', 'none');
 		}
 		else{
@@ -67,6 +74,22 @@ $(function() {
 		}
 		$('#show-circles-btn').toggleClass('glyphicon-eye-close', !closed);
 		$('#show-circles-btn').toggleClass('glyphicon-eye-open', closed);
+	});
+		
+	$("#show-word-cloud-btn").click(function(e){
+		var isActive = $("#show-word-cloud-btn").hasClass("active");		
+		if ( !isActive ){			
+			d3.select('#' + selectedTab.id + ' .word-cloud ')
+			.transition()
+			.duration(750)
+			.style('left', '0%');			
+		}
+		else{
+			d3.select('#' + selectedTab.id + ' .word-cloud ')
+			.transition()
+			.duration(750)
+			.style('left', '-100%');			
+		}		
 	});
 });
 
@@ -78,7 +101,7 @@ errorFn = function(err){
 };
 
 //Ajax form submission
-function ajaxSubmitForm(){
+function ajaxSubmitForm(page){
 	
 	// Se o numero maximo de abas
 	// foi atingindo mostra aviso
@@ -112,7 +135,9 @@ function ajaxSubmitForm(){
 			yearStart:  yearS,
 			yearEnd: yearE,
 			numClusters: numClusters,
-			maxDocs: maxDocs
+			maxDocs: maxDocs,
+			page: page,
+			tabId: selectedTab !== null ? selectedTab.id : ''
 		}, 
 		success: createVisualization, error: errorFn, dataType: "json"});
 

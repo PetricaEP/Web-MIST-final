@@ -55,7 +55,7 @@ public class LocalDocumentSearcher implements DocumentSearcher {
 	private static final Pattern TERM_PATTERN = Pattern.compile(".*(\".*?\").*");
 
 	private static final String TEMP_DIRECTORY = System.getProperty("java.io.tmpdir");
-	
+
 	private static Configuration configuration;
 
 	private QuadTree quadTree;
@@ -73,17 +73,12 @@ public class LocalDocumentSearcher implements DocumentSearcher {
 		initQuadTree();
 		initGrid();
 	}
-
+	
 	@Override
-	public CompletionStage<String>  search(QueryData queryData ) throws Exception {
-		return search(queryData, 0);
-	}
-
-	@Override
-	public CompletionStage<String> search(QueryData queryData, int count) throws Exception {
+	public CompletionStage<String> search(QueryData queryData) throws Exception {
 		return CompletableFuture.supplyAsync(() -> {
 			try {
-				return searchData(queryData, count);
+				return searchData(queryData);
 			} catch (Exception e) {
 				Logger.error("Can't search for data", e);
 				return null;
@@ -91,14 +86,14 @@ public class LocalDocumentSearcher implements DocumentSearcher {
 		}, executionContext);
 	}
 
-	public String searchData(QueryData queryData, int count) throws Exception {
+	public String searchData(QueryData queryData) throws Exception {
 
 		long start, elapsed;
 		Map<String, Object> result = null;
 
 		try {
 			if ( queryData.getStart() == null || queryData.getEnd() == null){
-				result = searchAll(queryData, count);
+				result = searchAll(queryData);
 			}
 			else{
 				result = zoom(queryData);
@@ -130,11 +125,12 @@ public class LocalDocumentSearcher implements DocumentSearcher {
 		}
 	}
 
-	private Map<String, Object> searchAll(QueryData queryData, int count) throws Exception {
+	private Map<String, Object> searchAll(QueryData queryData) throws Exception {
 
 		Map<String, Object> result = null;
-
+		
 		try {
+			final int page = queryData.getPage();
 			long start = System.nanoTime();
 			String query = buildQuery(queryData);
 			long elapsed = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start);
@@ -150,28 +146,30 @@ public class LocalDocumentSearcher implements DocumentSearcher {
 				String op = getOperator(queryData.getOperator());
 				String authors = queryData.getAuthor().replaceAll("\\s+", op);
 				docs = dbService.getAdvancedSimpleDocuments(query, authors, queryData.getYearStart(), 
-						queryData.getYearEnd(), count, points, maxDocs);
+						queryData.getYearEnd(), points, maxDocs, page);
 			}
-			else if ( query != null )
-				docs = dbService.getSimpleDocuments(query, count, points, maxDocs);
+			else if ( query != null ) {
+				docs = dbService.getSimpleDocuments(query, points, maxDocs, page);
+			}			
 			else{
-				docs = dbService.getAllSimpleDocuments(points, maxDocs);
+				docs = dbService.getAllSimpleDocuments(points, maxDocs, page);
 			}
 
 			elapsed = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start);
 			timeLogger.info(String.format("Quering DB: %d", elapsed));
-
+			
+			int numDocs = 0;
 			if( docs != null && !docs.isEmpty()){
 
 				result = new HashMap<>();
-
+				numDocs = docs.size() + points.size();
+				
 				//Clustering
-				final int numClusters = queryData.getNumClusters();
-				start = System.nanoTime();
-				clustering(docs, numClusters, configuration.getDissimilarityType());
-				elapsed = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start);
-				timeLogger.info(String.format("Clustering: %d", elapsed));
-
+				//final int numClusters = queryData.getNumClusters();
+				//start = System.nanoTime();
+				//clustering(docs, numClusters, configuration.getDissimilarityType());
+				//elapsed = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start);
+				//timeLogger.info(String.format("Clustering: %d", elapsed));
 
 				if ( points != null && !points.isEmpty()){
 					int densityMap = configuration.getDensityMapCalculation();
@@ -193,10 +191,13 @@ public class LocalDocumentSearcher implements DocumentSearcher {
 						result.put("densities", points);
 						result.put("densityMap", Configuration.DENSITY_MAP_CLIENT);
 					}
-				}
-
-				result.put("documents", docs);
-				result.put("nclusters", numClusters);
+				}				
+											
+				result.put("tabId", queryData.getTabId());
+				result.put("documents", docs);	
+				result.put("ndocs", numDocs);
+				result.put("page", page);
+				//				result.put("nclusters", numClusters);
 				result.put("op", "search");
 				result.put("minRadiusPerc", configuration.getMinRadiusSizePercent());
 				result.put("maxRadiusPerc", configuration.getMaxRadiusSizePercent());
@@ -264,7 +265,7 @@ public class LocalDocumentSearcher implements DocumentSearcher {
 
 			if ( documents.size() > 0){
 				result = new HashMap<>();
-				
+
 				int numberOfPoints = Math.max(0, documents.size() - maxDocs);
 				List<Vec2> points = new ArrayList<>(numberOfPoints);
 				for(int i = 0; i < numberOfPoints && maxDocs + i < documents.size(); i++){
@@ -272,7 +273,7 @@ public class LocalDocumentSearcher implements DocumentSearcher {
 					points.add(doc.getPos());
 				}
 				documents = documents.subList(0, Math.min(documents.size(), maxDocs));
-				
+
 				if ( numberOfPoints > 0 ){
 
 					int densityMap = configuration.getDensityMapCalculation();
@@ -339,16 +340,7 @@ public class LocalDocumentSearcher implements DocumentSearcher {
 		gridSize[0] = grid.getWidth();
 		gridSize[1] = grid.getHeight();
 		return grid.getData();
-	}
-
-	private List<Vec2> loadXY(List<IDocument> documents, float x1, float y1, float x2, float y2) {
-		try {
-			return dbService.loadXY(documents,x1, y1, x2, y2);
-		} catch (Exception e) {
-			Logger.error("Can't load <x,y> coordinates for documents", e);
-			return null;
-		}
-	}
+	}	
 
 	public String getDocumentsReferences(List<Long> docIds){
 		// References
@@ -401,11 +393,11 @@ public class LocalDocumentSearcher implements DocumentSearcher {
 			bw.newLine();
 			for(Document doc : docs){
 				String line = String.format("%s,%s,%s,%s,%s", 
-						doc.getDOI(), 
-						doc.getTitle(),
-						Utils.authorsToString(doc.getAuthors()),
-						doc.getPublicationDate(),
-						doc.getBibTEX()
+						doc.getDOI() != null ? doc.getDOI() : "", 
+								doc.getTitle() != null ? doc.getTitle() : "",
+										Utils.authorsToString(doc.getAuthors()),
+										doc.getPublicationDate() != null ? doc.getPublicationDate() : "",
+												doc.getBibTEX() != null ? doc.getBibTEX() : ""
 						);
 				bw.write(line);
 				bw.newLine();
@@ -435,7 +427,7 @@ public class LocalDocumentSearcher implements DocumentSearcher {
 			Logger.error("Can't clustering documents", e);
 			return;			
 		}		
-		
+
 		//Atribui id cluster
 		IntStream.range(0, clusters.size()).forEach( (cl) -> {
 			for(int i : clusters.get(cl)) 

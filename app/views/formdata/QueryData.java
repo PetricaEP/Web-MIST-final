@@ -21,6 +21,10 @@ public class QueryData {
 	
 	private int numClusters = 10; 
 	
+	private int page;
+	
+	private String tabId;
+	
 	@Required
 	protected int maxDocs;
 	
@@ -28,13 +32,14 @@ public class QueryData {
 		
 	}
 	
-	public QueryData(String terms, String operator, float width, float height, int maxDocs) {
-		this(terms, operator, null, null, null, null, null, 10, maxDocs);
+	public QueryData(String tabId, String terms, String operator, float width, float height, int maxDocs, int page) {
+		this(tabId, terms, operator, null, null, null, null, null, 10, maxDocs, page);
 	}
 
-	public QueryData(String terms, String operator, String author, String yearStart, String yearEnd, 
-			float[] start,  float[] end, int numClusters, int maxDocs) {
+	public QueryData(String tabId, String terms, String operator, String author, String yearStart, String yearEnd, 
+			float[] start,  float[] end, int numClusters, int maxDocs, int page) {
 		super();
+		this.tabId = tabId;
 		this.terms = terms;
 		this.operator = operator;
 		this.author = author;
@@ -43,6 +48,16 @@ public class QueryData {
 		this.start = start;
 		this.end = end;
 		this.numClusters = numClusters;
+		this.maxDocs = maxDocs;
+		this.page = page;
+	}
+
+	public String getTabId() {
+		return tabId;
+	}
+
+	public void setTabId(String tabId) {
+		this.tabId = tabId;
 	}
 
 	public String getTerms() {
@@ -115,5 +130,13 @@ public class QueryData {
 
 	public void setMaxDocs(int maxDocs) {
 		this.maxDocs = maxDocs;
+	}
+
+	public int getPage() {
+		return page;
+	}
+
+	public void setPage(int page) {
+		this.page = page;
 	}
 }

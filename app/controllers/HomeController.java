@@ -1,23 +1,21 @@
 package controllers;
 
 import java.io.File;
-import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
-import java.util.concurrent.Executor;
-import java.util.function.Function;
 
 import javax.inject.Inject;
 import javax.inject.Named;
 
-import com.fasterxml.jackson.databind.JsonNode;
-
+import jsmessages.JsMessages;
+import jsmessages.JsMessagesFactory;
+import jsmessages.japi.Helper;
 import play.Logger;
 import play.data.Form;
 import play.data.FormFactory;
-import play.libs.concurrent.HttpExecution;
-import play.mvc.BodyParser;
+import play.libs.Scala;
+import play.libs.concurrent.HttpExecutionContext;
 import play.mvc.Controller;
 import play.mvc.Result;
 import play.mvc.Results;
@@ -25,7 +23,6 @@ import play.routing.JavaScriptReverseRouter;
 import services.database.DatabaseExecutionContext;
 import services.search.DocumentSearcher;
 import views.formdata.QueryData;
-import views.formdata.SelectionData;
 import views.html.Index;
 
 /**
@@ -40,18 +37,24 @@ public class HomeController extends Controller {
 	private final DocumentSearcher docSearcher;
 
 	private DatabaseExecutionContext databaseContext;
+	
+	private HttpExecutionContext httpExecutionContext;
 
 	/**
 	 * Form factory
 	 */
 	private final FormFactory formFactory;
+	
+	private JsMessages  jsMessages;
 
 	@Inject
 	public HomeController(@Named("docSearcher") DocumentSearcher docSearcher, FormFactory formFactory,
-			DatabaseExecutionContext context) {
+			DatabaseExecutionContext context, HttpExecutionContext ec, JsMessagesFactory jsMessagesFactory) {
 		this.docSearcher = docSearcher;
 		this.formFactory = formFactory;
 		this.databaseContext = context;
+		this.httpExecutionContext = ec;		
+		jsMessages = jsMessagesFactory.filtering( key -> key.startsWith("js."));
 	}
 
 	/**
@@ -61,8 +64,12 @@ public class HomeController extends Controller {
 	 * <code>GET</code> request with a path of <code>/</code>.
 	 */
 	public Result index() {
-		Form<QueryData> queryData = formFactory.form(QueryData.class);	
+		Form<QueryData> queryData = formFactory.form(QueryData.class);							
 		return ok(Index.render(queryData));
+	}
+	
+	public Result jsMessages() {				
+		return ok(jsMessages.apply(Scala.Option("window.Messages"), Helper.messagesFromCurrentHttpContext()));
 	}
 
 	/**
@@ -79,7 +86,7 @@ public class HomeController extends Controller {
 		}
 
 		try {
-			return docSearcher.search(queryData.get(), -1).thenApplyAsync((json) -> {
+			return docSearcher.search(queryData.get()).thenApplyAsync((json) -> {
 				return ok(json);
 			}, databaseContext);
 		}catch (Exception e) {
@@ -112,7 +119,9 @@ public class HomeController extends Controller {
 	public CompletionStage<Result> download(List<Long> docIds){
 		CompletionStage<File> filePromise = CompletableFuture.supplyAsync(() -> docSearcher.downloadDocuments(docIds));
 		return filePromise.thenApplyAsync(
-				(file) -> ok(file, false).as("application/x-download"));
+				file -> { 
+					return ok(file, false).as("application/x-download");
+					}, httpExecutionContext.current());
 	}
 
 	/**

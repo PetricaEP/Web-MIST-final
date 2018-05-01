@@ -34,12 +34,12 @@ function addNewTab(op){
 		" " + $("#year-start").val() +
 		" " + $("#year-end").val();
 		
-		newTab = addTab('main-'+tabIndex, 'Search ' + tabIndex + " " + t, null, t);
+		newTab = addTab('main-'+tabIndex, Messages('js.tab.search.title', tabIndex, t), null, t);
 		newTab.title = t;
 	}else{ // op === 'zoom'
 		zoomLevel = selectedTab.zoomLevel + 1;
 		t = selectedTab.title;
-		newTab = addTab('zoom-'+tabIndex, 'Zoom Level ' + zoomLevel + " " + t, selectedTab.id, t);
+		newTab = addTab('zoom-'+tabIndex, Messages('js.tab.zoom.title', zoomLevel, t), selectedTab.id, t);
 		newTab.title = t;
 	}
 
@@ -63,7 +63,7 @@ function addTab(id, title, parentId, altTextTitle){
 			'data-toggle="tab" class="tab-title" data-tab-index="' + tabIndex + '" id="tab-' + id + '" title="' + altTextTitle + '">' + 
 			'<button class="close"><span aria-hidden="true" class="glyphicon glyphicon-remove"></span></button>' + title + 
 	' </a></li>');
-	$('.tab-content').append(newTabContent(id));
+	$('.tab-content').append('<div role="tabpanel" class="tab-pane" id="' + id + '">' + newTabContent() + '</div>');
 
 	// Adiciona tab ao vetor e marca a nova tab
 	// como selecionada
@@ -160,19 +160,18 @@ function deleteTab(tabId){
  * @param id id do nó DOM da nova aba
  * @returns conteúdo HTML da nova aba.
  */
-function newTabContent(id){
-	return '<div role="tabpanel" class="tab-pane" id="' + id + '">' + 
-	'<div class="visualization-wrapper">' + 
-	'<svg id="visualization" class="visualization"></svg>' + 
-	'<div class="viz-controls-footer row">' +
-	'<div id="slider-range" class="slider-range col-sm-2"><input type="text" class="slider" value=""/></div>' +
-	'</div>' +
+function newTabContent(){
+	return '<div class="minimap-wrapper"></div>' +
+	'<div class="visualization-wrapper"><svg id="visualization" class="visualization"></svg></div>' +
+	'<div class="word-cloud"></div>' + 
+	'<div class="viz-controls-footer row"><div id="slider-range" class="slider-range col-sm-6"><input type="text" class="slider" value=""/></div></div>' +
 	'<div class="documents-list_wrapper">' +
 	'<div class="documents-table">' +
 	'<div class="total-documents-info"></div>' +
 	'<table class="table table-hover table-striped hidden">' +
-	'<thead><tr><th class="doc-index"></th><th class="doc-title">Title</th><th class="doc-authors">Authors</th>' +
-	'<th class="doc-year">Pub. Year</th><th class="doc-relevance">Relevance</th>' +
-	//'<th class="doc-cluster">Cluster</th>' +
-	'</tr></thead><tbody></tbody></table></div></div></div>';
+	'<thead><tr><th class="doc-index"></th><th class="doc-title">' + Messages('js.table.doc.title') + '</th><th class="doc-authors">' + 
+	Messages('js.table.doc.authors') + '</th>' +
+	'<th class="doc-year">' + Messages('js.table.doc.year') + '</th><th class="doc-relevance">' + Messages('js.table.doc.rank') + '</th>' +
+	//'<th class="doc-cluster">' + Messages('js.table.doc.cluster') + '</th>' +
+	'</tr></thead><tbody></tbody></table></div></div>';
 }

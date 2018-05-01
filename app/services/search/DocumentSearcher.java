@@ -8,9 +8,7 @@ import views.formdata.QueryData;
 
 public interface DocumentSearcher {
 
-	public CompletionStage<String> search(QueryData queryData) throws Exception;
-	
-	public CompletionStage<String> search(QueryData queryData, int count) throws Exception;
+	public CompletionStage<String> search(QueryData queryData) throws Exception;	
 	
 	public String getDocumentsReferences(List<Long> docIds);
 
