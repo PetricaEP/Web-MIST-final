@@ -136,6 +136,8 @@ public class Document implements IDocument, Serializable{
 	 * com a relevância).
 	 */
 	private double radius;
+	
+	private Word[] words;
 
 	/**
 	 * Cria um novo documento
@@ -528,20 +530,31 @@ public class Document implements IDocument, Serializable{
 	public void setRadius(double radius) {
 		this.radius = radius;
 	}
+	
+	@Override
+	public Word[] getWords() {
+		return words;
+	}
+	
+	@Override
+	public void setWords(Word[] words) {
+		this.words = words;
+	}
 
 	/**
 	 * Retorna uma representação textual do documento.
 	 */
 	@Override
 	public String toString() {
-		StringBuilder sb = new StringBuilder();
-		if ( getAuthors() != null)
-			sb.append(getAuthors() + " ");
-		if ( getTitle() != null )
-			sb.append(getTitle() + " ");
-		if (getPublicationDate() != null)
-			sb.append(getPublicationDate() + " ");
-		return sb.toString().trim(); 
+		return String.format("%d %.3f %.3f %f", id, x, y, relevance);
+//		StringBuilder sb = new StringBuilder();
+//		if ( getAuthors() != null)
+//			sb.append(getAuthors() + " ");
+//		if ( getTitle() != null )
+//			sb.append(getTitle() + " ");
+//		if (getPublicationDate() != null)
+//			sb.append(getPublicationDate() + " ");		
+//		return sb.toString().trim(); 
 	}
 
 	@Override

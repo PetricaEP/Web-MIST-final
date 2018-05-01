@@ -1,6 +1,6 @@
 package ep.db.database;
 
-import java.sql.Array;
+import java.io.IOException;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -12,11 +12,14 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import edu.uci.ics.jung.algorithms.scoring.PageRank;
@@ -29,6 +32,7 @@ import ep.db.matrix.SparseVector;
 import ep.db.model.Author;
 import ep.db.model.Document;
 import ep.db.model.IDocument;
+import ep.db.model.Word;
 import ep.db.pagerank.Edge;
 import ep.db.quadtree.QuadTree;
 import ep.db.quadtree.QuadTreeBranchNode;
@@ -117,23 +121,24 @@ public class DatabaseService {
 	private static final String UPDATE_RELEVANCE_AUTHORS = "UPDATE authors SET relevance = ? WHERE aut_id = ?";
 
 	private static final String SQL_SELECT_COLUMNS = "d.doc_id, d.doi, d.title, d.keywords, d.publication_date, "
-			+ "dd.x, dd.y, dd.rank, d.authors, d.bibtex";
+			+ "dd.x, dd.y, dd.rank, d.authors, d.bibtex, d.most_freq_words ";
 
-	private static final String SEARCH_SQL = "SELECT " + SQL_SELECT_COLUMNS + ", ts_rank(?, tsv, query, ?) score FROM documents d "
-			+ "INNER JOIN documents_data dd ON d.doc_id = dd.doc_id,"
+	private static final String UPDATE_MOST_FREQ_WORDS = "UPDATE documents d SET most_freq_words = jsonb_sub_array(d.freqs, 0, ?) WHERE d.doc_id = ?;";
+
+	private static final String SEARCH_SQL = "SELECT " + SQL_SELECT_COLUMNS + " FROM documents d "
+			+ "INNER JOIN documents_data dd ON d.doc_id = dd.doc_id AND dd.rank IS NOT NULL,"
 			+ "to_tsquery(?) query WHERE query @@ tsv AND d.enabled is TRUE "
-			+ "ORDER BY rank DESC, score DESC LIMIT ?";
+			+ "ORDER BY rank DESC OFFSET ?";	
 
 	private static final String SEARCH_SQL_ALL = "SELECT " + SQL_SELECT_COLUMNS + " FROM documents d "
-			+ "INNER JOIN documents_data dd ON d.doc_id = dd.doc_id "
-			+ "ORDER BY rank DESC";
+			+ "INNER JOIN documents_data dd ON d.doc_id = dd.doc_id AND dd.rank IS NOT NULL "
+			+ "ORDER BY dd.rank DESC OFFSET ?";
 
-	private static final String ADVANCED_SEARCH_SQL = "SELECT " + SQL_SELECT_COLUMNS + " %s FROM documents d " 
-			+ " INNER JOIN documents_data dd ON d.doc_id = dd.doc_id %s "
-			+ " ORDER BY dd.rank DESC LIMIT ?";
+	private static final String ADVANCED_SEARCH_SQL = "SELECT " + SQL_SELECT_COLUMNS + " FROM documents d " 
+			+ " INNER JOIN documents_data dd ON d.doc_id = dd.doc_id AND dd.rank IS NOT NULL %s "
+			+ " ORDER BY dd.rank DESC OFFSET ?";
 
-	private static final String ADVENCED_SEARCH_AUTHORS_INNER_JOIN_SQL = " INNER JOIN (SELECT doc_id, "
-			+ "ts_rank(?, aut_name_tsv, aut_query, ?) aut_rank FROM document_authors da INNER JOIN "
+	private static final String ADVANCED_SEARCH_AUTHORS_INNER_JOIN_SQL = " INNER JOIN (SELECT doc_id FROM document_authors da INNER JOIN "
 			+ "authors a ON da.aut_id = a.aut_id, to_tsquery(?) aut_query WHERE aut_query @@ aut_name_tsv) a "
 			+ "ON a.doc_id = d.doc_id ";
 
@@ -146,24 +151,15 @@ public class DatabaseService {
 	private static final String SEARCH_SQL_DOC_IDS = "SELECT " + SQL_SELECT_COLUMNS + " FROM documents d "
 			+ "INNER JOIN documents_data dd ON d.doc_id = dd.doc_id "
 			+ "WHERE d.doc_id IN %s AND d.enabled is TRUE "
-			+ "ORDER BY rank DESC";
+			+ "ORDER BY rank DESC";	
 
-	private static final String DOCUMENTS_DATA_SQL = "SELECT " + SQL_SELECT_COLUMNS + ", dd.node_id "
-			+ "FROM (SELECT dd.doc_id, dd.x, dd.y, "
-			+ "dd.rank, dd.node_id, rank() over (partition by dd.node_id order by dd.rank desc) as r "
-			+ "FROM documents_data dd) dd INNER JOIN documents d ON dd.doc_id = d.doc_id LEFT JOIN "
-			+ "(SELECT doc_id, string_agg(a.aut_name,';') authors_name, sum(a.relevance) relevance "
-			+ "FROM document_authors da INNER JOIN authors a "
-			+ "ON da.aut_id = a.aut_id GROUP BY da.doc_id) a ON d.doc_id = a.doc_id WHERE r <= ? AND d.enabled is TRUE "
-			+ "ORDER BY node_id,rank DESC";
+	private static final String PRE_DOCUMENTS_NODE_SQL = "SELECT s.* FROM (";
 
-	private static final String PRE_DOCUMENTS_NODE_SQL = "SELECT s.*, ts_rank(?, tsv, query, ?) score FROM (";
-	
-	private static final String DOCUMENTS_NODE_SQL = "SELECT " + SQL_SELECT_COLUMNS + ", dd.node_id, d.tsv, d.enabled,"
-			+ "rank() over (partition by dd.node_id order by dd.rank desc) as r "
+	private static final String DOCUMENTS_NODE_SQL = "SELECT " + SQL_SELECT_COLUMNS 
+			+ " rank() over (partition by dd.node_id order by dd.rank desc) as r "
 			+ "FROM documents_data dd INNER JOIN documents d "
 			+ "ON d.doc_id = dd.doc_id WHERE dd.node_id = ? ORDER BY node_id, rank DESC LIMIT ? OFFSET ?";
-	
+
 	private static final String POST_DOCUMENTS_NODE_SQL = ") s, to_tsquery(?) query WHERE query @@ tsv AND s.enabled is TRUE ORDER BY s.rank DESC";
 
 	private static final String NODE_DATA_SQL = "SELECT *, (select count(*) as nDocuments FROM documents_data dn "
@@ -238,71 +234,6 @@ public class DatabaseService {
 		}
 	}
 
-	//TODO: remove
-//	public FloatMatrix2D buildFrequencyMatrix(long[] docIds) throws Exception {
-//		return buildFrequencyMatrix(docIds, new LogaritmicTFIDF());
-//	}
-//	/**
-//	 * Retorna matrix de frequência de todos os termos presentes
-//	 * nos documentos especificados.
-//	 * @param docIds id's dos documentos considerados para obtenção dos termos ou 
-//	 * <code>null</code> para recuperar termos de todos os documentos. 
-//	 * @return matrix N x M onde N é o número de documentos e M o número de
-//	 * termos.
-//	 * @throws Exception erro ao executar consulta.
-//	 */
-//	public FloatMatrix2D buildFrequencyMatrix(long[] docIds, TFIDF tfidfCalc) throws Exception {
-//
-//		// Retorna numero de documentos e ocorrencia total dos termos
-//		int numberOfDocuments;
-//		if ( docIds == null )
-//			numberOfDocuments = getNumberOfDocuments();
-//		else
-//			numberOfDocuments = docIds.length;
-//
-//		// Constroi consulta caso docIds != null
-//		StringBuilder sql = new StringBuilder();
-//		if ( docIds != null ){
-//			sql.append(" WHERE doc_id IN (");
-//			sql.append(docIds[0]);
-//			for(int i = 1; i < docIds.length; i++){
-//				sql.append(",");
-//				sql.append(docIds[i]);
-//			}
-//			sql.append(")");
-//		}
-//
-//		String where = sql.toString();
-//		Configuration config = Configuration.getInstance();
-//
-//		int minNumOfDocs = (int) Math.ceil(numberOfDocuments * config.getMinimumPercentOfDocuments());
-//		int maxNumOfDocs = (int) Math.ceil(numberOfDocuments * config.getMaximumPercentOfDocuments());
-//
-//		// Recupera frequencia indiviual de cada termo na base de dados (todos os documentos)
-//		final Map<String, Integer> termsCount = getTermsCounts(where, minNumOfDocs, maxNumOfDocs);
-//
-//		// Mapeamento termo -> coluna na matriz (bag of words)
-//		final Map<String, Integer> termsToColumnMap = new HashMap<>();
-//		int c = 1;
-//		for(String key : termsCount.keySet()){
-//			termsToColumnMap.put(key, c);
-//			++c;
-//		}
-//
-//		// No. de linhas = no. de documentos e no.de colunas = no. de termos + 1 (coluna de doc_id's)
-//		FloatMatrix2D matrix = new SparseFloatMatrix2D(numberOfDocuments, termsCount.size()+1); 
-//
-//		tfidfCalc.setTermsCount(termsCount);
-//
-//		// Popula matriz com frequencia dos termos em cada documento
-//		if ( config.isUsePreCalculatedFreqs() )
-//			buildFrequencyMatrix(matrix, numberOfDocuments, termsCount.size(), termsToColumnMap, where, tfidfCalc );
-//		else
-//			buildFrequencyMatrixFromTSV(matrix, termsToColumnMap, where, tfidfCalc );
-//
-//		return matrix;
-//	}
-	
 	public Matrix getFrequencyMatrix(long[] seletecDocIds, TFIDF tfidfCalc, List<Long> docIds) throws Exception {
 
 		// Retorna numero de documentos e ocorrencia total dos termos
@@ -340,7 +271,7 @@ public class DatabaseService {
 			termsToColumnMap.put(key, c);
 			++c;
 		}
-		
+
 		tfidfCalc.setTermsCount(termsCount);
 
 		// Popula matriz com frequencia dos termos em cada documento
@@ -395,11 +326,33 @@ public class DatabaseService {
 		// tabela authors e também atribui ao documento
 		// seus autores na tabela document_authors
 		if ( docId > 0 ){
-			addAuthors(Arrays.asList(doc));
-			addDocumetAuthors(Arrays.asList(doc));
+			try {
+				addAuthors(Arrays.asList(doc));
+				addDocumetAuthors(Arrays.asList(doc));
+			}catch (Exception e) {
+				System.err.println(e.getMessage());
+			}
+			try {
+				setMostFrequentWords(docId);
+			}catch (Exception e) {
+				System.err.println(e.getMessage());
+			}
 		}
 
 		return docId;
+	}
+
+	private void setMostFrequentWords(long docId) throws Exception {
+		final int numWords = Configuration.getInstance().getNumberOfMostFrequentWords();
+		try( Connection conn = db.getConnection();){
+			PreparedStatement stmt = conn.prepareStatement(UPDATE_MOST_FREQ_WORDS);
+			stmt.setInt(1, numWords);
+			stmt.setLong(2, docId);
+			stmt.executeUpdate();
+		}catch (Exception e) {
+			throw e;
+		}
+
 	}
 
 	/**
@@ -672,7 +625,6 @@ public class DatabaseService {
 
 			Statement stmt = conn.createStatement();
 			ResultSet rs = stmt.executeQuery(sql);
-			int doc = 0;
 
 			// Numero de documentos			
 			ObjectMapper mapper = new ObjectMapper();
@@ -681,7 +633,7 @@ public class DatabaseService {
 				docIds.clear();
 			else
 				docIds = new ArrayList<>(numberOfDocs);
-			
+
 			Matrix matrix = new SparseMatrix();
 			while( rs.next() ){
 				long docId = rs.getLong(1);
@@ -708,11 +660,9 @@ public class DatabaseService {
 							}
 						}
 					}
-					
+
 					matrix.addRow(new SparseVector(values, Long.toString(docId), 1.0f, numTerms));
 				}
-				
-				++doc;
 			}
 
 			return matrix;
@@ -738,25 +688,24 @@ public class DatabaseService {
 			String sql = String.format(SELECT_TERMS_FREQ_FROM_TSV, where != null ? where : "");
 			Statement stmt = conn.createStatement();
 			ResultSet rs = stmt.executeQuery(sql);
-			int doc = 0;
 
 			// Numero de documentos
 			if (docIds != null )
 				docIds.clear();
 			else
 				docIds = new ArrayList<>(numberOfDocs);
-			
+
 			Matrix matrix = new SparseMatrix();
 			while( rs.next() ){
 				long docId = rs.getLong(1);
 				Map<String, String> terms = parseTSV(rs.getString(2));
 				docIds.add(docId);
-				
+
 				if ( terms != null && !terms.isEmpty() ){
 					ArrayList<Pair> values = new ArrayList<>();
-					
+
 					for(String term : terms.keySet()){
-					
+
 						if ( termsToColumnMap.containsKey(term)){
 							String value = terms.get(term);
 							// Divide valores para contagem de termos e pesos
@@ -768,10 +717,8 @@ public class DatabaseService {
 					}
 					matrix.addRow(new SparseVector(values, Long.toString(docId), 1.0f, numTerms));					
 				}
-				
-				++doc;
 			}		
-			
+
 			return matrix;
 		}catch( Exception e){
 			throw e;
@@ -1074,21 +1021,23 @@ public class DatabaseService {
 		}
 	}
 
-	public List<IDocument> getSimpleDocuments(String querySearch, int limit,
-			List<Vec2> densities, int maxDocs) throws Exception {
+	/**
+	 * Retorna documentos que satisfazem a consulta especificada.
+	 * @param querySearch {@link String} com consulta para ts_query
+	 * @param densities a {@link List} contendo {@link Vec2} pontos para
+	 * mapa de densidade (excluindo-se os primeiro <code>maxDocs</code>). 
+	 * @param maxDocs numero máximo de documentos a serem retornados.
+	 * @return uma {@link List} com {@link IDocument} encontrados.
+	 * @throws Exception
+	 */
+	public List<IDocument> getSimpleDocuments(String querySearch,
+			List<Vec2> densities, int maxDocs, int page) throws Exception {
 
 		try ( Connection conn = db.getConnection();){
-			Configuration config = Configuration.getInstance();
 			PreparedStatement stmt = conn.prepareStatement(SEARCH_SQL);
 
-			Array array = conn.createArrayOf("float4", config.getWeights());
-			stmt.setArray(1, array);
-			stmt.setInt(2, config.getNormalization());
-			stmt.setString(3, querySearch);
-			if ( limit > 0)
-				stmt.setInt(4, limit);
-			else
-				stmt.setNull(4, java.sql.Types.INTEGER);
+			stmt.setString(1, querySearch); // consulta TS_QUERY
+			stmt.setInt(2, page * maxDocs); //OFFSET			
 
 			try (ResultSet rs = stmt.executeQuery()){
 
@@ -1114,16 +1063,21 @@ public class DatabaseService {
 		}catch( Exception e){
 			throw e;
 		}
-	}
+	}	
 
-	public List<Document> getAllSimpleDocuments() throws Exception {
+	/**
+	 * Retorna todos os documentos na base
+	 * @return a {@link List} com todos os {@link IDocument} na base de dados.
+	 * @throws Exception erro ao acessar banco de dados
+	 */
+	public List<IDocument> getAllSimpleDocuments() throws Exception {
 		try ( Connection conn = db.getConnection();){
 			PreparedStatement stmt = conn.prepareStatement(SEARCH_SQL_ALL);
-
+			stmt.setInt(1, 0);
 			try (ResultSet rs = stmt.executeQuery()){
-				List<Document> docs = new ArrayList<>();
+				List<IDocument> docs = new ArrayList<>();
 				while ( rs.next() ){
-					Document doc = newSimpleDocument( rs );
+					IDocument doc = newSimpleDocument( rs );
 					docs.add(doc);
 				}
 				return docs;
@@ -1215,30 +1169,38 @@ public class DatabaseService {
 		}
 	}
 
-	public List<IDocument> getAllSimpleDocuments(List<Vec2> densities, int maxDocs) throws Exception {
+	public List<IDocument> getAllSimpleDocuments(List<Vec2> densities, int maxDocs, int page) throws Exception {
 
 		try ( Connection conn = db.getConnection();){
-			Configuration config = Configuration.getInstance();
-			PreparedStatement stmt = conn.prepareStatement(
-					String.format(SEARCH_SQL_ALL, config.getDocumentRelevanceFactor(), config.getAuthorsRelevanceFactor()));
+			PreparedStatement stmt = conn.prepareStatement(SEARCH_SQL_ALL);
+			stmt.setInt(1, page * maxDocs); //OFFSET		
+			long start = System.nanoTime();			
+			try (ResultSet rs = stmt.executeQuery()){			
+				long elapsed = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start);
+				System.out.println("Exec: " + elapsed);
 
-			try (ResultSet rs = stmt.executeQuery()){
 				List<IDocument> docs = new ArrayList<>(maxDocs);
 				boolean next = rs.next();
+				start = System.nanoTime();
 				for(int i = 0; i < maxDocs && next; i++){
 					Document doc = newSimpleDocument( rs );
 					docs.add(doc);
 					next = rs.next();
 				}
+				elapsed = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start);
+				System.out.println("Docs: " + elapsed);
 
 				// Documentos para mapa de densidade
+				start = System.nanoTime();
 				while( next ){
 					float x = rs.getFloat(6),
 							y = rs.getFloat(7);
 					densities.add(new Vec2(x, y));
 					next = rs.next();
 				}
-				
+				elapsed = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start);
+				System.out.println("Points: " + elapsed);
+
 				return docs;
 
 			}catch (SQLException e) {
@@ -1251,60 +1213,39 @@ public class DatabaseService {
 	}
 
 	public List<IDocument> getAdvancedSimpleDocuments(String querySearch, String authors, String yearStart, 
-			String yearEnd, int limit, List<Vec2> densities, int maxDocs ) throws Exception {
+			String yearEnd, List<Vec2> densities, int maxDocs, int page ) throws Exception {
 		try ( Connection conn = db.getConnection();){
 
 			StringBuilder where = new StringBuilder();
-			StringBuilder columns = new StringBuilder();
 
-			// Adiciona SQL para busca por autores
+			// Adiciona SQL para busca por autores			
 			if ( authors != null && !authors.isEmpty() ){
-				where.append(ADVENCED_SEARCH_AUTHORS_INNER_JOIN_SQL);
-				columns.append(", a.aut_rank ");
+				where.append(ADVANCED_SEARCH_AUTHORS_INNER_JOIN_SQL);
 			}
 
 			// Adiciona SQL para busca por termos no documento
-			if ( querySearch != null ){
-				where.append(", to_tsquery(?) query WHERE query @@ tsv ");
-				if ( authors != null && !authors.isEmpty())
-					columns.append(" + ts_rank(?, tsv, query, ?) score ");
-				else
-					columns.append(", ts_rank(?, tsv, query, ?) score ");
-				where.append(" AND d.enabled is TRUE ");
-			}
-			else{
-				where.append(" WHERE d.enabled is TRUE ");
-			}
+			if ( querySearch != null )
+				where.append(", to_tsquery(?) query WHERE query @@ tsv AND d.enabled is TRUE ");			
+			else
+				where.append(" WHERE d.enabled is TRUE ");		
 
 			if ( !yearStart.isEmpty() )
 				where.append(" AND publication_date >= ? ");
 			if ( !yearEnd.isEmpty() )
 				where.append(" AND publication_date <= ? ");
 
-			Configuration config = Configuration.getInstance();
 			PreparedStatement stmt = conn.prepareStatement(
-					String.format(ADVANCED_SEARCH_SQL,
-							columns.toString(),
-							where.toString())
-					);
+					String.format(ADVANCED_SEARCH_SQL, where.toString()));
 
 			// Adiciona parâmetros
-			int index = 1;
-			// Query
-			if (querySearch != null){
-				stmt.setArray(index++, conn.createArrayOf("float4", config.getWeights()));
-				stmt.setInt(index++, config.getNormalization());
-			}
-			// Autores
-			if ( !authors.isEmpty() ){
-				stmt.setArray(index++, conn.createArrayOf("float4", config.getWeights()));
-				stmt.setInt(index++, config.getNormalization());
-				stmt.setString(index++, authors);
-			}
+			int index = 1;			
+			// String de buca dos autores
+			if ( !authors.isEmpty() )
+				stmt.setString(index++, authors);			
 
-			if (querySearch != null){
-				stmt.setString(index++, querySearch);
-			}
+			// String de busca por documentos
+			if (querySearch != null)
+				stmt.setString(index++, querySearch);			
 
 			// Ano
 			if ( !yearStart.isEmpty() )
@@ -1312,11 +1253,8 @@ public class DatabaseService {
 			if ( !yearEnd.isEmpty() )
 				stmt.setInt(index++, Integer.parseInt(yearEnd));
 
-			//Numero max. de registros
-			if ( limit > 0 )
-				stmt.setInt(index, limit);
-			else
-				stmt.setNull(index, java.sql.Types.INTEGER);
+			//Offset
+			stmt.setInt(index, page * maxDocs);			
 
 			try (ResultSet rs = stmt.executeQuery()){
 				List<IDocument> docs = new ArrayList<IDocument>(maxDocs);
@@ -1343,9 +1281,9 @@ public class DatabaseService {
 		}
 	}
 
-	private Document newSimpleDocument(ResultSet rs) throws SQLException {
+	private Document newSimpleDocument(ResultSet rs) throws SQLException, JsonParseException, JsonMappingException, IOException {
 		//		d.doc_id, d.doi, d.title, d.keywords, d.publication_date, "
-		//		dd.x, dd.y, dd.rank, d.authors, d.bibtex
+		//		dd.x, dd.y, dd.rank, d.authors, d.bibtex, most_freq_words
 		Document doc = new Document();
 		doc.setId( rs.getLong(1) );
 		doc.setDOI( rs.getString(2) );
@@ -1357,39 +1295,31 @@ public class DatabaseService {
 		doc.setRank(rs.getFloat(8));
 		doc.setAuthors(Utils.getAuthors(rs.getString(9)));
 		doc.setBibTEX(rs.getString(10));
-		//		doc.setScore(rs.getDouble(11));
+
+		// JSON parser das M palavras mais relevantes
+		String terms = rs.getString(11);
+		if ( terms != null && !terms.isEmpty() ){
+			ObjectMapper mapper = new ObjectMapper();
+			List<Map<String,Object>> t = mapper.readValue(terms, 
+					new TypeReference<List<Map<String,Object>>>(){});
+			Word[] words = new Word[Configuration.getInstance().getNumberOfMostFrequentWords()];
+			int i = 0;
+			for(Map<String,Object> o : t){
+				String term = (String) o.get("word");				
+				int count = ((Number) o.get("nentry")).intValue();					
+				words[i] = new Word(term, count);
+				++i;
+
+			}			
+			doc.setWords(words);
+		}
 
 		return doc;
-	}
-
-	public List<Document> getFullDocuments(int maxDocumentsPerNode){
-		List<Document> docs = new ArrayList<>();
-		try (Connection conn = db.getConnection();) {
-			Configuration config = Configuration.getInstance();
-			PreparedStatement stmt = conn.prepareStatement(
-					String.format(DOCUMENTS_DATA_SQL, config.getDbBatchSize(), config.getAuthorsRelevanceFactor()));
-			stmt.setInt(1, maxDocumentsPerNode);
-			try (ResultSet rs = stmt.executeQuery()) {
-				while (rs.next()) {
-					//d.doc_id, d.doi, d.title, d.keywords, d.publication_date, d.x, d.y, d.relevance, authors_name
-					Document doc = newSimpleDocument(rs);                                     
-					docs.add(doc);
-				}
-				return docs;
-			} catch (SQLException e) {
-				System.out.println(e.getMessage());
-				return docs;
-			}
-		} catch (Exception e) {
-			System.out.println(e.getMessage());
-			return docs;
-		}
-	}
+	}	
 
 	public List<IDocument> getDocumentsFromNode(long nodeId, String query, int offset, int limit) throws Exception{
 		List<IDocument> docs = new ArrayList<>();
 		try (Connection conn = db.getConnection();) {
-			Configuration config = Configuration.getInstance();
 			StringBuilder sb = new StringBuilder();
 			if ( query == null)
 				sb.append(DOCUMENTS_NODE_SQL);
@@ -1398,30 +1328,16 @@ public class DatabaseService {
 				sb.append(DOCUMENTS_NODE_SQL);
 				sb.append(POST_DOCUMENTS_NODE_SQL);
 			}
-			
-			PreparedStatement stmt = conn.prepareStatement(sb.toString());
-			//			SELECT SQL_SELECT_COLUMNS, ts_rank(?, tsv, query, ?) score FROM ("
-			//			+ "SELECT " + SQL_SELECT_COLUMNS + ", dd.node_id, d.tsv, "
-			//			+ "rank() over (partition by dd.node_id order by dd.rank desc) as r "
-			//			+ "FROM documents_data dd INNER JOIN documents d "
-			//			+ "ON d.doc_id = dd.doc_id WHERE dd.node_id = ? ORDER BY node_id, rank DESC LIMIT ? OFFSET ?) s, "
-			//			+ "to_tsquery(?) query WHERE query @@ tsv AND s.enabled is TRUE ORDER BY s.rank DESC
-			int p = 1;
-			if ( query != null){
-				Array array = conn.createArrayOf("float4", config.getWeights());
-				stmt.setArray(p++, array);
-				stmt.setInt(p++, config.getNormalization());
-				stmt.setString(6, query);
-			}
-			
-			stmt.setLong(p++, nodeId);
-			stmt.setInt(p++, limit);
-			stmt.setInt(p++, offset);
-			
+
+			PreparedStatement stmt = conn.prepareStatement(sb.toString());					
+			stmt.setLong(1, nodeId);
+			stmt.setInt(2, limit);
+			stmt.setInt(3, offset);			
+			if ( query != null)										
+				stmt.setString(4, query);			
+
 			try (ResultSet rs = stmt.executeQuery()) {
-				while (rs.next()) {
-					//d.doc_id, d.doi, d.title, d.keywords, d.publication_date, d.x, d.y, 
-					// rank, d.relevance, authors_name                                    
+				while (rs.next()) { 
 					Document doc = newSimpleDocument(rs);
 					docs.add(doc);
 				}

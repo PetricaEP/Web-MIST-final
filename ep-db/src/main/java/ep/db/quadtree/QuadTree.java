@@ -13,7 +13,6 @@ import java.util.List;
 import ep.db.database.Database;
 import ep.db.database.DatabaseService;
 import ep.db.database.DefaultDatabase;
-import ep.db.model.Document;
 import ep.db.model.IDocument;
 import ep.db.utils.Configuration;
 
@@ -529,7 +528,7 @@ public class QuadTree {
 
 		System.out.println("Creating QuadTree...");
 
-		List<Document> docs;
+		List<IDocument> docs;
 		try {
 			docs = dbService.getAllSimpleDocuments();
 		} catch (Exception e) {

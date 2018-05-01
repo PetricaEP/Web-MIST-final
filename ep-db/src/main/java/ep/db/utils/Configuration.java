@@ -60,6 +60,7 @@ public class Configuration {
 	private static final String LAMP_FRACTION_DELTA = "lamp_fraction_delta";
 	private static final String LAMP_PERCENTAGE = "lamp_percentage";
 	private static final String LAMP_NUMBER_OF_THREADS = "lamp_threads";
+	private static final String NUMBER_OF_MOST_FREQ_WORDS = "num_most_freq_words";
 	
 
 	public static final int DENSITY_MAP_CLIENT = 1;
@@ -145,6 +146,8 @@ public class Configuration {
 	private float lampPercentage;
 
 	private int lampNumberOfThreads;
+	
+	private int numberOfMostFrequentWords;
 	
 	private static Configuration instance;
 
@@ -377,6 +380,15 @@ public class Configuration {
 			}
 		}
 		
+		prop = properties.getProperty(NUMBER_OF_MOST_FREQ_WORDS);
+		if ( prop != null ){
+			try {
+				numberOfMostFrequentWords = Integer.parseInt(prop.trim());	
+			} catch( NumberFormatException e){
+				logger.warn("Cannot parse number of most frequent words: " + prop, e);
+			}
+		}				
+		
 		prop = properties.getProperty(DENSITY_MAP_CALCULATION);
 		if ( prop.trim().equals("client"))
 			densityMapCalculation = DENSITY_MAP_CLIENT;
@@ -449,6 +461,7 @@ public class Configuration {
 		properties.setProperty(LAMP_FRACTION_DELTA, Float.toString(lampFractionDelta));
 		properties.setProperty(LAMP_PERCENTAGE, Float.toString(lampPercentage));
 		properties.setProperty(LAMP_NUMBER_OF_THREADS, Integer.toString(lampNumberOfThreads));
+		properties.setProperty(NUMBER_OF_MOST_FREQ_WORDS, Integer.toString(numberOfMostFrequentWords));
 		
 		properties.setProperty(CONTROL_POINTS_CHOICE, controlPointsChoice.name());
 		properties.setProperty(DISSIMILARITY_TYPE, dissimilarityType.name());
@@ -755,5 +768,13 @@ public class Configuration {
 	
 	public void setLampNumberOfThreads(int lampNumberOfThreads) {
 		this.lampNumberOfThreads = lampNumberOfThreads;
+	}
+	
+	public int getNumberOfMostFrequentWords() {
+		return numberOfMostFrequentWords;
+	}
+	
+	public void setNumberOfMostFrequentWords(int numberOfMostFrequentWords) {
+		this.numberOfMostFrequentWords = numberOfMostFrequentWords;
 	}
 }

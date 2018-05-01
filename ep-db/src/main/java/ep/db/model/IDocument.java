@@ -6,6 +6,9 @@
 package ep.db.model;
 
 import java.util.List;
+import java.util.Queue;
+
+import com.google.common.collect.MinMaxPriorityQueue;
 
 import ep.db.quadtree.Vec2;
 
@@ -67,6 +70,10 @@ public interface IDocument extends Comparable<IDocument>{
     public Vec2 getPos();
     
     public String getBibTEX();
+    
+    public Word[] getWords();
+    
+    public void setWords(Word[] words);
     
     @Override
     public int compareTo(IDocument o);
