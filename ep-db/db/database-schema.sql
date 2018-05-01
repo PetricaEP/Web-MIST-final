@@ -24,6 +24,7 @@ CREATE TABLE documents (
 	language			regconfig default 'english'::regconfig,
 	tsv					tsvector,
 	freqs				jsonb,
+	most_freq_words		jsonb,
 	path				varchar(300),
 	enabled				boolean default true,
 	bibtex				text
@@ -104,13 +105,14 @@ CREATE TRIGGER tsvector_doc_update BEFORE INSERT OR UPDATE
     
  CREATE OR REPLACE FUNCTION documents_freqs() RETURNS TRIGGER AS $documents_freqs_trigger$
  	DECLARE
- 		json_str	jsonb;
+ 		json_str	 jsonb;
  	BEGIN 
 	 	
 	 	IF new.tsv IS NOT NULL THEN
 		 	BEGIN
-		   		SELECT array_to_json(array_agg(row)) INTO json_str FROM 
-		   		ts_stat( format('SELECT %s::tsvector', quote_literal(new.tsv) ) ) row;
+		   		SELECT array_to_json(array_agg(row)) INTO json_str FROM ( 
+		   		SELECT word, nentry FROM  
+		   		ts_stat( format('SELECT %s::tsvector', quote_literal(new.tsv) ) ) ORDER BY nentry DESC) row;
 		    EXCEPTION
 		    	WHEN NO_DATA_FOUND THEN
 		    		json_str := NULL;
@@ -151,6 +153,19 @@ CREATE OR REPLACE FUNCTION array_to_tsvector2(arr tsvector[]) RETURNS tsvector A
 $array_to_tsvector2$ LANGUAGE plpgsql;
 
 
+CREATE or REPLACE FUNCTION jsonb_sub_array(jsonb_array jsonb, from_pos int, to_pos int) 
+RETURNS jsonb AS $jsonb_sub_array$
+	DECLARE
+		sub_array jsonb;
+	BEGIN
+		SELECT jsonb_agg(value) INTO sub_array 
+    		FROM jsonb_array_elements(jsonb_array) WITH ordinality
+	    WHERE ordinality-1 BETWEEN from_pos AND to_pos-1;
+	    RETURN sub_array;
+    END;
+$jsonb_sub_array$ LANGUAGE plpgsql;
+
+
 -- Index
 
 CREATE INDEX documents_data_node_id_index ON documents_data (node_id);
@@ -158,4 +173,6 @@ CREATE INDEX documents_data_relevance_index ON documents_data (rank);
 CREATE INDEX document_authors_doc_id_index ON document_authors(doc_id);
 CREATE INDEX document_authors_aut_id_index ON document_authors(aut_id);
 CREATE INDEX documents_enabled_index ON documents(enabled);
-CREATE INDEX documents_tsv_index ON documents USING gist(tsv);
+CREATE INDEX documents_tsv_index ON documents USING gin(tsv);
+CREATE INDEX authors_tsv_index ON authors USING gin(aut_name_tsv);
+CREATE INDEX authors_on_name_trigram_index ON authors USING gin (aut_name gin_trgm_ops);
