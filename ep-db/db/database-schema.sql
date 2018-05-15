@@ -8,6 +8,8 @@ DROP TABLE IF EXISTS documents;
 DROP TABLE IF EXISTS authors;
 DROP TABLE IF EXISTS nodes;
 
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+
 CREATE TABLE documents (
 	doc_id				bigserial PRIMARY KEY,
 	doi					varchar(100) UNIQUE,
@@ -165,6 +167,37 @@ RETURNS jsonb AS $jsonb_sub_array$
     END;
 $jsonb_sub_array$ LANGUAGE plpgsql;
 
+CREATE OR REPLACE FUNCTION insert_authors(doc_id bigint, authors text[]) RETURNS void AS $insert_authors$
+	DECLARE
+		aut text;
+		aut_id bigint := -1;
+		stack text;
+ 	BEGIN	 	
+	 	FOREACH aut IN ARRAY authors
+	 	LOOP
+	 		BEGIN
+	 			INSERT INTO authors(aut_name) VALUES(aut) ON CONFLICT (aut_name) DO NOTHING RETURNING authors.aut_id INTO aut_id;
+	 			INSERT INTO document_authors(doc_id, aut_id) VALUES (doc_id, aut_id);	 			 		
+	 		END;
+	 			
+	 	END LOOP;
+	END;
+$insert_authors$ LANGUAGE plpgsql;
+
+
+CREATE OR REPLACE FUNCTION insert_authors_from_documents() RETURNS void  AS $insert_authors_from_documents$
+ 	DECLARE
+ 		doc RECORD; 		
+ 	BEGIN 
+	 	FOR doc IN SELECT * FROM documents LOOP
+	 		IF doc.authors IS NOT NULL THEN
+	 			BEGIN
+	 			PERFORM insert_authors(doc.doc_id, regexp_split_to_array(doc.authors, ';'));
+	 			END;
+	 		END IF;
+	 	END LOOP;
+	END;
+$insert_authors_from_documents$ LANGUAGE plpgsql;
 
 -- Index
 
