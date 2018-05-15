@@ -32,7 +32,7 @@ import me.tongfei.progressbar.ProgressBarStyle;
  * projeção multidimensional.
  * <a href="http://ieeexplore.ieee.org/xpls/abs_all.jsp?arnumber=6065024">
  * http://ieeexplore.ieee.org/xpls/abs_all.jsp?arnumber=6065024</a> 
- * <i>(P.Joia, F.V Paulovich, D.Coimbra, J.A.Cuminato, & L.G.Nonato)</i>
+ * <i>(P.Joia, F.V Paulovich, D.Coimbra, J.A.Cuminato, L.G.Nonato)</i>
  * @version 1.0
  * @since 2017
  *
@@ -69,6 +69,7 @@ public class Lamp {
 	 * Realiza projeção multidimensional para a matriz
 	 * informada.
 	 * @param x matriz com valores a serem projetados (N x M).
+	 * @param pdata configuracoes para projecao.
 	 * @return matriz de projeção multimensional (N x 2).
 	 */
 	public float[] project(Matrix x, ProjectionData pdata){

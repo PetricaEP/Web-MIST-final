@@ -52,6 +52,9 @@ public class Consolidation {
 	/**
 	 * Try to consolidate some uncertain bibliographical data with mendeley web service based on
 	 * core metadata
+	 * @param idoc IDocument documento
+	 * @return true em caso de sucesso (documento atualizado), falso caso contrário.
+	 * @throws Exception erro ao consolidar documento. 
 	 */
 	public boolean consolidate(IDocument idoc) throws Exception {
 		boolean valid = false;

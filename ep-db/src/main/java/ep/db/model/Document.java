@@ -509,14 +509,14 @@ public class Document implements IDocument, Serializable{
 	
 	/**
 	 * Set document's number of citation.
-	 * @param numberOfCitations
+	 * @param numberOfCitations number of citations
 	 */
 	public void setNumberOfCitations(long numberOfCitations) {
 		this.numberOfCitations = numberOfCitations;
 	}
 
 	/**
-	 * Retorn o raio para visualzação
+	 * Retorna o raio para visualzação
 	 * @return raio
 	 */
 	public double getRadius() {
@@ -525,7 +525,7 @@ public class Document implements IDocument, Serializable{
 
 	/**
 	 * Atribui raio para visualização.
-	 * @param radius
+	 * @param radius raio do documento na visualizacao.
 	 */
 	public void setRadius(double radius) {
 		this.radius = radius;

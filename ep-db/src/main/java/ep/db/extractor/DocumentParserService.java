@@ -12,8 +12,6 @@ import java.util.List;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
-import javax.naming.NoInitialContextException;
-
 import org.grobid.core.mock.MockContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -290,10 +288,9 @@ public class DocumentParserService {
 
 	/**
 	 * Método principal para adição de novo documentos
-	 * @param args
-	 * @throws Exception
+	 * @param args argumentos para programa.
 	 */
-	public static void main(String[] args) throws Exception {
+	public static void main(String[] args) {
 
 		if ( args.length != 1){
 			System.out.println("Provide the directory path where articles are located");
@@ -324,7 +321,9 @@ public class DocumentParserService {
 			try {
 				MockContext.destroyInitialContext();
 				GrobIDDocumentParser.closeEngine();
-			}catch (NoInitialContextException e) {}
+			}catch ( Exception e) {
+				e.printStackTrace();
+			}
 		}
 	}
 }

@@ -90,8 +90,8 @@ public class BKMeans {
 
 	
 	/** Creates a new instance of BKmeans
-	 * @param nrclusters 
-	 * @param nThreads
+	 * @param nrclusters numero de clusters 
+	 * @param showProgressBar exibe barra de progresso
 	 */
 	public BKMeans(int nrclusters, boolean showProgressBar) {
 		this.nrclusters = nrclusters;

@@ -17,6 +17,7 @@ public interface DocumentParser {
 	/**
 	 * Processa cabeçalho do documento especificado
 	 * @param filename nome do arquivo (caminho) para o documento.
+	 * @throws Exception erro ao realizar paser do cabeçalho.
 	 */
 	public void parseHeader(String filename) throws Exception;
 
@@ -49,10 +50,10 @@ public interface DocumentParser {
 
 	/**
 	 * Retorna data de publicação do último documento
-	 * processado.
+	 * processado 
+	 * @see Utils#extractYear(String)
 	 * @return data de publicação (na maioria das vezes
-	 * somente o ano é retornado). 
-	 * @see {@link Utils#extractYear(String)}.).
+	 * somente o ano é retornado).		
 	 */
 	public String getPublicationDate();
 
@@ -110,7 +111,7 @@ public interface DocumentParser {
 	/**
 	 * Retorna página(s) onde o 
 	 * documento foi publicado.
-	 * @return
+	 * @return paginas
 	 */
 	public String getPages();
 
@@ -118,7 +119,7 @@ public interface DocumentParser {
 	 * Retorna volume/edição do
 	 * container onde o último documento
 	 * processado foi publicado. 
-	 * @return
+	 * @return volume
 	 */
 	public String getVolume();
 	

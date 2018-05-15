@@ -38,7 +38,7 @@ public class RelevanceCalculator {
 
 	/**
 	 * Cria novo objeto para cálculo de relevância utilizando
-	 * fator-C padrão ({@value #C} e configuração especificada.
+	 * fator-C padrão ou configuração especificada.
 	 * @param config configuração.
 	 */
 	public RelevanceCalculator( Configuration config ) {
@@ -97,6 +97,8 @@ public class RelevanceCalculator {
 	/**
 	 * Atualiza relevâncias no banco de dados.
 	 * @throws Exception erro ao recuperar ou atualizar relevâncias.
+	 * @param type {@link DatabaseService#AUTHORS_GRAPH} ou {@link DatabaseService#DOCUMENTS_GRAPH}
+	 * @throws Exception erro ao executar pagerank. 
 	 */
 	public void updateRelevance(int type) throws Exception {
 
@@ -131,7 +133,7 @@ public class RelevanceCalculator {
 
 	/**
 	 * Método main para cálculo/atualização das relevâncias.
-	 * @param args
+	 * @param args argumentos para PageRank
 	 */
 	public static void main(String[] args) {
 		try {

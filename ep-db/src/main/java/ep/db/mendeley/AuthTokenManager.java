@@ -19,10 +19,9 @@ package ep.db.mendeley;
 import java.util.Date;
 
 /**
- *  Manager used by the {@link Request} to get the OAuth access and refresh tokens from in order
+ *  Manager used by the Request to get the OAuth access and refresh tokens from in order
  *  to launch HTTP requests against the Mendeley API.
- *
- *  @{see http://dev.mendeley.com/}
+ *  See dev.mendeley.com
  */
 public interface AuthTokenManager {
 
@@ -50,7 +49,7 @@ public interface AuthTokenManager {
      * Stores the tokens for further retrieval.
      * Implementations of the interface should decide if they will use a persistent method for
      * storing the data or any other approach.
-     *  @param accessToken the access token string
+     * @param accessToken the access token string
      * @param refreshToken the refresh token string
      * @param tokenType the token type string
      * @param expiresIn the expires in value
@@ -60,7 +59,7 @@ public interface AuthTokenManager {
     /**
      * Clears the tokens.
      * This implies logging the user out from the Mendeley API.
-     * After this method is invoked, the user will need to sign in again or {@link Request}s will
+     * After this method is invoked, the user will need to sign in again or Requests will
      * end up with an authorization error.
      */
     void clearTokens();

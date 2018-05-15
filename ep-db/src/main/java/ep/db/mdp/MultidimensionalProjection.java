@@ -61,6 +61,7 @@ public class MultidimensionalProjection {
 	 * Cria novo objeto para projeção multidimensional
 	 * com a configuração dada.
 	 * @param config configuração.
+	 * @param normalize realiza normalizacao dos valores
 	 */
 	public MultidimensionalProjection( Configuration config, boolean normalize ) {
 		this.dbService = new DatabaseService(new DefaultDatabase(config));
@@ -79,7 +80,7 @@ public class MultidimensionalProjection {
 		Matrix matrix = getBagOfWordsMatrix(docIds);						
 
 //		FloatMatrix2D matrix = Lamp.load("/Users/jose/Documents/freelancer/petricaep/ep-project/ep-db/documents100.data");
-		matrix.save("documents200k.data");
+//		matrix.save("documents200k.data");
 		
 		// Realiza projeção multidimensional utilizando LAMP
 		System.out.println("Projecting...");
@@ -99,7 +100,7 @@ public class MultidimensionalProjection {
 		float[] proj = lamp.project(matrix, pdata);	
 		int nrows = proj.length / 2;
 		
-		Lamp.save("documents200k.prj", proj);		
+//		Lamp.save("documents200k.prj", proj);		
 
 		List<Integer> outliers = null;
 		if ( Configuration.getInstance().isDisableOutliers()  ) {
@@ -122,7 +123,7 @@ public class MultidimensionalProjection {
 			normalizeProjections(proj, rows);
 		} 
 
-		Lamp.save("documents200k-norm.prj", proj);		
+//		Lamp.save("documents200k-norm.prj", proj);		
 
 		// Atualiza projeções no banco de dados.
 		System.out.println("Updating databse...");
@@ -248,7 +249,7 @@ public class MultidimensionalProjection {
 
 	/**
 	 * Método main para calcúlo das projeções.
-	 * @param args
+	 * @param args argumento para MDP
 	 */
 	public static void main(String[] args) {
 		try {

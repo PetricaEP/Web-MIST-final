@@ -5,18 +5,20 @@ import java.util.ArrayList;
 import ep.db.utils.Utils;
 
 /** Singular Value Decomposition.
-   <P>
-   For an m-by-n matrix A with m >= n, the singular value decomposition is
+   <p>
+   For an m-by-n matrix A with m &gt;= n, the singular value decomposition is
    an m-by-n orthogonal matrix U, an n-by-n diagonal matrix S, and
    an n-by-n orthogonal matrix V so that A = U*S*V'.
-   <P>
-   The singular values, sigma[k] = S[k][k], are ordered so that
-   sigma[0] >= sigma[1] >= ... >= sigma[n-1].
-   <P>
+   </p>
+   <p>
+   The singular values, sigma[k] = S[k][k], are ordered so that   
+   sigma[0] &gt;= sigma[1] &gt;= ... &gt;= sigma[n-1].   
+   </p>
+   <p>
    The singular value decompostion always exists, so the constructor will
    never fail.  The matrix condition number and the effective numerical
    rank can be computed from this decomposition.
- */
+ **/
 
 public class SingularValueDecomposition {
 
@@ -46,10 +48,8 @@ public class SingularValueDecomposition {
 	 * ------------------------ */
 
 	/** Construct the singular value decomposition
-   @param A    Rectangular matrix
-   @return     Structure to access U, S and V.
+   	@param matrix    Rectangular matrix
 	 */
-
 	public SingularValueDecomposition (Matrix matrix) {
 
 		// Derived from LINPACK code.
@@ -82,7 +82,7 @@ public class SingularValueDecomposition {
 				for (int i = k; i < m; i++) {
 					s[k] = Utils.hypot(s[k], matrix.getRow(i).getValue(k));
 				}
-				
+
 				if (s[k] != 0.0) {
 					if (row.getValue(k) < 0.0) {
 						s[k] = -s[k];
@@ -90,10 +90,10 @@ public class SingularValueDecomposition {
 					for (int i = k; i < m; i++) {
 						Vector vi = matrix.getRow(i);						
 						vi.setValue(k, vi.getValue(k) / s[k]);
-//						A[i][k] /= s[k];
+						//						A[i][k] /= s[k];
 					}
 					row.setValue(k, row.getValue(k) + 1.0f);					
-//					A[k][k] += 1.0;
+					//					A[k][k] += 1.0;
 				}
 				s[k] = -s[k];
 			}
@@ -111,7 +111,7 @@ public class SingularValueDecomposition {
 					for (int i = k; i < m; i++) {
 						Vector vi = matrix.getRow(i);
 						vi.setValue(j, vi.getValue(j) + t * vi.getValue(k));
-//						A[i][j] += t*A[i][k];
+						//						A[i][j] += t*A[i][k];
 					}
 				}
 
@@ -165,7 +165,7 @@ public class SingularValueDecomposition {
 						for (int i = k+1; i < m; i++) {
 							Vector vi = matrix.getRow(i);
 							vi.setValue(j, vi.getValue(j) + t * work[i]);
-//							A[i][j] += t*work[i];
+							//							A[i][j] += t*work[i];
 						}
 					}
 				}

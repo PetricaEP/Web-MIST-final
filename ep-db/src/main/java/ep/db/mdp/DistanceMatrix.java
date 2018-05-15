@@ -64,8 +64,8 @@ public class DistanceMatrix {
 
 	/**
 	 * This method modify a distance in the distance matriz.
-	 * @param indexA The number of the first point.
-	 * @param indexB The number of the second point.
+	 * @param i The number of the first point.
+	 * @param j The number of the second point.
 	 * @param value The new value for the distance between the two points.
 	 */
 	public void setDistance(int i, int j, float value) {

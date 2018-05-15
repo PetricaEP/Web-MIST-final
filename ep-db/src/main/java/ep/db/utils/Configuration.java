@@ -1,8 +1,8 @@
 package ep.db.utils;
 
-import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.Locale;
 import java.util.Properties;
 
@@ -18,7 +18,7 @@ public class Configuration {
 	/**
 	 * Arquivo de configuração
 	 */
-	public static final String PROP_FILE = "conf/config.properties";
+	public static final String PROP_FILE = "/config.properties";
 
 	private static final String DB_HOST = "db.host";
 	private static final String DB_NAME = "db.database";
@@ -173,8 +173,8 @@ public class Configuration {
 		
 		Locale.setDefault(Locale.ENGLISH);
 		
-		try {
-			properties.load(new FileInputStream(configFile));
+		try (InputStream is = Configuration.class.getResourceAsStream(configFile);){
+			properties.load(is);
 		} catch (IOException e) {
 			throw e;
 		}

@@ -3,18 +3,25 @@ package ep.db.mendeley;
 import org.postgresql.util.Base64;
 
 /**
+ * <p>
  * Data structure to wrap the client credentials needed to authenticate against the Mendeley
  * Web API.
- *
- * <p/>
- *
- * To create your application credentials {@see http://dev.mendeley.com/myapps.html}
+ * </p> 
+ * <p> 
+ * To create your application credentials 
+ * See dev.mendeley.com
+ * </p>
  */
 public class ClientCredentials {
 
     public final String clientId;
     public final String clientSecret;
 
+    /**
+     * New client credentials
+     * @param clientId client id
+     * @param clientSecret client password
+     */
     public ClientCredentials(String clientId, String clientSecret) {
         this.clientId = clientId;
         this.clientSecret = clientSecret;

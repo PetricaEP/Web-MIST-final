@@ -50,6 +50,8 @@ public final class GrobIDDocumentParser implements DocumentParser{
 	 * <p>Somente uma instância da ENGINE do GrobID deve existir durante a
 	 * execução do programa. Por isto, diferentes objetos desta classe irão
 	 * compartilhar mesma ENGINE.</p>
+	 * @param grobidHome caminho para o diretorio GROBID_HOME
+	 * @param grobidProperties caminho para o arquivo de configuração do GLOBIID.
 	 * @param consolidate: opção de consolidação permite ao GROBID consultar
 	 * CrossRef para melhorar informação extraída.
 	 * @throws Exception se um erro ocorrer ao inicializar GROBID

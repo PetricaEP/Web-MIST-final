@@ -364,7 +364,7 @@ public class DatabaseService {
 	 * @param documents documentos a serem inseridos.
 	 * @return vetor com id dos documentos inseridos (excluidos os id's dos documentos
 	 * atualizados).
-	 * @throws Exception
+	 * @throws Exception erro ao adicionar documentos.
 	 */
 	public long[] addDocuments(List<Document> documents) throws Exception {
 		List<Long> docIds = new ArrayList<>();
@@ -524,7 +524,7 @@ public class DatabaseService {
 	 * Adiciona uma referência ao banco de dados.
 	 * <p>Este método irá adicionar o documento de referência
 	 * caso não exista no bando de dados e adicionar citação
-	 * docId -> ref</p>
+	 * docId -&gt; ref</p>
 	 * @param docId id do documento que faz a citação.
 	 * @param ref documento citado.
 	 * @throws Exception erro ao executar inserção.
@@ -808,6 +808,7 @@ public class DatabaseService {
 
 	/**
 	 * Retorna grafo de citação
+	 * @param type {@link DatabaseService#AUTHORS_GRAPH} ou {@link DatabaseService#DOCUMENTS_GRAPH}.ß¬
 	 * @return grafo direcionado com citações.
 	 * @throws Exception erro ao executar consulta.
 	 */
@@ -945,8 +946,8 @@ public class DatabaseService {
 	/**
 	 * Atualiza relevância dos documentos.
 	 * @param graph grafo de citações.
-	 * @param pageRank relevância dos documentos (pagerank).
-	 * @param type 
+	 * @param pageRank relevância dos documentos (pagerank).	
+	 * @param type {@link DatabaseService#AUTHORS_GRAPH} ou {@link DatabaseService#DOCUMENTS_GRAPH}.
 	 * @throws Exception erro ao executar atualização.
 	 */
 	public void updatePageRank(DirectedGraph<Long, Long> graph, PageRank<Long,Long> pageRank, int type) throws Exception {
@@ -1027,8 +1028,9 @@ public class DatabaseService {
 	 * @param densities a {@link List} contendo {@link Vec2} pontos para
 	 * mapa de densidade (excluindo-se os primeiro <code>maxDocs</code>). 
 	 * @param maxDocs numero máximo de documentos a serem retornados.
+	 * @param page numero de pagina (paginacao).
 	 * @return uma {@link List} com {@link IDocument} encontrados.
-	 * @throws Exception
+	 * @throws Exception error ao recuperar documentos
 	 */
 	public List<IDocument> getSimpleDocuments(String querySearch,
 			List<Vec2> densities, int maxDocs, int page) throws Exception {
