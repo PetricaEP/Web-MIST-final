@@ -20,13 +20,13 @@ CREATE OR REPLACE FUNCTION calpagerank_docs(alpha double precision) RETURNS void
 
 							  SELECT DISTINCT ref_id FROM citations) foo;
 
-		CREATE TABLE pagerank AS SELECT * , 1.00/nodeNum AS pr FROM (SELECT DISTINCT doc_id FROM citations
+		CREATE TABLE pagerank AS SELECT * , CASE WHEN nodeNum <> 0 THEN 1.00/nodeNum ELSE 0 END AS pr FROM (SELECT DISTINCT doc_id FROM citations
 
 							  UNION
 
 							  SELECT DISTINCT ref_id FROM citations) foo;
 
-		CREATE TABLE weight AS SELECT citations.doc_id, 1.00/COUNT(citations.ref_id) AS wei FROM citations GROUP BY citations.doc_id;
+		CREATE TABLE weight AS SELECT citations.doc_id, CASE WHEN count(citations.ref_id) <> 0 THEN 1.00/COUNT(citations.ref_id) ELSE 0 END AS wei FROM citations GROUP BY citations.doc_id;
 
 
 
@@ -44,7 +44,7 @@ CREATE OR REPLACE FUNCTION calpagerank_docs(alpha double precision) RETURNS void
 
 					FROM pagerank LEFT JOIN edgeWithOuterDegree ON pagerank.doc_id = edgeWithOuterDegree.doc_id GROUP BY edgeWithOuterDegree.ref_id;
 
-			CREATE TABLE currentpagerank AS SELECT pagerank.doc_id, (1.0 - alpha)/nodeNum+COALESCE(pagerank1.pr,0) as pr FROM pagerank LEFT JOIN pagerank1 ON pagerank.doc_id = pagerank1.doc_id;
+			CREATE TABLE currentpagerank AS SELECT pagerank.doc_id, CASE WHEN nodeNum <> 0 THEN (1.0 - alpha)/nodeNum+COALESCE(pagerank1.pr,0) ELSE COALESCE(pagerank1.pr,0) END as pr FROM pagerank LEFT JOIN pagerank1 ON pagerank.doc_id = pagerank1.doc_id;
 
 			DROP TABLE pagerank1;
 
@@ -99,13 +99,13 @@ CREATE OR REPLACE FUNCTION calpagerank_docs(alpha double precision) RETURNS void
 
 							  SELECT DISTINCT des FROM citations_authors) foo;
 
-		CREATE TABLE pagerank AS SELECT * , 1.00/nodeNum AS pr FROM (SELECT DISTINCT src FROM citations_authors
+		CREATE TABLE pagerank AS SELECT * , CASE WHEN nodeNum <> 0 THEN 1.00/nodeNum ELSE 0 END AS pr FROM (SELECT DISTINCT src FROM citations_authors
 
 							  UNION
 
 							  SELECT DISTINCT des FROM citations_authors) foo;
 
-		CREATE TABLE weight AS SELECT citations_authors.src, 1.00/COUNT(citations_authors.des) AS wei FROM citations_authors GROUP BY citations_authors.src;
+		CREATE TABLE weight AS SELECT citations_authors.src, CASE WHEN COUNT(citations_authors.des) <> 0 THEN 1.00/COUNT(citations_authors.des) ELSE 0 END AS wei FROM citations_authors GROUP BY citations_authors.src;
 
 		CREATE TABLE edgeWithOuterDegree AS SELECT citations_authors.src, citations_authors.des, weight.wei FROM citations_authors JOIN weight ON citations_authors.src = weight.src;
 
@@ -121,7 +121,7 @@ CREATE OR REPLACE FUNCTION calpagerank_docs(alpha double precision) RETURNS void
 
 					FROM pagerank LEFT JOIN edgeWithOuterDegree ON pagerank.src = edgeWithOuterDegree.src GROUP BY edgeWithOuterDegree.des;
 
-			CREATE TABLE currentpagerank AS SELECT pagerank.src, (1.0 - alpha)/nodeNum+COALESCE(pagerank1.pr,0) as pr FROM pagerank LEFT JOIN pagerank1 ON pagerank.src = pagerank1.src;
+			CREATE TABLE currentpagerank AS SELECT pagerank.src, CASE WHEN nodeNum <> 0 THEN (1.0 - alpha)/nodeNum+COALESCE(pagerank1.pr,0) ELSE COALESCE(pagerank1.pr,0) END AS pr FROM pagerank LEFT JOIN pagerank1 ON pagerank.src = pagerank1.src;
 
 			DROP TABLE pagerank1;
 
