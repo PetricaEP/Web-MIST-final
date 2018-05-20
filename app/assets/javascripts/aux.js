@@ -815,7 +815,7 @@ function contourDensityPromise( contours, densityMap, tab, minMaxX, minMaxY ){
 
 	setTimeout( function(){
 		if ( contours === null ){
-			deferred.resolve( null, tab );
+			deferred.resolve( null, tab, null, minMaxX, minMaxY );
 		}
 		else{
 			deferred.resolve( contours( tab.densities ), tab, densityMap, minMaxX, minMaxY );

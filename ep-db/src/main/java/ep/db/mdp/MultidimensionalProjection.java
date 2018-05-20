@@ -1,6 +1,7 @@
 package ep.db.mdp;
 
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -79,12 +80,15 @@ public class MultidimensionalProjection {
 		List<Long> docIds = new ArrayList<>();		
 		Matrix matrix = getBagOfWordsMatrix(docIds);						
 
-//		FloatMatrix2D matrix = Lamp.load("/Users/jose/Documents/freelancer/petricaep/ep-project/ep-db/documents100.data");
-//		matrix.save("documents200k.data");
-		
 		// Realiza projeção multidimensional utilizando LAMP
 		System.out.println("Projecting...");
 
+//		Matrix subset = new SparseMatrix();
+//		int[] selectedIds = new Random().ints(10000, 0, matrix.getRowCount()).toArray();
+//		for( int i : selectedIds) {
+//			subset.addRow(matrix.getRow(i));			
+//		}
+		
 		final int numberControlPoints = (int) Math.sqrt(matrix.getRowCount());
 		ProjectionData pdata = new ProjectionData();
 		pdata.setControlPointsChoice(config.getControlPointsChoice());
@@ -97,10 +101,12 @@ public class MultidimensionalProjection {
 
 		final int nThreads = config.getLampNumberOfThreads();
 		Lamp lamp = new Lamp(nThreads);
-		float[] proj = lamp.project(matrix, pdata);	
+		long start = System.nanoTime();
+		float[] proj = lamp.project(matrix, pdata);
+		System.out.println("Elapsed: " + ((System.nanoTime() - start)/1e9));
 		int nrows = proj.length / 2;
 		
-//		Lamp.save("documents200k.prj", proj);		
+		Lamp.save("documents200k.prj", proj);		
 
 		List<Integer> outliers = null;
 		if ( Configuration.getInstance().isDisableOutliers()  ) {
@@ -253,10 +259,17 @@ public class MultidimensionalProjection {
 	 */
 	public static void main(String[] args) {
 		try {
+			
+			Configuration config = Configuration.getInstance();			
+			if (args.length > 0) {
+				File configFile = new File(args[0]);
+				config.loadConfiguration(configFile.getAbsolutePath());
+			}
+			else {			
+				config.loadConfiguration();
+			}
 
-			Configuration config = Configuration.getInstance();
-			config.loadConfiguration();
-
+			System.out.println("SVD Type:" + config.getSvdType());
 			System.out.println("Updating MDP...");
 			MultidimensionalProjection mdp = new MultidimensionalProjection(config);
 			mdp.project();

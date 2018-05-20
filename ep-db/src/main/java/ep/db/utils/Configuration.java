@@ -1,5 +1,7 @@
 package ep.db.utils;
 
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -9,6 +11,7 @@ import java.util.Properties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import ep.db.matrix.SVDFactory;
 import ep.db.mdp.dissimilarity.DissimilarityType;
 import ep.db.mdp.projection.ControlPointsType;
 import ep.db.mdp.projection.ProjectorType;
@@ -18,7 +21,7 @@ public class Configuration {
 	/**
 	 * Arquivo de configuração
 	 */
-	public static final String PROP_FILE = "/config.properties";
+	public static final String PROP_FILE = "/conf/config.properties";
 
 	private static final String DB_HOST = "db.host";
 	private static final String DB_NAME = "db.database";
@@ -31,10 +34,10 @@ public class Configuration {
 	private static final String MENDELEY_HOST = "mendeley.host";
 	private static final String MENDELEY_CLIENT_ID = "mendeley.client_id";
 	private static final String GROBID_HOME = "grobid.home";
-	private static final String MININUM_PERCENT_OF_DOCUMENTS = "minimumPercentOfDocs";
-	private static final String MAXIMUM_PERCENT_OF_DOCUMENTS = "maximumPercentOfDocs";
-	private static final String MININUM_NUMBER_OF_TERMS = "minimumNumberOfTerms";
-	private static final String MAXIMUM_NUMBER_OF_TERMS = "maximumNumberOfTerms";
+	private static final String MININUM_NUMBER_OF_DOCUMENTS = "minimumNumberOfDocs";
+	private static final String MAXIMUM_NUMBER_OF_DOCUMENTS = "maximumNumberOfDocs";
+	private static final String MININUM_NUMBER_OF_ENTRIES = "minimumNumberOfEntries";
+	private static final String MAXIMUM_NUMBER_OF_ENTRIES = "maximumNumberOfEntries";
 	private static final String DOCUMENT_RELEVANCE_FACTOR = "relevance.documents";
 	private static final String AUTHORS_RELEVANCE_FACTOR = "relevance.authors";
 	private static final String QUADTREE_MAX_DEPTH = "quadtree.max_depth";
@@ -61,12 +64,15 @@ public class Configuration {
 	private static final String LAMP_PERCENTAGE = "lamp_percentage";
 	private static final String LAMP_NUMBER_OF_THREADS = "lamp_threads";
 	private static final String NUMBER_OF_MOST_FREQ_WORDS = "num_most_freq_words";
-	
+	private static final String SVD_TYPE = "svd_type";
+	private static final String RANDOM_SVD_INTERATIONS = "random_svd_interations";
+
+
 
 	public static final int DENSITY_MAP_CLIENT = 1;
 
 	public static final int DENSITY_MAP_SERVER = 0;
-	
+
 	private static Logger logger = LoggerFactory.getLogger(Configuration.class);
 
 	private final Properties properties;
@@ -95,40 +101,40 @@ public class Configuration {
 
 	private  String dbPassword;
 
-	private  float minimumPercentOfDocuments;
-	
-	private  float maximumPercentOfDocuments;
-	
-	private int minimumNumberOfTerms;
-	
-	private int maximumNumberOfTerms;
+	private  int minimumNumberOfDocuments;
+
+	private  int maximumNumberOfDocuments;
+
+	private int minimumNumberOfEntries;
+
+	private int maximumNumberOfEntries;
 
 	private  float documentRelevanceFactor;
 
 	private  float authorsRelevanceFactor;
-	
+
 	private  int quadTreeMaxDepth;
-	
+
 	private  int quadTreeMaxElementsPerBunch;
-	
+
 	private  int quadTreeMaxElementsPerLeaf;
-	
+
 	private  float maxRadiusSizePercent;
-	
+
 	private  float minRadiusSizePercent;
-	
+
 	private  Float[] weights;
 
 	private  int normalization;
-	
+
 	private boolean usePreCalculatedFreqs;
-	
+
 	private boolean randomControlPoints;
-	
+
 	private boolean disableOutliers;
-	
+
 	private float pageRankAlpha;
-	
+
 	private int tfidfWeightingScheme;
 
 	private int densityMapCalculation;
@@ -146,37 +152,60 @@ public class Configuration {
 	private float lampPercentage;
 
 	private int lampNumberOfThreads;
-	
+
 	private int numberOfMostFrequentWords;
-	
+
+	private int svdType;
+
+	private int randomSVDInterations;
+
 	private static Configuration instance;
 
 	private Configuration() {
 		properties = new Properties();
 	}
-	
+
 	public static Configuration getInstance() {
 		if ( instance == null )
 			instance = new Configuration();
 		return instance;
 	}
-	
+
 	public Configuration loadConfiguration() throws IOException{
 		return loadConfiguration(PROP_FILE);
 	}
 
 	public Configuration loadConfiguration(String configFile) throws IOException {
-		
-		if ( configFile == null )
+
+		InputStream is;
+		if ( configFile == null ) {
 			configFile = PROP_FILE;
+			is = Configuration.class.getResourceAsStream(configFile);
+		}
+		else {
+			try {
+				is = new FileInputStream(configFile);
+			}catch (FileNotFoundException e) {
+				is = Configuration.class.getResourceAsStream(configFile);
+			}			
+
+			if ( is == null ) {
+				logger.warn("Could not load config file. Loading default configuration");
+				configFile = PROP_FILE;
+				is = Configuration.class.getResourceAsStream(configFile);
+			}
+		}
+
 		this.configFile = configFile;
-		
+
 		Locale.setDefault(Locale.ENGLISH);
-		
-		try (InputStream is = Configuration.class.getResourceAsStream(configFile);){
+
+		try {
 			properties.load(is);
 		} catch (IOException e) {
 			throw e;
+		}finally {
+			is.close();
 		}
 
 		dbHost = properties.getProperty(DB_HOST);
@@ -197,57 +226,65 @@ public class Configuration {
 		mendeleyClientSecret = properties.getProperty(MENDELEY_CLIENT_SECRET);
 		mendeleyHost = properties.getProperty(MENDELEY_HOST);
 
-		String prop = properties.getProperty(MININUM_PERCENT_OF_DOCUMENTS);
+		String prop = properties.getProperty(MININUM_NUMBER_OF_DOCUMENTS);
 		if ( prop != null ){
 			try {
-				minimumPercentOfDocuments = Float.parseFloat(prop.trim());	
+				minimumNumberOfDocuments = Integer.parseInt(prop.trim());	
 			} catch( NumberFormatException e){
-				logger.warn("Cannot parse minimum percent of documents value: " + prop, e);
+				logger.warn("Cannot parse minimum number of documents value: " + prop, e);
 			}
 		}
-		
-		prop = properties.getProperty(MAXIMUM_PERCENT_OF_DOCUMENTS);
+
+		prop = properties.getProperty(MAXIMUM_NUMBER_OF_DOCUMENTS);
 		if ( prop != null ){
-			try {
-				maximumPercentOfDocuments = Float.parseFloat(prop.trim());	
-			} catch( NumberFormatException e){
-				logger.warn("Cannot parse maximum percent of documents value: " + prop, e);
+			if ( "Inf".equalsIgnoreCase(prop.trim()))
+				maximumNumberOfDocuments = Integer.MAX_VALUE;
+			else {
+				try {
+					maximumNumberOfDocuments = Integer.parseInt(prop.trim());	
+				} catch( NumberFormatException e){
+					logger.warn("Cannot parse maximum number of documents value: " + prop, e);
+				}
 			}
 		}
-		
-		prop = properties.getProperty(MININUM_NUMBER_OF_TERMS);
+
+		prop = properties.getProperty(MININUM_NUMBER_OF_ENTRIES);
 		if ( prop != null ){
 			try {
-				minimumNumberOfTerms = Integer.parseInt(prop.trim());	
+				minimumNumberOfEntries = Integer.parseInt(prop.trim());	
 			} catch( NumberFormatException e){
 				logger.warn("Cannot parse minimum number of terms value: " + prop, e);
 			}
 		}
-		
-		prop = properties.getProperty(MAXIMUM_NUMBER_OF_TERMS);
+
+		prop = properties.getProperty(MAXIMUM_NUMBER_OF_ENTRIES);
 		if ( prop != null ){
-			try {
-				maximumNumberOfTerms = Integer.parseInt(prop.trim());	
-			} catch( NumberFormatException e){
-				logger.warn("Cannot parse maximum number of terms value: " + prop, e);
-				maximumNumberOfTerms = Integer.MAX_VALUE;
+			if ( "Inf".equalsIgnoreCase(prop.trim()))
+				maximumNumberOfEntries = Integer.MAX_VALUE;						
+			else {					
+				try {
+					maximumNumberOfEntries = Integer.parseInt(prop.trim());	
+				} catch( NumberFormatException e){
+					logger.warn("Cannot parse maximum number of terms value: " + prop, e);
+					maximumNumberOfEntries = Integer.MAX_VALUE;
+				}				
 			}
 		}
-		
+
 		prop = properties.getProperty(DOCUMENT_RELEVANCE_FACTOR, "1");
 		try {
 			documentRelevanceFactor = Float.parseFloat(prop.trim());	
 		} catch( NumberFormatException e){
 			logger.warn("Cannot parse document relevance factor value: " + prop, e);
 		}
-		
+
 		prop = properties.getProperty(AUTHORS_RELEVANCE_FACTOR, "0");
 		try {
 			authorsRelevanceFactor = Float.parseFloat(prop.trim());	
 		} catch( NumberFormatException e){
 			logger.warn("Cannot parse authors relevance factor value: " + prop, e);
 		}
-		
+
 		prop = properties.getProperty(QUADTREE_MAX_DEPTH);
 		try{
 			if ( prop.trim().equals("Inf"))
@@ -257,36 +294,36 @@ public class Configuration {
 		}catch (NumberFormatException e) {
 			logger.warn("Cannot parse quadtree max depth value: " + prop, e);
 		}
-		
+
 		prop = properties.getProperty(QUADTREE_MAX_ELEMENTS_PER_BUNCH);
 		try{
 			quadTreeMaxElementsPerBunch = Integer.parseInt(prop.trim());
 		}catch (NumberFormatException e) {
 			logger.warn("Cannot parse quadtree max elements per bunch value: " + prop, e);
 		}
-		
+
 		prop = properties.getProperty(QUADTREE_MAX_ELEMENTS_PER_LEAF);
 		try{
 			quadTreeMaxElementsPerLeaf = Integer.parseInt(prop.trim());
 		}catch (NumberFormatException e) {
 			logger.warn("Cannot parse quadtree max elements per leaf value: " + prop, e);
 		}
-		
+
 		prop = properties.getProperty(MAX_RADIUS_SIZE);
 		try{
 			maxRadiusSizePercent = Float.parseFloat(prop.trim());
 		}catch (NumberFormatException e) {
 			logger.warn("Cannot parse max. radius size value: " + prop, e);
 		}
-		
+
 		prop = properties.getProperty(MIN_RADIUS_SIZE);
 		try{
 			minRadiusSizePercent = Float.parseFloat(prop.trim());
 		}catch (NumberFormatException e) {
 			logger.warn("Cannot parse min. radius size value: " + prop, e);
 		}
-		
-		
+
+
 		weights = new Float[4];
 		int i = 0;
 		prop = properties.getProperty(WEIGHT_A);
@@ -316,7 +353,7 @@ public class Configuration {
 		}catch (NumberFormatException e) {
 			logger.warn("Cannot parse weight D value: " + prop, e);
 		}
-		
+
 		prop = properties.getProperty(PAGE_RANK_ALPHA);
 		if ( prop != null ){
 			try {
@@ -325,7 +362,7 @@ public class Configuration {
 				logger.warn("Cannot parse Page Rank alpha value: " + prop, e);
 			}
 		}
-		
+
 		prop = properties.getProperty(NORMALIZATION);
 		if ( prop != null ){
 			try {
@@ -334,7 +371,7 @@ public class Configuration {
 				logger.warn("Cannot parse normalization value: " + prop, e);
 			}
 		}
-		
+
 		prop = properties.getProperty(TFIDF_WEIGHTING_SCHEME);
 		if ( prop != null ){
 			try {
@@ -343,7 +380,7 @@ public class Configuration {
 				logger.warn("Cannot parse TF-IDF weighting scheme: " + prop, e);
 			}
 		}
-		
+
 		prop = properties.getProperty(LAMP_NUMBER_OF_ITERATIONS);
 		if ( prop != null ){
 			try {
@@ -352,7 +389,7 @@ public class Configuration {
 				logger.warn("Cannot parse LAMP number of iterations: " + prop, e);
 			}
 		}
-		
+
 		prop = properties.getProperty(LAMP_FRACTION_DELTA);
 		if ( prop != null ){
 			try {
@@ -361,7 +398,7 @@ public class Configuration {
 				logger.warn("Cannot parse LAMP fraction delta: " + prop, e);
 			}
 		}
-		
+
 		prop = properties.getProperty(LAMP_PERCENTAGE);
 		if ( prop != null ){
 			try {
@@ -370,7 +407,7 @@ public class Configuration {
 				logger.warn("Cannot parse LAMP percentage: " + prop, e);
 			}
 		}
-		
+
 		prop = properties.getProperty(LAMP_NUMBER_OF_THREADS);
 		if ( prop != null ){
 			try {
@@ -379,7 +416,7 @@ public class Configuration {
 				logger.warn("Cannot parse LAMP number of threads: " + prop, e);
 			}
 		}
-		
+
 		prop = properties.getProperty(NUMBER_OF_MOST_FREQ_WORDS);
 		if ( prop != null ){
 			try {
@@ -387,23 +424,45 @@ public class Configuration {
 			} catch( NumberFormatException e){
 				logger.warn("Cannot parse number of most frequent words: " + prop, e);
 			}
-		}				
-		
+		}	
+
+		prop = properties.getProperty(SVD_TYPE);
+		if ( prop != null ){
+			try {
+				svdType = Integer.parseInt(prop.trim());
+				if ( svdType != SVDFactory.FULL_SVD && svdType != SVDFactory.RANDOM_SVD) {
+					logger.warn("Unknown SVD type. Using default FULL SVD");
+					svdType = SVDFactory.FULL_SVD;
+				}				
+			} catch( NumberFormatException e){
+				logger.warn("Cannot parse SVD type: " + prop, e);
+			}
+		}
+
+		prop = properties.getProperty(RANDOM_SVD_INTERATIONS);
+		if ( prop != null ){
+			try {
+				randomSVDInterations = Integer.parseInt(prop.trim());				
+			} catch( NumberFormatException e){
+				logger.warn("Cannot parse random SVD number of iterations: " + prop, e);
+			}
+		}
+
 		prop = properties.getProperty(DENSITY_MAP_CALCULATION);
 		if ( prop.trim().equals("client"))
 			densityMapCalculation = DENSITY_MAP_CLIENT;
 		else 
 			densityMapCalculation = DENSITY_MAP_SERVER;
-			
+
 		usePreCalculatedFreqs = Boolean.parseBoolean(properties.getProperty(USE_PRE_CALCULATED_FREQS));
 		randomControlPoints  = Boolean.parseBoolean(properties.getProperty(RANDOM_CONTROL_POINTS));
 		disableOutliers  = Boolean.parseBoolean(properties.getProperty(DISABLE_OUTLIERS));
-		
+
 		controlPointsChoice = ControlPointsType.valueOf(properties.getProperty(CONTROL_POINTS_CHOICE, "KMEANS").trim());
 		dissimilarityType = DissimilarityType.valueOf(properties.getProperty(DISSIMILARITY_TYPE, "EUCLIDEAN").trim());
 		projectorType = ProjectorType.valueOf(properties.getProperty(PROJECTOR_TYPE, "FASTMAP").trim());
-		
-		
+
+
 		return this;
 	}
 
@@ -414,59 +473,62 @@ public class Configuration {
 		properties.setProperty(DB_USER, dbUser);
 		properties.setProperty(DB_PASSWORD, dbPassword);
 		properties.setProperty(DB_BATCH_SIZE, Integer.toString(dbBatchSize));
-		
+
 		properties.setProperty(GROBID_CONFIG, grobidConfig);
 		properties.setProperty(GROBID_HOME, grobidHome);
-		
+
 		properties.setProperty(MENDELEY_CLIENT_ID, mendeleyClientId);
 		properties.setProperty(MENDELEY_CLIENT_SECRET, mendeleyClientSecret);
 		properties.setProperty(MENDELEY_HOST, mendeleyHost);
-		
-		properties.setProperty(MININUM_PERCENT_OF_DOCUMENTS, Float.toString(minimumPercentOfDocuments));
-		properties.setProperty(MAXIMUM_PERCENT_OF_DOCUMENTS, Float.toString(maximumPercentOfDocuments));
-		
-		properties.setProperty(MININUM_NUMBER_OF_TERMS, Integer.toString(minimumNumberOfTerms));
-		properties.setProperty(MAXIMUM_NUMBER_OF_TERMS, Integer.toString(maximumNumberOfTerms));
-		
+
+		properties.setProperty(MININUM_NUMBER_OF_DOCUMENTS, Float.toString(minimumNumberOfDocuments));
+		properties.setProperty(MAXIMUM_NUMBER_OF_DOCUMENTS, Float.toString(maximumNumberOfDocuments));
+
+		properties.setProperty(MININUM_NUMBER_OF_ENTRIES, Integer.toString(minimumNumberOfEntries));
+		properties.setProperty(MAXIMUM_NUMBER_OF_ENTRIES, Integer.toString(maximumNumberOfEntries));
+
 		properties.setProperty(DOCUMENT_RELEVANCE_FACTOR, Float.toString(documentRelevanceFactor));
 		properties.setProperty(AUTHORS_RELEVANCE_FACTOR, Float.toString(authorsRelevanceFactor));
-		
-		
+
+
 		properties.setProperty(QUADTREE_MAX_DEPTH, Integer.toString(quadTreeMaxDepth));
 		properties.setProperty(QUADTREE_MAX_ELEMENTS_PER_BUNCH, Integer.toString(quadTreeMaxElementsPerBunch));
 		properties.setProperty(QUADTREE_MAX_ELEMENTS_PER_LEAF, Integer.toString(quadTreeMaxElementsPerLeaf));
-		
+
 		properties.setProperty(MAX_RADIUS_SIZE, Float.toString(maxRadiusSizePercent));
 		properties.setProperty(MIN_RADIUS_SIZE, Float.toString(minRadiusSizePercent));
-		
+
 		properties.setProperty(WEIGHT_A, Float.toString(weights[0]));
 		properties.setProperty(WEIGHT_B, Float.toString(weights[1]));
 		properties.setProperty(WEIGHT_C, Float.toString(weights[2]));
 		properties.setProperty(WEIGHT_D, Float.toString(weights[3]));
-		
+
 		properties.setProperty(PAGE_RANK_ALPHA, Float.toString(pageRankAlpha));
-		
+
 		properties.setProperty(NORMALIZATION, Integer.toString(normalization));
-		
+
 		properties.setProperty(TFIDF_WEIGHTING_SCHEME, Integer.toString(tfidfWeightingScheme));
-		
+
 		properties.setProperty(USE_PRE_CALCULATED_FREQS, Boolean.toString(usePreCalculatedFreqs));
 		properties.setProperty(RANDOM_CONTROL_POINTS, Boolean.toString(randomControlPoints));
 		properties.setProperty(DISABLE_OUTLIERS, Boolean.toString(disableOutliers));
-		
+
 		properties.setProperty(DENSITY_MAP_CALCULATION, densityMapCalculation == DENSITY_MAP_CLIENT ? 
 				"client" : "server");
-		
+
 		properties.setProperty(LAMP_NUMBER_OF_ITERATIONS, Integer.toString(lampNumberOfIterations));
 		properties.setProperty(LAMP_FRACTION_DELTA, Float.toString(lampFractionDelta));
 		properties.setProperty(LAMP_PERCENTAGE, Float.toString(lampPercentage));
 		properties.setProperty(LAMP_NUMBER_OF_THREADS, Integer.toString(lampNumberOfThreads));
 		properties.setProperty(NUMBER_OF_MOST_FREQ_WORDS, Integer.toString(numberOfMostFrequentWords));
-		
+
+		properties.setProperty(SVD_TYPE, Integer.toString(svdType));
+		properties.setProperty(RANDOM_SVD_INTERATIONS, Integer.toString(randomSVDInterations));
+
 		properties.setProperty(CONTROL_POINTS_CHOICE, controlPointsChoice.name());
 		properties.setProperty(DISSIMILARITY_TYPE, dissimilarityType.name());
 		properties.setProperty(PROJECTOR_TYPE, projectorType.name());
-		
+
 		properties.store(new FileOutputStream(configFile), null);
 	}
 
@@ -558,36 +620,36 @@ public class Configuration {
 		this.dbPassword = dbPassword;
 	}
 
-	public float getMinimumPercentOfDocuments() {
-		return minimumPercentOfDocuments;
+	public int getMinimumNumberOfDocuments() {
+		return minimumNumberOfDocuments;
 	}
 
-	public void setMinimumPercentOfDocuments(float minimumPercentOfTerms) {
-		this.minimumPercentOfDocuments = minimumPercentOfTerms;
+	public void setMinimumNumberOfDocuments(int minimumNumberOfDocs) {
+		this.minimumNumberOfDocuments = minimumNumberOfDocs;
 	}
-	
-	public float getMaximumPercentOfDocuments() {
-		return maximumPercentOfDocuments;
+
+	public int getMaximumNumberOfDocuments() {
+		return maximumNumberOfDocuments;
 	}
-	
-	public void setMaximumPercentOfDocuments(float maximumPercentOfTerms) {
-		this.maximumPercentOfDocuments = maximumPercentOfTerms;
+
+	public void setMaximumNumberOfDocuments(int maximumNumberOfDocs) {
+		this.maximumNumberOfDocuments = maximumNumberOfDocs;
 	}
-	
-	public int getMinimumNumberOfTerms() {
-		return minimumNumberOfTerms;
+
+	public int getMinimumNumberOfEntries() {
+		return minimumNumberOfEntries;
 	}
-	
-	public void setMinimumNumberOfTerms(int minimumNumberOfTerms) {
-		this.minimumNumberOfTerms = minimumNumberOfTerms;
+
+	public void setMinimumNumberOfEntries(int minimumNumberOfEntries) {
+		this.minimumNumberOfEntries = minimumNumberOfEntries;
 	}
-	
-	public int getMaximumNumberOfTerms() {
-		return maximumNumberOfTerms;
+
+	public int getMaximumNumberOfEntries() {
+		return maximumNumberOfEntries;
 	}
-	
-	public void setMaximumNumberOfTerms(int maximumNumberOfTerms) {
-		this.maximumNumberOfTerms = maximumNumberOfTerms;
+
+	public void setMaximumNumberOfEntries(int maximumNumberOfEntries) {
+		this.maximumNumberOfEntries = maximumNumberOfEntries;
 	}
 
 	public float getDocumentRelevanceFactor() {
@@ -645,19 +707,19 @@ public class Configuration {
 	public void setMinRadiusSizePercent(float minRadiusSizePercent) {
 		this.minRadiusSizePercent = minRadiusSizePercent;
 	}
-	
+
 	public Float[] getWeights() {
 		return weights;
 	}
-	
+
 	public void setWeights(Float[] weights) {
 		this.weights = weights;
 	}
-	
+
 	public int getNormalization() {
 		return normalization;
 	}
-	
+
 	public void setNormalization(int normalization) {
 		this.normalization = normalization;
 	}
@@ -669,35 +731,35 @@ public class Configuration {
 	public void setUsePreCalculatedFreqs(boolean usePreCalculatedFreqs) {
 		this.usePreCalculatedFreqs = usePreCalculatedFreqs;
 	}
-	
+
 	public boolean isRandomControlPoints() {
 		return randomControlPoints;
 	}
-	
+
 	public void setRandomControlPoints(boolean randomControlPoints) {
 		this.randomControlPoints = randomControlPoints;
 	}
-	
+
 	public boolean isDisableOutliers() {
 		return disableOutliers;
 	}
-	
+
 	public void setDisableOutliers(boolean disableOutliers) {
 		this.disableOutliers = disableOutliers;
 	}
-	
+
 	public float getPageRankAlpha() {
 		return pageRankAlpha;
 	}
-	
+
 	public void setPageRankAlpha(float pageRankAlpha) {
 		this.pageRankAlpha = pageRankAlpha;
 	}
-	
+
 	public int getTfidfWeightingScheme() {
 		return tfidfWeightingScheme;
 	}
-	
+
 	public void setTfidfWeightingScheme(int tfidfWeightingScheme) {
 		this.tfidfWeightingScheme = tfidfWeightingScheme;
 	}
@@ -705,11 +767,11 @@ public class Configuration {
 	public float getCirclePadding() {
 		return 6.0f;
 	}
-	
+
 	public int getDensityMapCalculation() {
 		return densityMapCalculation;
 	}
-	
+
 	public void setDensityMapCalculation(int densityMapCalculation) {
 		this.densityMapCalculation = densityMapCalculation;
 	}
@@ -717,7 +779,7 @@ public class Configuration {
 	public ControlPointsType getControlPointsChoice() {
 		return controlPointsChoice;
 	}
-	
+
 	public void setControlPointsChoice(ControlPointsType controlPointsChoice) {
 		this.controlPointsChoice = controlPointsChoice;
 	}
@@ -725,7 +787,7 @@ public class Configuration {
 	public DissimilarityType getDissimilarityType() {
 		return dissimilarityType;
 	}
-	
+
 	public void setDissimilarityType(DissimilarityType dissimilarityType) {
 		this.dissimilarityType = dissimilarityType;
 	}
@@ -733,7 +795,7 @@ public class Configuration {
 	public ProjectorType getProjectorType() {
 		return projectorType;
 	}
-	
+
 	public void setProjectorType(ProjectorType projectorType) {
 		this.projectorType = projectorType;
 	}
@@ -741,7 +803,7 @@ public class Configuration {
 	public int getLampNumberOfIterations() {
 		return lampNumberOfIterations;
 	}
-	
+
 	public void setLampNumberOfIterations(int lampNumberOfIterations) {
 		this.lampNumberOfIterations = lampNumberOfIterations;
 	}
@@ -749,7 +811,7 @@ public class Configuration {
 	public float getLampFractionDelta() {
 		return lampFractionDelta;
 	}
-	
+
 	public void setLampFractionDelta(float lampFractionDelta) {
 		this.lampFractionDelta = lampFractionDelta;
 	}
@@ -757,7 +819,7 @@ public class Configuration {
 	public float getLampPercentage() {
 		return lampPercentage;
 	}
-	
+
 	public void setLampPercentage(float lampPercentage) {
 		this.lampPercentage = lampPercentage;
 	}
@@ -765,16 +827,32 @@ public class Configuration {
 	public int getLampNumberOfThreads() {
 		return lampNumberOfThreads;
 	}
-	
+
 	public void setLampNumberOfThreads(int lampNumberOfThreads) {
 		this.lampNumberOfThreads = lampNumberOfThreads;
 	}
-	
+
 	public int getNumberOfMostFrequentWords() {
 		return numberOfMostFrequentWords;
 	}
-	
+
 	public void setNumberOfMostFrequentWords(int numberOfMostFrequentWords) {
 		this.numberOfMostFrequentWords = numberOfMostFrequentWords;
+	}
+
+	public int getSvdType() {
+		return svdType;
+	}
+
+	public void setSvdType(int svdType) {
+		this.svdType = svdType;
+	}
+
+	public int getRandomSVDInterations() {
+		return randomSVDInterations;
+	}
+
+	public void setRandomSVDInterations(int randomSVDInterations) {
+		this.randomSVDInterations = randomSVDInterations;
 	}
 }

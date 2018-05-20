@@ -57,7 +57,7 @@ import java.io.IOException;
 public class DenseVector extends Vector {
 
     public DenseVector(float[] vector) {
-        this.create(vector, null, 0.0f);
+        this.createQuick(vector, null, 0.0f);
     }
 
     public DenseVector(float[] vector, String id) {
@@ -122,12 +122,23 @@ public class DenseVector extends Vector {
 
         return this.values[index];
     }
+    
+    @Override
+    public float getValueQuick(int index) {
+    	   return this.values[index];
+    }
 
     @Override
     public void setValue(int index, float value) {
         assert (index <= this.size) : "ERROR: vector can not be null!";
 
         this.updateNorm = true;
+        this.values[index] = value;
+    }
+    
+    @Override
+    public void setValueQuick(int index, float value) {
+    		this.updateNorm = true;
         this.values[index] = value;
     }
 
@@ -148,6 +159,16 @@ public class DenseVector extends Vector {
     protected void create(float[] vector, String id, float klass) {
         assert (vector != null) : "ERROR: vector can not be null!";
 
+        this.values = vector;
+        this.size = vector.length;
+        this.id = id;
+        this.klass = klass;
+
+        this.updateNorm = true;
+    }
+    
+    @Override
+    protected void createQuick(float[] vector, String id, float klass) {
         this.values = vector;
         this.size = vector.length;
         this.id = id;

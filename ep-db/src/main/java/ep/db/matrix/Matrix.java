@@ -77,11 +77,20 @@ public abstract class Matrix {
 		this.rows.add(vector);
 		this.dimensions = vector.size();
 	}
+	
+	public void addRowQuick(Vector vector) {
+		this.rows.add(vector);
+		this.dimensions = vector.size();
+	}
 
 	public void setRow(int index, Vector vector) {
 		assert (rows.size() > index && this.dimensions == vector.size()) :
 			"ERROR: wrong index or vector of wrong size!";
 
+		this.rows.set(index, vector);
+	}
+	
+	public void setRowQuick(int index, Vector vector) {
 		this.rows.set(index, vector);
 	}
 
@@ -104,7 +113,11 @@ public abstract class Matrix {
 			"ERROR: this row does not exists in the matrix!";
 
 		return this.rows.get(row);
-	}		
+	}	
+	
+	public Vector getRowQuick(int row) {
+		return this.rows.get(row);
+	}
 
 	public void normalize() {
 		int size = this.rows.size();

@@ -23,6 +23,7 @@ import ep.db.mdp.projection.ControlPointsType;
 import ep.db.mdp.projection.IDMAPProjection;
 import ep.db.mdp.projection.ProjectionData;
 import ep.db.mdp.projection.ProjectorType;
+import ep.db.utils.Configuration;
 import ep.db.utils.QuickSort;
 import me.tongfei.progressbar.ProgressBar;
 import me.tongfei.progressbar.ProgressBarStyle;
@@ -95,12 +96,13 @@ public class Lamp {
 		final ProgressBar pb = new ProgressBar("LAMP", n, 1000, System.out, ProgressBarStyle.ASCII);
 		pb.start();
 
+		final int svdType = Configuration.getInstance().getSvdType();
 		for (int i = 0; i < nrpartitions && begin < n; i++) 
 		{
 			end += step;
 			end = (end > n) ? n : end;
 
-			ParallelSolver ps = new ParallelSolver(pdata, proj_aux, sampledata, sampleproj, x, begin, end, epsilon, pb);
+			ParallelSolver ps = new ParallelSolver(pdata, proj_aux, sampledata, sampleproj, x, begin, end, epsilon, pb, svdType);
 			threads.add(ps);
 			logger.info("Partition: " + begin + " - " + end);
 
@@ -108,7 +110,7 @@ public class Lamp {
 		}
 
 		if (end < n) {
-			ParallelSolver ps = new ParallelSolver(pdata, proj_aux, sampledata, sampleproj, x, end, n, epsilon, pb);
+			ParallelSolver ps = new ParallelSolver(pdata, proj_aux, sampledata, sampleproj, x, end, n, epsilon, pb, svdType);
 			threads.add(ps);	
 			logger.info("Partition: " + end + " - " + n);
 		}
@@ -193,10 +195,11 @@ public class Lamp {
 
 			// 2. Calcule SVD in xt [U, S, V]
 			Matrix V = x.transpose();			
-			SingularValueDecomposition svd = new SingularValueDecomposition(V);			
+			SingularValueDecomposition svd = new SingularValueDecomposition();
+			svd.svd(V);
 
 			// Transpose SVD 
-			Matrix vt = svd.getV().transpose();
+			Matrix vt = svd.getVMatrix().transpose();
 
 			// 3. Calcule control points (indices) 
 			double[] p = new double[np];  
@@ -251,9 +254,9 @@ public class Lamp {
 		pdata.setNumberIterations(50);
 		pdata.setFractionDelta(8.0f);	
 		pdata.setPercentage(1.0f);
-		//		pdata.setSourceFile("/Users/jose/Documents/freelancer/petricaep/projectionexplorer/all_reduced.data");
+		pdata.setSourceFile("/Volumes/external/Mac/home-backup/jose/Documents/freelancer/petricaep/projectionexplorer/all_reduced.data");
 		//		pdata.setSourceFile("/Users/jose/Documents/freelancer/petricaep/projectionexplorer/diabetes-normcols.data-notnull.data-NORM.data");
-		pdata.setSourceFile("/Users/jose/Documents/freelancer/petricaep/ep-project/ep-db/documents200k.data");
+//		pdata.setSourceFile("/Users/jose/Documents/freelancer/petricaep/ep-project/ep-db/documents200k.data");
 
 		Matrix matrix = MatrixFactory.getInstance(pdata.getSourceFile());		
 		pdata.setNumberControlPoints((int) Math.sqrt(matrix.getRowCount()));

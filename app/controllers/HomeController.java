@@ -84,9 +84,26 @@ public class HomeController extends Controller {
 			return CompletableFuture.completedFuture(
 					Results.ok(""));
 		}
-
+				
+		try {					
+			return docSearcher.search(queryData.get()).thenApplyAsync((json) -> {				
+				return ok(json);
+			}, httpExecutionContext.current());
+		}catch (Exception e) {
+			return CompletableFuture.completedFuture(
+					Results.ok(""));
+		}
+	}
+	
+	public CompletionStage<Result> zoom(){		
+		Form<QueryData> queryData = formFactory.form(QueryData.class).bindFromRequest();
+		if ( queryData.hasErrors() ){
+			return CompletableFuture.completedFuture(
+					Results.ok(""));
+		}
+				
 		try {
-			return docSearcher.search(queryData.get()).thenApplyAsync((json) -> {
+			return docSearcher.search(queryData.get()).thenApplyAsync((json) -> {				
 				return ok(json);
 			}, databaseContext);
 		}catch (Exception e) {
@@ -132,6 +149,7 @@ public class HomeController extends Controller {
 		return ok(
 				JavaScriptReverseRouter.create("jsRoutes",
 						routes.javascript.HomeController.search(),
+						routes.javascript.HomeController.zoom(),
 						routes.javascript.HomeController.references(),
 						routes.javascript.HomeController.download()
 //						routes.javascript.GraphController.getGraph()

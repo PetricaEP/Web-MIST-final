@@ -114,12 +114,8 @@ public class Bounds {
 		inside &= node.getP2().y < getP2().y;
 
 		//The node is INSIDE of the rectangle
-		if (inside) {
-			return 2;
-		}
-
 		//The rectangle intecsects the node
-		return 1;
+		return inside ? 2 : 1;		
 	}
 
 	@Override

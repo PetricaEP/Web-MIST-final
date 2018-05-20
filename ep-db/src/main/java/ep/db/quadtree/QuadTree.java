@@ -5,6 +5,7 @@
  */
 package ep.db.quadtree;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -97,15 +98,23 @@ public class QuadTree {
 		return root;
 	}
 
-	int getLeafCount() {
+	public int getLeafCount() {
 		return leafCount;
 	}
-
-	int getBranchCount() {
-		return branchCount;
+	
+	public void setLeafCount(int leafCount) {
+		this.leafCount = leafCount;
 	}
 
-	int getDepth() {
+	public int getBranchCount() {
+		return branchCount;
+	}
+	
+	public void setBranchCount(int branchCount) {
+		this.branchCount = branchCount;
+	}
+
+	public int getDepth() {
 		return depth;
 	}
 
@@ -113,7 +122,7 @@ public class QuadTree {
 		return 1L << d;
 	}
 
-	void setDepth(int d) {
+	public void setDepth(int d) {
 		depth = d;
 	}
 
@@ -151,37 +160,30 @@ public class QuadTree {
 		return new QuadTreeKey((t.sub(bounds.getP1())).multiply(scale));
 	}
 
-	private void divideLeafInBranchWith4Leafs(QuadTreeLeafNode leaf, IDocument d) {
-		createBranchChild(leaf.getParent(), leaf.index);
+	private void divideLeafInBranchWith4Leafs(QuadTreeLeafNode leaf) {
+		QuadTreeBranchNode parent = createBranchChild(leaf.getParent(), leaf.index);
 		leafCount--; //The leaf is replaced with branchNode
 
 		//Dividing the elements
 		for (int i = 0; i < leaf.size(); i++) {
-			QuadTreeLeafNode newLeaf = makeLeaf(calculateKey(leaf.getDocument(i, null).getPos()));
-			newLeaf.addElement(leaf.getDocument(i, null));
+			QuadTreeLeafNode newLeaf = makeLeaf(calculateKey(leaf.getDocument(i).getPos()), depthMask >> parent.depth, parent);
+			newLeaf.addElement(leaf.getDocument(i));
 		}
 	}
 
 	public void addElements(List<? extends IDocument> documents) {
-//		int nDocs = 0;
 		for (IDocument document : documents) {
 			addElement(document);
-//			if ( ! addElement(document) )
-//				break;
-//			++nDocs;
 		}
-//		return nDocs;
 	}
 
 	public void addElement(IDocument d) {
 		QuadTreeKey key = calculateKey(d.getPos());
 		QuadTreeLeafNode leaf = makeLeaf(key);
-//		boolean added = leaf.addElement(d);
 		if (!leaf.addElement(d)) {
-			divideLeafInBranchWith4Leafs(leaf, d);
+			divideLeafInBranchWith4Leafs(leaf);
 			addElement(d);
 		}
-//		return added;
 	}
 
 	void makeEmptyLeafs() {
@@ -191,6 +193,7 @@ public class QuadTree {
 	QuadTreeLeafNode makeLeaf(QuadTreeKey key, long mask, QuadTreeBranchNode branch) {
 		{
 			if (branch.getDepth() == maxDepth) {
+				System.err.println("Maximum depth reached, increase this value to correct update QuadTree");
 				return null;
 			}
 
@@ -249,15 +252,7 @@ public class QuadTree {
 		nodes.clear();
 		rectangleSearchAll(rectangle, query, new QuadTreeKey(0), getRoot(), documents, nodes);
 		return documents.size();
-	}
-
-	public int findInRectangle(Bounds rectangle, String query, List<IDocument> documents, List<QuadTreeNode> nodes, 
-			int maxDocs) {
-		documents.clear();
-		nodes.clear();
-		rectangleSearchAll(rectangle, query, new QuadTreeKey(0), getRoot(), documents, nodes, maxDocs);
-		return documents.size();
-	}
+	}	
 	
 	public int findInRectangleByDocId(Bounds rectangle, List<IDocument> documents, List<QuadTreeNode> nodes, 
 			long[] selectedDocIds) {
@@ -325,44 +320,8 @@ public class QuadTree {
 	}
 
 	public void rectangleSearchAll(final Bounds rectangle, final String query, QuadTreeKey key, QuadTreeBranchNode branch, 
-			List<IDocument> documentList, List<QuadTreeNode> nodes, int maxDocs) {
-		int depth = branch.getDepth() + 1;
-		
-		if ( documentList.size() == maxDocs)
-			return;
-		
-		for (int i = 0; i < 4; i++) {
-			if (branch.hasChild(i)) {
-				QuadTreeNode child = branch.getChild(i);
-				QuadTreeKey childKey = key.pushChild(i);
-
-				Bounds bChild = boundingBox(childKey, depth);
-				int inter = rectangle.intersect(bChild);
-
-				if (inter == 2) {
-					child.getDocuments(documentList);
-					addNodeAndChildrenInList(nodes, child);
-				} else if (inter == 1) { //Test if point intersects the Rect
-					if (!child.isLeaf()) {
-						rectangleSearchAll(rectangle, query, childKey, (QuadTreeBranchNode) child, documentList, nodes, maxDocs);
-					} else {
-						QuadTreeLeafNode leaf = (QuadTreeLeafNode) child;
-						for (int j = 0; j < leaf.size() && documentList.size() <= maxDocs; j++) {
-							IDocument d = leaf.getDocument(j, query);
-							if (rectangle.contains(d.getPos())) {
-								documentList.add(d);
-							}
-						}
-						addNodeAndChildrenInList(nodes, child);
-					}
-				}
-			}
-		}
-	}
-	
-	public void rectangleSearchAll(Bounds rectangle, String query, QuadTreeKey key, QuadTreeBranchNode branch, 
 			List<IDocument> documentList, List<QuadTreeNode> nodes) {
-		int depth = branch.getDepth() + 1;
+		int depth = branch.getDepth() + 1;				
 		
 		for (int i = 0; i < 4; i++) {
 			if (branch.hasChild(i)) {
@@ -380,18 +339,13 @@ public class QuadTree {
 						rectangleSearchAll(rectangle, query, childKey, (QuadTreeBranchNode) child, documentList, nodes);
 					} else {
 						QuadTreeLeafNode leaf = (QuadTreeLeafNode) child;
-						for (int j = 0; j < leaf.size(); j++) {
-							IDocument d = leaf.getDocument(j, query);
-							if (rectangle.contains(d.getPos())) {
-								documentList.add(d);
-							}
-						}
+						leaf.getDocuments(documentList, rectangle, query);											
 						addNodeAndChildrenInList(nodes, child);
 					}
 				}
 			}
 		}
-	}
+	}	
 	
 	public void rectangleSearchByDocId(Bounds rectangle, QuadTreeKey key, QuadTreeBranchNode branch, 
 			List<IDocument> documentList, List<QuadTreeNode> nodes, long[] selectedDocIds) {
@@ -412,14 +366,14 @@ public class QuadTree {
 						rectangleSearchByDocId(rectangle, childKey, (QuadTreeBranchNode) child, documentList, nodes, selectedDocIds);
 					} else {
 						QuadTreeLeafNode leaf = (QuadTreeLeafNode) child;
-
-						for (int j = 0; j < leaf.size(); j++) {
-							IDocument d = leaf.getDocument(j, null);
+						List<IDocument> leafDocuments = new ArrayList<>();
+						leaf.getDocuments(leafDocuments);
+						for(IDocument d : leafDocuments) {
 							int index = Arrays.binarySearch(selectedDocIds, d.getId());
 							if (rectangle.contains(d.getPos()) && index >= 0) {
 								documentList.add(d);
 							}
-						}
+						}																		
 						addNodeAndChildrenInList(nodes, child);
 					}
 				}
@@ -451,8 +405,9 @@ public class QuadTree {
 				} else {
 					QuadTreeLeafNode leaf = (QuadTreeLeafNode) child;
 
-					for (int j = 0; j < leaf.size(); j++) {
-						IDocument d = leaf.getDocument(j, null);
+					List<IDocument> leafDocuments = new ArrayList<>();
+					leaf.getDocuments(leafDocuments);
+					for(IDocument d : leafDocuments) {																	
 						//O documento não satisfaz a busca
 						if(d.getRank() < rankMinLimit){
 							continue;
@@ -475,7 +430,7 @@ public class QuadTree {
 		return dbService.loadQuadTree(this);
 	}
 	
-	public boolean persistQuadTree(){
+	public boolean persistQuadTree() throws Exception{
 		return dbService.persistQuadTree(this);
 	}
 
@@ -505,13 +460,25 @@ public class QuadTree {
 
 	public static void main(String[] args) {
 
-		Configuration config = Configuration.getInstance();
-		try {
-			config.loadConfiguration();
-		} catch (IOException e) {
-			System.err.println("Error reading configuration: ");
-			e.printStackTrace();
-			return;
+		Configuration config = Configuration.getInstance();			
+		if (args.length > 0) {
+			File configFile = new File(args[0]);
+			try {
+				config.loadConfiguration(configFile.getAbsolutePath());
+			} catch (IOException e) {
+				System.err.println("Can't load configuration file: ");
+				e.printStackTrace();
+				System.exit(-1);		
+			}
+		}
+		else {			
+			try {
+				config.loadConfiguration();
+			} catch (IOException e) {
+				System.err.println("Can't load configuration file: ");
+				e.printStackTrace();
+				System.exit(-1);				
+			}
 		}
 
 		Database db = new DefaultDatabase(config);
@@ -539,8 +506,12 @@ public class QuadTree {
 
 		System.out.println("Saving QuadTree to DB...");
 
-		dbService.persistQuadTree(quadTree);
-
+		try {
+			dbService.persistQuadTree(quadTree);
+		} catch (Exception e) {
+			e.printStackTrace();			
+		}
+		
 		System.out.println("Done!");	
 
 		System.out.println("Loading QuadTree from DB...");

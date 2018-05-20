@@ -133,8 +133,8 @@ createVisualization = function(jsonData){
 		minMaxY = [jsonData.bounds[1], jsonData.bounds[3]];
 	}
 	else{
-		minMaxX = d3.extent(jsonData.documents,function(d){ return d.x; });
-		minMaxY = d3.extent(jsonData.documents,function(d){ return d.y; });
+		minMaxX = [-1,1]; //[d3.extent(jsonData.documents,function(d){ return d.x; });
+		minMaxY = [-1,1]; //d3.extent(jsonData.documents,function(d){ return d.y; });
 	}
 
 	var densityMap = jsonData.densityMap;
@@ -433,7 +433,7 @@ function selectArea(p){
 	}
 
 	var numClusters = $("#num-clusters").val();
-	var r = jsRoutes.controllers.HomeController.search(),
+	var r = jsRoutes.controllers.HomeController.zoom(),
 	selectionWidth = $(".selection")[0].style.width.replace("px", ""),
 	selectionHeight = $(".selection")[0].style.height.replace("px",""),
 	maxDocs = $("#max-number-of-docs").val();

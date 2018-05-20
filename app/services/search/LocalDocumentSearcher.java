@@ -1,5 +1,7 @@
 package services.search;
 
+import static java.util.concurrent.CompletableFuture.supplyAsync;
+
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
@@ -9,7 +11,6 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
@@ -20,6 +21,7 @@ import javax.inject.Inject;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import edu.uci.ics.jung.graph.Graph;
 import ep.db.database.DatabaseService;
@@ -44,6 +46,7 @@ import ep.db.utils.Configuration;
 import ep.db.utils.Utils;
 import play.Logger;
 import play.db.Database;
+import play.libs.Json;
 import services.database.DatabaseExecutionContext;
 import services.database.PlayDatabaseWrapper;
 import views.formdata.QueryData;
@@ -75,9 +78,9 @@ public class LocalDocumentSearcher implements DocumentSearcher {
 	}
 	
 	@Override
-	public CompletionStage<String> search(QueryData queryData) throws Exception {
-		return CompletableFuture.supplyAsync(() -> {
-			try {
+	public CompletionStage<String> search(QueryData queryData) throws Exception {		
+		return supplyAsync(() -> {
+			try {				
 				return searchData(queryData);
 			} catch (Exception e) {
 				Logger.error("Can't search for data", e);
@@ -89,7 +92,7 @@ public class LocalDocumentSearcher implements DocumentSearcher {
 	public String searchData(QueryData queryData) throws Exception {
 
 		long start, elapsed;
-		Map<String, Object> result = null;
+		ObjectNode result = null;
 
 		try {
 			if ( queryData.getStart() == null || queryData.getEnd() == null){
@@ -100,17 +103,17 @@ public class LocalDocumentSearcher implements DocumentSearcher {
 			}
 		} catch (Exception e) {
 			Logger.error("Unkown error!", e);
-			result = new HashMap<>();
-			result.put("documents", new ArrayList<Document>(0));
+			result = Json.newObject();
+			result.set("documents", Json.newArray());
 		}
 
 		if ( result == null){
-			result = new HashMap<>();
-			result.put("documents", new ArrayList<Document>(0));
+			result = Json.newObject();
+			result.set("documents", Json.newArray());
 		}
 
 		// Envia parametros da consulta de volta para o cliente
-		result.put("query", queryData);
+		result.set("query", Json.toJson(queryData));
 
 		start = System.nanoTime();
 		ObjectMapper mapper = new ObjectMapper();
@@ -125,9 +128,9 @@ public class LocalDocumentSearcher implements DocumentSearcher {
 		}
 	}
 
-	private Map<String, Object> searchAll(QueryData queryData) throws Exception {
+	private ObjectNode searchAll(QueryData queryData) throws Exception {
 
-		Map<String, Object> result = null;
+		ObjectNode result = null;
 		
 		try {
 			final int page = queryData.getPage();
@@ -161,7 +164,7 @@ public class LocalDocumentSearcher implements DocumentSearcher {
 			int numDocs = 0;
 			if( docs != null && !docs.isEmpty()){
 
-				result = new HashMap<>();
+				result = Json.newObject();
 				numDocs = docs.size() + points.size();
 				
 				//Clustering
@@ -176,25 +179,25 @@ public class LocalDocumentSearcher implements DocumentSearcher {
 					if ( densityMap == Configuration.DENSITY_MAP_SERVER ){
 
 						start = System.nanoTime();
-						float[] minmax = new float[4];
+						float[] minmax = new float[] {-1,-1,1,1};
 						int gridSize[] = new int[2];
 						densities = gridify(points, minmax, gridSize);
 						elapsed = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start);
 						timeLogger.info(String.format("Creating Grid (KDE 2D): %d", elapsed));
 
-						result.put("densities", densities);
-						result.put("bounds", minmax);
-						result.put("gridSize", gridSize);
+						result.set("densities", Json.toJson(densities));												
+						result.set("bounds", Json.toJson(minmax));
+						result.set("gridSize", Json.toJson(gridSize));
 						result.put("densityMap", Configuration.DENSITY_MAP_SERVER);
 					}
 					else {
-						result.put("densities", points);
+						result.set("densities", Json.toJson(points));
 						result.put("densityMap", Configuration.DENSITY_MAP_CLIENT);
 					}
 				}				
 											
 				result.put("tabId", queryData.getTabId());
-				result.put("documents", docs);	
+				result.set("documents", Json.toJson(docs));	
 				result.put("ndocs", numDocs);
 				result.put("page", page);
 				//				result.put("nclusters", numClusters);
@@ -209,13 +212,14 @@ public class LocalDocumentSearcher implements DocumentSearcher {
 		return result;
 	}
 
-	public Map<String,Object> zoom(QueryData queryData) {
+	public ObjectNode zoom(QueryData queryData) {
 
 		long start, elapsed;
-		Map<String, Object> result = null;
+		ObjectNode result = null;
 
 		try {
 			float x1, y1, x2, y2;
+			final int page = queryData.getPage();
 			final int maxDocs = queryData.getMaxDocs();
 
 			x1 = queryData.getStart()[0];
@@ -254,18 +258,14 @@ public class LocalDocumentSearcher implements DocumentSearcher {
 			start = System.nanoTime();
 			documents.sort(Comparator.comparing((IDocument d) -> d.getRank()).reversed());
 			elapsed = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start);
-			timeLogger.info(String.format("Sorting results: %d", elapsed));
-
-			//			start = System.nanoTime();
-			//			List<Vec2> points = loadXY(documents, x1, y1, x2, y2);
-			//			elapsed = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start);
-			//			timeLogger.info(String.format("Loading x,y points: %d", elapsed));
+			timeLogger.info(String.format("Sorting results: %d", elapsed));			
 
 			float[] densities = null;
-
+			final float[] minmax = new float[] {x1,y1,x2,y2};
+			int numDocs = 0;
 			if ( documents.size() > 0){
-				result = new HashMap<>();
-
+				result = Json.newObject();
+				
 				int numberOfPoints = Math.max(0, documents.size() - maxDocs);
 				List<Vec2> points = new ArrayList<>(numberOfPoints);
 				for(int i = 0; i < numberOfPoints && maxDocs + i < documents.size(); i++){
@@ -274,24 +274,24 @@ public class LocalDocumentSearcher implements DocumentSearcher {
 				}
 				documents = documents.subList(0, Math.min(documents.size(), maxDocs));
 
+				numDocs = documents.size() + numberOfPoints;
 				if ( numberOfPoints > 0 ){
 
 					int densityMap = configuration.getDensityMapCalculation();
 					if ( densityMap == Configuration.DENSITY_MAP_SERVER ){
 
-						start = System.nanoTime();
-						float[] minmax = new float[4];
+						start = System.nanoTime();						
 						int gridSize[] = new int[2];
 						densities = gridify(points, minmax, gridSize);
 						elapsed = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start);
 						timeLogger.info(String.format("Creating Grid (KDE 2D): %d", elapsed));
 
-						result.put("densities", densities);
-						result.put("gridSize", gridSize);
+						result.set("densities", Json.toJson(densities));
+						result.set("gridSize",  Json.toJson(gridSize));						
 						result.put("densityMap", Configuration.DENSITY_MAP_SERVER);
 					}
 					else {
-						result.put("densities", points);
+						result.set("densities",  Json.toJson(points));
 						result.put("densityMap", Configuration.DENSITY_MAP_CLIENT);
 					}
 				}
@@ -303,10 +303,13 @@ public class LocalDocumentSearcher implements DocumentSearcher {
 
 				// Somente documentos selecionados para exibição,
 				// demais documentos irão compor o mapa de densidade.
-				result.put("documents", documents);
-				result.put("nclusters", queryData.getNumClusters());
-				result.put("op", "zoom");
-				result.put("bounds", new float[]{x1,y1,x2,y2});
+				result.put("tabId", queryData.getTabId());
+				result.set("documents",  Json.toJson(documents));
+				result.put("ndocs", numDocs);
+				result.put("page", page);
+				result.set("bounds",  Json.toJson(minmax));
+//				result.put("nclusters", queryData.getNumClusters());
+				result.put("op", "zoom");				
 				result.put("minRadiusPerc", configuration.getMinRadiusSizePercent());
 				result.put("maxRadiusPerc", configuration.getMaxRadiusSizePercent());
 			}
@@ -321,17 +324,17 @@ public class LocalDocumentSearcher implements DocumentSearcher {
 	private float[] gridify(List<Vec2> points, float[] minmax, int[] gridSize){
 		// Calcula coordenadas max/min dos pontos
 		// para calcular camada do grid
-		minmax[0] = points.get(0).x; //minX
-		minmax[1] = points.get(0).y; //minY
-		minmax[2] = points.get(0).x; //maxX
-		minmax[3] = points.get(0).y; //maxY
-		for(int i = 1; i < points.size(); i++){
-			Vec2 p = points.get(i);
-			if ( p.x > minmax[2]) minmax[2] = p.x;
-			if ( p.x  < minmax[0]) minmax[0] = p.x;
-			if ( p.y > minmax[3]) minmax[3] = p.y;
-			if ( p.y < minmax[1]) minmax[1] = p.y;
-		}
+//		minmax[0] = points.get(0).x; //minX
+//		minmax[1] = points.get(0).y; //minY
+//		minmax[2] = points.get(0).x; //maxX
+//		minmax[3] = points.get(0).y; //maxY
+//		for(int i = 1; i < points.size(); i++){
+//			Vec2 p = points.get(i);
+//			if ( p.x > minmax[2]) minmax[2] = p.x;
+//			if ( p.x  < minmax[0]) minmax[0] = p.x;
+//			if ( p.y > minmax[3]) minmax[3] = p.y;
+//			if ( p.y < minmax[1]) minmax[1] = p.y;
+//		}
 
 		EpanechnikovKernel k = new EpanechnikovKernel(1.0f);
 		float bandwidth = Grid.calcBandWidth(points);

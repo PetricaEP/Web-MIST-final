@@ -34,6 +34,7 @@ import ep.db.model.Document;
 import ep.db.model.IDocument;
 import ep.db.model.Word;
 import ep.db.pagerank.Edge;
+import ep.db.quadtree.Bounds;
 import ep.db.quadtree.QuadTree;
 import ep.db.quadtree.QuadTreeBranchNode;
 import ep.db.quadtree.QuadTreeLeafNode;
@@ -156,9 +157,9 @@ public class DatabaseService {
 	private static final String PRE_DOCUMENTS_NODE_SQL = "SELECT s.* FROM (";
 
 	private static final String DOCUMENTS_NODE_SQL = "SELECT " + SQL_SELECT_COLUMNS 
-			+ " rank() over (partition by dd.node_id order by dd.rank desc) as r "
-			+ "FROM documents_data dd INNER JOIN documents d "
-			+ "ON d.doc_id = dd.doc_id WHERE dd.node_id = ? ORDER BY node_id, rank DESC LIMIT ? OFFSET ?";
+			//+ ",rank() over (partition by dd.node_id order by dd.rank desc) as r "
+			+ " FROM documents_data dd INNER JOIN documents d "
+			+ "ON d.doc_id = dd.doc_id WHERE dd.node_id = ?";
 
 	private static final String POST_DOCUMENTS_NODE_SQL = ") s, to_tsquery(?) query WHERE query @@ tsv AND s.enabled is TRUE ORDER BY s.rank DESC";
 
@@ -168,11 +169,9 @@ public class DatabaseService {
 	private static final String DELETE_NODE_DATA_SQL = "DELETE FROM nodes;";
 
 	private static final String INSERT_NODE_SQL = "INSERT INTO nodes( node_id, isleaf, rankmax, rankmin, "
-			+ "parent_id, depth, index) VALUES (?, ?, ?, ?, ?, ?, ?);";
+			+ "parent_id, depth, index) VALUES (?, ?, ?, ?, ?, ?, ?);";	
 
-	private static final String INSERT_DOC_DATA_SQL = "INSERT INTO documents_data( doc_id, node_id, x, y, rank ) "
-			+ "VALUES (?, ?, ?, ?, ?) ON CONFLICT (doc_id) DO UPDATE "
-			+ "SET node_id = excluded.node_id, x = excluded.x, y = excluded.y, rank = excluded.rank;";
+	private static final String UPDATE_DOC_DATA_NODE_ID_SQL = "UPDATE documents_data SET node_id = ? WHERE doc_id = ?";						
 
 	private static final String AUTHORS_GRAPH_SQL = "SELECT a.aut_id source,a.aut_name source_name, a.relevance source_rank,"
 			+ "at.aut_id target,at.aut_name target_name, at.relevance target_relevance "
@@ -258,11 +257,8 @@ public class DatabaseService {
 		String where = sql.toString();
 		Configuration config = Configuration.getInstance();
 
-		int minNumOfDocs = (int) Math.ceil(numberOfDocuments * config.getMinimumPercentOfDocuments());
-		int maxNumOfDocs = (int) Math.ceil(numberOfDocuments * config.getMaximumPercentOfDocuments());
-
 		// Recupera frequencia indiviual de cada termo na base de dados (todos os documentos)
-		final Map<String, Integer> termsCount = getTermsCounts(where, minNumOfDocs, maxNumOfDocs);
+		final Map<String, Integer> termsCount = getTermsCounts(where);
 
 		// Mapeamento termo -> coluna na matriz (bag of words)
 		final Map<String, Integer> termsToColumnMap = new HashMap<>();
@@ -578,17 +574,17 @@ public class DatabaseService {
 	 * @return mapa de termos ordenados pela contagem absoluta.
 	 * @throws Exception
 	 */
-	private Map<String, Integer> getTermsCounts(String where, 
-			int minNumberOfDocs, int maxNumberOfDocs) throws Exception {
+	private Map<String, Integer> getTermsCounts(String where) throws Exception {
 		try ( Connection conn = db.getConnection();){
 
 			String sql = "SELECT word,ndoc FROM ts_stat('SELECT tsv FROM documents d";
 			if ( where != null && !where.isEmpty() )
 				sql += where;
 			sql += String.format("') WHERE nentry > %d AND nentry < %d AND ndoc > %d AND ndoc < %d", 
-					Configuration.getInstance().getMinimumNumberOfTerms(), 
-					Configuration.getInstance().getMaximumNumberOfTerms(),
-					minNumberOfDocs, maxNumberOfDocs);
+					Configuration.getInstance().getMinimumNumberOfEntries(), 
+					Configuration.getInstance().getMaximumNumberOfEntries(),
+					Configuration.getInstance().getMinimumNumberOfDocuments(),
+					Configuration.getInstance().getMaximumNumberOfDocuments());
 
 			Statement stmt = conn.createStatement();
 			ResultSet rs = stmt.executeQuery(sql);
@@ -1319,24 +1315,47 @@ public class DatabaseService {
 		return doc;
 	}	
 
-	public List<IDocument> getDocumentsFromNode(long nodeId, String query, int offset, int limit) throws Exception{
+	public List<IDocument> getDocumentsFromNode(long nodeId, Bounds rectangle, String query, int offset, int limit) throws Exception{
 		List<IDocument> docs = new ArrayList<>();
 		try (Connection conn = db.getConnection();) {
 			StringBuilder sb = new StringBuilder();
-			if ( query == null)
+			if ( query == null) {
 				sb.append(DOCUMENTS_NODE_SQL);
+				if ( rectangle != null )
+					sb.append(" AND x >= ? AND x <= ? AND y >= ? AND y <= ?");
+				sb.append(" ORDER BY rank DESC");
+				if (limit != -1)
+					sb.append(" LIMIT ? OFFSET ?");
+			}
 			else{
 				sb.append(PRE_DOCUMENTS_NODE_SQL);
 				sb.append(DOCUMENTS_NODE_SQL);
+				if ( rectangle != null )
+					sb.append(" AND x >= ? AND x <= ? AND y >= ? AND y <= ?");				
+				if (limit != -1)
+					sb.append(" LIMIT ? OFFSET ?");				
 				sb.append(POST_DOCUMENTS_NODE_SQL);
 			}
 
 			PreparedStatement stmt = conn.prepareStatement(sb.toString());					
 			stmt.setLong(1, nodeId);
-			stmt.setInt(2, limit);
-			stmt.setInt(3, offset);			
+
+			int pIndex = 1;
+			if ( rectangle != null ) {
+				stmt.setFloat(++pIndex, rectangle.getP1().x);
+				stmt.setFloat(++pIndex, rectangle.getP2().x);
+				stmt.setFloat(++pIndex, rectangle.getP1().y);
+				stmt.setFloat(++pIndex, rectangle.getP2().y);
+			}			
+
+			if ( limit != -1)
+				stmt.setInt(++pIndex, limit);			
+
+			if ( offset != -1)
+				stmt.setInt(++pIndex, offset);			
+
 			if ( query != null)										
-				stmt.setString(4, query);			
+				stmt.setString(++pIndex, query);			
 
 			try (ResultSet rs = stmt.executeQuery()) {
 				while (rs.next()) { 
@@ -1352,14 +1371,20 @@ public class DatabaseService {
 		}
 	}
 
+	public List<IDocument> getDocumentsFromNode(long nodeId, Bounds rectangle, String query) throws Exception{
+		return getDocumentsFromNode(nodeId, rectangle, query, -1, -1);
+	}
+
 	public QuadTree loadQuadTree(QuadTree qTree) throws Exception {
 
 		try (Connection conn = db.getConnection();) {
 			String sql = NODE_DATA_SQL;
 			PreparedStatement stmt = conn.prepareStatement(sql);
-			HashMap<Integer, QuadTreeNode> nodes = new HashMap<>();
-
+			HashMap<Integer, QuadTreeNode> nodesMap = new HashMap<>();
+						
 			try (ResultSet rs = stmt.executeQuery()) {
+				
+				int leafCount = 0, branchCount = 0, treeDepth = 1;				
 				while (rs.next()) {
 					int node_id = rs.getInt(1);
 					boolean isLeaf = rs.getBoolean(2);
@@ -1368,40 +1393,34 @@ public class DatabaseService {
 					int parent_id = rs.getInt(5);
 					if ( rs.wasNull() )
 						parent_id = -1;
-					int depth = rs.getByte(6);
-					int index = rs.getByte(7);
-					int nDocuments = rs.getInt(8);
-					QuadTreeBranchNode parent = parent_id < 0 ? null : (QuadTreeBranchNode) nodes.get(parent_id);
+					int depth = rs.getInt(6);
+					int index = rs.getInt(7);
+
+					if ( depth > treeDepth )
+						treeDepth = depth;
+
+					QuadTreeBranchNode parent = parent_id < 0 ? null : (QuadTreeBranchNode) nodesMap.get(parent_id);
+					QuadTreeNode node;
 					if (isLeaf) {
-						QuadTreeLeafNode leaf = new QuadTreeLeafNode(depth, index, node_id, rankMax, rankMin, parent);
-						leaf.setnTotalDocuments(nDocuments);
-						nodes.put(node_id, leaf);
+						node = new QuadTreeLeafNode(depth, index, node_id, rankMax, rankMin, parent);
+						++leafCount;					
 					} else {
-						nodes.put(node_id, new QuadTreeBranchNode(depth, index, node_id, rankMax, rankMin, parent));
+						node = new QuadTreeBranchNode(depth, index, node_id, rankMax, rankMin, parent);
+						++branchCount;
 					}
+					nodesMap.put(node_id, node);
+
+
 					if (parent != null) {
-						parent.setChild(index, nodes.get(node_id));
+						parent.setChild(index, nodesMap.get(node_id));
 					}
 				}
-				qTree.setRoot((QuadTreeBranchNode) nodes.get(0));
+				qTree.setRoot((QuadTreeBranchNode) nodesMap.get(0));
+				qTree.setDepth(treeDepth);
+				qTree.setBranchCount(branchCount);
+				qTree.setLeafCount(leafCount);				
 			}
-
-			//			Configuration config = Configuration.getInstance();
-			//			sql = String.format(DOCUMENTS_DATA_SQL, config.getDocumentRelevanceFactor(), config.getAuthorsRelevanceFactor());
-			//			stmt = conn.prepareStatement(sql);
-			//			stmt.setInt(1, qTree.getMaxElementsPerBunch());
-			//
-			//			try (ResultSet rs = stmt.executeQuery()) {
-			//				while (rs.next()) {
-			//					//d.doc_id, d.doi, d.title, d.keywords, d.publication_date, 
-			//					//dd.x, dd.y, dd.relevance, a.authors_name, dd.node_id
-			//					Document doc = newSimpleDocument(rs);  
-			//					int node_id = rs.getInt(13);
-			//
-			//					((QuadTreeLeafNode) nodes.get(node_id)).addElement(doc);
-			//				}
-			//			}
-
+						
 			conn.close();
 		} catch (Exception e) {
 			System.out.println(e.getMessage());
@@ -1411,19 +1430,20 @@ public class DatabaseService {
 		return qTree;
 	}
 
-	public boolean persistQuadTree(QuadTree quadTree) {
+	public boolean persistQuadTree(QuadTree quadTree) throws Exception {
 		boolean result = true;
-		try (Connection conn = db.getConnection();) {
-			//Deleting Table Nodes
-			//			String sql = UPDATE_NODEID_NULL_DOC_DATA_SQL;
-			//			PreparedStatement stmt = conn.prepareStatement(sql);
-			//			stmt.execute();
+		try (Connection conn = db.getConnection();) {			
 
-			PreparedStatement branchStmt = conn.prepareStatement(INSERT_NODE_SQL), 
-					stmt = conn.prepareStatement(DELETE_NODE_DATA_SQL);
+			// Remove nodes (QuadTree)
+			PreparedStatement stmt = conn.prepareStatement(DELETE_NODE_DATA_SQL);
 			stmt.execute();
+			stmt.close();
 
-			List<QuadTreeNode> nodes = new ArrayList<>();
+			// Insere novos nodes
+			stmt = conn.prepareStatement(INSERT_NODE_SQL);								
+
+			List<QuadTreeNode> nodes = new ArrayList<>(quadTree.getBranchCount() + quadTree.getLeafCount());
+			List<QuadTreeLeafNode> leaves = new ArrayList<>(quadTree.getLeafCount());
 			nodes.add(quadTree.getRoot());
 			int count = 0;
 			final int batchSize = Configuration.getInstance().getDbBatchSize();
@@ -1432,60 +1452,63 @@ public class DatabaseService {
 				QuadTreeNode node = nodes.remove(0);
 
 				//INSERT INTO nodes( node_id, isleaf, rankmax, rankmin, parent_id, depth, index)
-				branchStmt.setLong(1, node.getNodeId());
-				branchStmt.setBoolean(2, node.isLeaf());
-				branchStmt.setFloat(3, node.getRankMax());
-				branchStmt.setFloat(4, node.getRankMin());
+				stmt.setLong(1, node.getNodeId());
+				stmt.setBoolean(2, node.isLeaf());
+				stmt.setFloat(3, node.getRankMax());
+				stmt.setFloat(4, node.getRankMin());
+				
 				long pId = node.getParentNodeId();
 				if ( pId != -1 )
-					branchStmt.setLong(5, pId);
+					stmt.setLong(5, pId);
 				else
-					branchStmt.setNull(5, Types.BIGINT);
-				branchStmt.setInt(6, node.getDepth());
-				branchStmt.setInt(7, node.getIndex());
+					stmt.setNull(5, Types.BIGINT);
+				
+				stmt.setInt(6, node.getDepth());
+				stmt.setInt(7, node.getIndex());
 
-				branchStmt.addBatch();
+				stmt.addBatch();
 				++count;
 
 				if (count % batchSize == 0)
-					branchStmt.executeBatch();
+					stmt.executeBatch();
 
+				// Insere child nodes na fila de insercao
 				if (!node.isLeaf()) {
 					QuadTreeBranchNode branch = (QuadTreeBranchNode) node;
 					for (int i = 0; i < 4; i++) {
 						if (branch.getChild(i) != null) {
 							nodes.add(branch.getChild(i));
 						}
-					}
-				} else { //Leaf
-					branchStmt.executeBatch();
+					}				
+				}
+				// Guarda folhas para atualizar documents_data(node_id)
+				else
+					leaves.add((QuadTreeLeafNode) node);
+			}			
+			stmt.executeBatch();
+			stmt.close();
 
-					QuadTreeLeafNode leaf = (QuadTreeLeafNode) node;
-					PreparedStatement leafStmt = conn.prepareStatement(INSERT_DOC_DATA_SQL);
-					for (int i = 0; i < leaf.size(); i++) {
-						IDocument d = leaf.getDocument(i, null);
-						leafStmt.setLong(1, d.getId());
-						leafStmt.setLong(2, node.getNodeId());
-						leafStmt.setFloat(3, d.getPos().x);
-						leafStmt.setFloat(4, d.getPos().y);
-						leafStmt.setFloat(5, d.getRank());						
-						leafStmt.addBatch();
+			// Atualiza tabela documents_data com node_id							
+			PreparedStatement leafStmt = conn.prepareStatement(UPDATE_DOC_DATA_NODE_ID_SQL);
+			for(QuadTreeLeafNode leaf : leaves) {
+				for (int i = 0; i < leaf.size(); i++) {
+					IDocument d = leaf.getDocument(i);
+					leafStmt.setLong(1, leaf.getNodeId());
+					leafStmt.setLong(2, d.getId());											
+					leafStmt.addBatch();
 
-						if ( i % batchSize == 0){
-							leafStmt.executeBatch();
-						}
+					if ( i % batchSize == 0){
+						leafStmt.executeBatch();
 					}
-					leafStmt.executeBatch();
-					leafStmt.close();
 				}
 			}
 
-			branchStmt.executeBatch();
-			branchStmt.close();
-			conn.close();
-		} catch (Exception e) {
-			e.printStackTrace();
+			leafStmt.executeBatch();	
+			leafStmt.close();
+
+		} catch (Exception e) {			
 			System.out.println(e.getMessage());
+			throw e;
 		}
 		return result;
 	}

@@ -56,4 +56,8 @@ public class Bunch {
         }
         return null;
     }
+
+	public void clear() {
+		elements = new ArrayList<>(elements.size());
+	}
 }

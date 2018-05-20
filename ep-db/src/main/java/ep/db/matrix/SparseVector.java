@@ -58,274 +58,323 @@ import java.util.Arrays;
  */
 public class SparseVector extends Vector {
 
-    public SparseVector(float[] vector) {
-        this.create(vector, null, 0.0f);
-    }
+	public SparseVector(float[] vector) {
+		this.create(vector, null, 0.0f);
+	}
 
-    public SparseVector(float[] vector, String id) {
-        this.create(vector, id, 0.0f);
-    }
+	public SparseVector(float[] vector, String id) {
+		this.create(vector, id, 0.0f);
+	}
 
-    public SparseVector(float[] vector, float klass) {
-        this.create(vector, null, klass);
-    }
+	public SparseVector(float[] vector, float klass) {
+		this.create(vector, null, klass);
+	}
 
-    public SparseVector(float[] vector, String id, float klass) {
-        this.create(vector, id, klass);
-    }
+	public SparseVector(float[] vector, String id, float klass) {
+		this.create(vector, id, klass);
+	}
 
-    public SparseVector(ArrayList<Pair> values, String id, float klass, int size) {
-        assert (values != null) : "ERROR: vector can not be null!";
+	public SparseVector(ArrayList<Pair> values, String id, float klass, int size) {
+		assert (values != null) : "ERROR: vector can not be null!";
 
-        this.id = id;
-        this.klass = klass;
-        this.size = size;
+		this.id = id;
+		this.klass = klass;
+		this.size = size;
 
-        this.index = new int[values.size()];
-        this.values = new float[values.size()];
+		this.index = new int[values.size()];
+		this.values = new float[values.size()];
 
-        int length = this.index.length;
-        for (int i = 0; i < length; i++) {
-            this.index[i] = values.get(i).index;
-            this.values[i] = values.get(i).value;
-        }
+		int length = this.index.length;
+		for (int i = 0; i < length; i++) {
+			this.index[i] = values.get(i).index;
+			this.values[i] = values.get(i).value;
+		}
 
-        this.updateNorm = true;
-    }
+		this.updateNorm = true;
+	}
 
-    @Override
-    public float dot(Vector vector) {
-        assert (this.size == vector.size) : "ERROR: vectors of different sizes!";
-        float dot = 0.0f;
+	@Override
+	public float dot(Vector vector) {
+		assert (this.size == vector.size) : "ERROR: vectors of different sizes!";
+		float dot = 0.0f;
 
-        if (vector instanceof SparseVector) {
-            int length = this.index.length;
-            int vlength = ((SparseVector) vector).index.length;
-            int[] vindex = ((SparseVector) vector).index;
-            float[] vvalues = vector.values;
+		if (vector instanceof SparseVector) {
+			int length = this.index.length;
+			int vlength = ((SparseVector) vector).index.length;
+			int[] vindex = ((SparseVector) vector).index;
+			float[] vvalues = vector.values;
 
-            if (length > 0 && vlength > 0 && index[0] <= vindex[vlength - 1]) {
-                for (int i = 0, j = 0; i < length; i++) {
-                    while (j + 1 <= vlength && vindex[j] < this.index[i]) {
-                        j++;
-                    }
+			if (length > 0 && vlength > 0 && index[0] <= vindex[vlength - 1]) {
+				for (int i = 0, j = 0; i < length; i++) {
+					while (j + 1 <= vlength && vindex[j] < this.index[i]) {
+						j++;
+					}
 
-                    if (j >= vlength) {
-                        break;
-                    } else if (this.index[i] == vindex[j]) {
-                        dot += this.values[i] * vvalues[j];
-                        j++;
-                    }
-                }
-            }
-        } else {
-            int length = this.index.length;
-            for (int i = 0; i < length; i++) {
-                dot += this.values[i] * vector.values[this.index[i]];
-            }
-        }
+					if (j >= vlength) {
+						break;
+					} else if (this.index[i] == vindex[j]) {
+						dot += this.values[i] * vvalues[j];
+						j++;
+					}
+				}
+			}
+		} else {
+			int length = this.index.length;
+			for (int i = 0; i < length; i++) {
+				dot += this.values[i] * vector.values[this.index[i]];
+			}
+		}
 
-        return dot;
-    }
+		return dot;
+	}
 
-    @Override
-    public void normalize() {
-        assert (this.norm() > 0.0f) : "ERROR: it is not possible to normalize a null vector!";
+	@Override
+	public void normalize() {
+		assert (this.norm() > 0.0f) : "ERROR: it is not possible to normalize a null vector!";
 
-        if (this.norm() > DELTA) {
-            int length = this.values.length;
-            for (int i = 0; i < length; i++) {
-                values[i] = values[i] / this.norm();
-            }
+		if (this.norm() > DELTA) {
+			int length = this.values.length;
+			for (int i = 0; i < length; i++) {
+				values[i] = values[i] / this.norm();
+			}
 
-            this.norm = 1.0f;
+			this.norm = 1.0f;
 
-        } else {
-            this.norm = 0.0f;
-        }
-    }
+		} else {
+			this.norm = 0.0f;
+		}
+	}
 
-    @Override
-    protected void create(float[] vector, String id, float klass) {
-        assert (vector != null) : "ERROR: vector can not be null!";
+	@Override
+	protected void create(float[] vector, String id, float klass) {
+		assert (vector != null) : "ERROR: vector can not be null!";
 
-        this.id = id;
-        this.klass = klass;
-        this.size = vector.length;
+		this.id = id;
+		this.klass = klass;
+		this.size = vector.length;
 
-        ArrayList<Integer> index_aux = new ArrayList<Integer>();
-        ArrayList<Float> values_aux = new ArrayList<Float>();
+		ArrayList<Integer> index_aux = new ArrayList<Integer>();
+		ArrayList<Float> values_aux = new ArrayList<Float>();
 
-        for (int i = 0; i < vector.length; i++) {
-            if (vector[i] > 0.0f) {
-                index_aux.add(i);
-                values_aux.add(vector[i]);
-            }
-        }
+		for (int i = 0; i < vector.length; i++) {
+			if (vector[i] > 0.0f) {
+				index_aux.add(i);
+				values_aux.add(vector[i]);
+			}
+		}
 
-        this.index = new int[index_aux.size()];
-        this.values = new float[values_aux.size()];
+		this.index = new int[index_aux.size()];
+		this.values = new float[values_aux.size()];
 
-        int length = this.index.length;
-        for (int i = 0; i < length; i++) {
-            this.index[i] = index_aux.get(i);
-            this.values[i] = values_aux.get(i);
-        }
+		int length = this.index.length;
+		for (int i = 0; i < length; i++) {
+			this.index[i] = index_aux.get(i);
+			this.values[i] = values_aux.get(i);
+		}
 
-        this.updateNorm = true;
-    }
+		this.updateNorm = true;
+	}
+	
+	@Override
+	protected void createQuick(float[] vector, String id, float klass) {
+		this.id = id;
+		this.klass = klass;
+		this.size = vector.length;
 
-    @Override
-    protected void updateNorm() {
-        this.norm = 0.0f;
+		ArrayList<Integer> index_aux = new ArrayList<Integer>();
+		ArrayList<Float> values_aux = new ArrayList<Float>();
 
-        int length = this.values.length;
-        for (int i = 0; i < length; i++) {
-            this.norm += this.values[i] * this.values[i];
-        }
+		for (int i = 0; i < vector.length; i++) {
+			if (vector[i] > 0.0f) {
+				index_aux.add(i);
+				values_aux.add(vector[i]);
+			}
+		}
 
-        this.norm = (float) Math.sqrt(this.norm);
-        this.updateNorm = false;
-    }
+		this.index = new int[index_aux.size()];
+		this.values = new float[values_aux.size()];
 
-    public float sparsity() {
-        if (this.size > 0) {
-            return 1.0f - ((float) this.index.length / (float) this.size);
-        } else {
-            return 1.0f;
-        }
-    }
+		int length = this.index.length;
+		for (int i = 0; i < length; i++) {
+			this.index[i] = index_aux.get(i);
+			this.values[i] = values_aux.get(i);
+		}
 
-    @Override
-    public float[] toArray() {
-        float[] vector = new float[this.size];
-        Arrays.fill(vector, 0.0f);
+		this.updateNorm = true;
+	}
 
-        int length = this.index.length;
-        for (int i = 0; i < length; i++) {
-            vector[this.index[i]] = this.values[i];
-        }
+	@Override
+	protected void updateNorm() {
+		this.norm = 0.0f;
 
-        return vector;
-    }
+		int length = this.values.length;
+		for (int i = 0; i < length; i++) {
+			this.norm += this.values[i] * this.values[i];
+		}
 
-    @Override
-    public float getValue(int index) {
-        assert (index < this.size) : "ERROR: index out of bounds!";
+		this.norm = (float) Math.sqrt(this.norm);
+		this.updateNorm = false;
+	}
 
-        for (int i = 0; i < this.index.length; i++) {
-            if (this.index[i] == index) {
-                return this.values[i];
-            } else if (this.index[i] > index) {
-                break;
-            }
-        }
+	public float sparsity() {
+		if (this.size > 0) {
+			return 1.0f - ((float) this.index.length / (float) this.size);
+		} else {
+			return 1.0f;
+		}
+	}
 
-        return 0.0f;
-    }
+	@Override
+	public float[] toArray() {
+		float[] vector = new float[this.size];
+		Arrays.fill(vector, 0.0f);
 
-    @Override
-    public void setValue(int index, float value) {
-        throw new UnsupportedOperationException("Not supported yet.");
-    }
+		int length = this.index.length;
+		for (int i = 0; i < length; i++) {
+			vector[this.index[i]] = this.values[i];
+		}
 
-    @Override
-    public void write(BufferedWriter out) throws IOException {
-        out.write(this.id);
-        out.write(";");
+		return vector;
+	}
 
-        for (int i = 0; i < this.values.length; i++) {
-            out.write(Integer.toString(this.index[i]));
-            out.write(":");
-            out.write(Float.toString(this.values[i]));
-            out.write(";");
-        }
+	@Override
+	public float getValue(int index) {
+		assert (index < this.size) : "ERROR: index out of bounds!";
 
-        out.write(Float.toString(this.klass));
-    }
+//		int j = Arrays.binarySearch(this.index, index);
+//		float v = this.values[j];
+//		
+		for (int i = 0; i < this.index.length; i++) {
+			if (this.index[i] == index) {
+				return this.values[i];
+			} else if (this.index[i] > index) {
+				break;
+			}
+		}
 
-    @Override
-    public Object clone() throws CloneNotSupportedException {
-        SparseVector clone = new SparseVector(new float[]{0});
-        clone.norm = this.norm;
-        clone.size = this.size;
-        clone.id = this.id;
-        clone.klass = this.klass;
+		return 0.0f;
+	}
 
-        if (this.index != null) {
-            clone.index = new int[this.index.length];
-            System.arraycopy(this.index, 0, clone.index, 0, this.index.length);
-        }
+	@Override
+	public float getValueQuick(int index) {				
+		for (int i = 0; i < this.index.length; i++) {
+			if (this.index[i] == index) {
+				return this.values[i];
+			} else if (this.index[i] > index) {
+				break;
+			}
+		}
 
-        if (this.values != null) {
-            clone.values = new float[this.values.length];
-            System.arraycopy(this.values, 0, clone.values, 0, this.values.length);
-        }
+		return 0.0f;
+	}
 
-        return clone;
-    }
+	@Override
+	public void setValue(int index, float value) {
+		throw new UnsupportedOperationException("Not supported yet.");
+	}
+	
+	@Override
+	public void setValueQuick(int index, float value) {
+		throw new UnsupportedOperationException("Not supported yet.");
+	}
 
-    @Override
-    public boolean equals(Object obj) {
-        if (obj instanceof SparseVector) {
-            SparseVector spv = ((SparseVector) obj);
+	@Override
+	public void write(BufferedWriter out) throws IOException {
+		out.write(this.id);
+		out.write(";");
 
-            if (this.size != spv.size) {
-                return false;
-            }
+		for (int i = 0; i < this.values.length; i++) {
+			out.write(Integer.toString(this.index[i]));
+			out.write(":");
+			out.write(Float.toString(this.values[i]));
+			out.write(";");
+		}
 
-            int length = this.index.length;
-            int spvlength = spv.index.length;
+		out.write(Float.toString(this.klass));
+	}
 
-            for (int i = 0; i < length; i++) {
-                if (spvlength > i) {
-                    if (this.index[i] != spv.index[i] ||
-                            Math.abs(this.values[i] - spv.values[i]) > DELTA) {
-                        return false;
-                    }
-                } else {
-                    return false;
-                }
-            }
+	@Override
+	public Object clone() throws CloneNotSupportedException {
+		SparseVector clone = new SparseVector(new float[]{0});
+		clone.norm = this.norm;
+		clone.size = this.size;
+		clone.id = this.id;
+		clone.klass = this.klass;
 
-            return (Math.abs(spv.norm - this.norm) <= DELTA);
-        } else if (obj instanceof DenseVector) {
-            DenseVector dv = ((DenseVector) obj);
+		if (this.index != null) {
+			clone.index = new int[this.index.length];
+			System.arraycopy(this.index, 0, clone.index, 0, this.index.length);
+		}
 
-            if (this.size != dv.size) {
-                return false;
-            }
+		if (this.values != null) {
+			clone.values = new float[this.values.length];
+			System.arraycopy(this.values, 0, clone.values, 0, this.values.length);
+		}
 
-            float[] values_aux = this.values;
+		return clone;
+	}
 
-            for (int i = 0; i < values_aux.length; i++) {
-                if (Math.abs(values_aux[i] - dv.values[i]) > DELTA) {
-                    return false;
-                }
-            }
+	@Override
+	public boolean equals(Object obj) {
+		if (obj instanceof SparseVector) {
+			SparseVector spv = ((SparseVector) obj);
 
-            return (Math.abs(dv.norm - this.norm) <= DELTA);
-        }
+			if (this.size != spv.size) {
+				return false;
+			}
 
-        return false;
-    }
+			int length = this.index.length;
+			int spvlength = spv.index.length;
 
-    @Override
-    public int hashCode() {
-        int result = 5 + (int) this.norm;
-        result += 7 * size;
-        result += 7 * (int) this.klass;
-        result += 3 * this.id.hashCode();
-        return result;
-    }
+			for (int i = 0; i < length; i++) {
+				if (spvlength > i) {
+					if (this.index[i] != spv.index[i] ||
+							Math.abs(this.values[i] - spv.values[i]) > DELTA) {
+						return false;
+					}
+				} else {
+					return false;
+				}
+			}
 
-    /**
-     * This method it is only to be used if you know what you are doing.
-     * @return The index of the values stored in this vector.
-     */
-    public int[] getIndex() {
-        return index;
-    }
+			return (Math.abs(spv.norm - this.norm) <= DELTA);
+		} else if (obj instanceof DenseVector) {
+			DenseVector dv = ((DenseVector) obj);
 
-    protected int[] index;
+			if (this.size != dv.size) {
+				return false;
+			}
+
+			float[] values_aux = this.values;
+
+			for (int i = 0; i < values_aux.length; i++) {
+				if (Math.abs(values_aux[i] - dv.values[i]) > DELTA) {
+					return false;
+				}
+			}
+
+			return (Math.abs(dv.norm - this.norm) <= DELTA);
+		}
+
+		return false;
+	}
+
+	@Override
+	public int hashCode() {
+		int result = 5 + (int) this.norm;
+		result += 7 * size;
+		result += 7 * (int) this.klass;
+		result += 3 * this.id.hashCode();
+		return result;
+	}
+
+	/**
+	 * This method it is only to be used if you know what you are doing.
+	 * @return The index of the values stored in this vector.
+	 */
+	public int[] getIndex() {
+		return index;
+	}
+
+	protected int[] index;
 }

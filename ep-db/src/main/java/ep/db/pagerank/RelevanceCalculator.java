@@ -1,5 +1,8 @@
 package ep.db.pagerank;
 
+import java.io.File;
+import java.io.IOException;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -62,7 +65,7 @@ public class RelevanceCalculator {
 	public void update(){
 		try {
 			System.out.println("Documents Page Rank...");
-//			updateRelevance(DatabaseService.DOCUMENTS_GRAPH);
+			//			updateRelevance(DatabaseService.DOCUMENTS_GRAPH);
 			calcPageRank(DatabaseService.DOCUMENTS_GRAPH);
 		} catch (Exception e) {
 			logger.error("Error calculating relevance for documents.",e);
@@ -70,12 +73,12 @@ public class RelevanceCalculator {
 
 		try {
 			System.out.println("Authors Page Rank...");
-//			updateRelevance(DatabaseService.AUTHORS_GRAPH);
+			//			updateRelevance(DatabaseService.AUTHORS_GRAPH);
 			calcPageRank(DatabaseService.AUTHORS_GRAPH);
 		} catch (Exception e) {
 			logger.error("Error calculating relevance for authors.",e);
 		}
-		
+
 		try{
 			System.out.println("Updating documents rank...");
 			dbService.updateDocumentsRank();
@@ -91,7 +94,7 @@ public class RelevanceCalculator {
 			logger.error("Error while getting citation graph from database",e);
 			throw e;
 		}
-		
+
 	}
 
 	/**
@@ -136,10 +139,29 @@ public class RelevanceCalculator {
 	 * @param args argumentos para PageRank
 	 */
 	public static void main(String[] args) {
-		try {
-			Configuration config = Configuration.getInstance();
-			config.loadConfiguration();
 
+		Configuration config = Configuration.getInstance();			
+		if (args.length > 0) {
+			File configFile = new File(args[0]);
+			try {
+				config.loadConfiguration(configFile.getAbsolutePath());
+			} catch (IOException e) {
+				System.err.println("Can't load configuration file: ");
+				e.printStackTrace();
+				System.exit(-1);		
+			}
+		}
+		else {			
+			try {
+				config.loadConfiguration();
+			} catch (IOException e) {
+				System.err.println("Can't load configuration file: ");
+				e.printStackTrace();
+				System.exit(-1);				
+			}
+		}
+		
+		try {
 			System.out.println("Updating ranking...");
 			RelevanceCalculator ranking = new RelevanceCalculator(config);
 			ranking.update();

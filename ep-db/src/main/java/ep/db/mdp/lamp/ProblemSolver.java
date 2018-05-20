@@ -9,7 +9,8 @@ import org.slf4j.LoggerFactory;
 import ep.db.matrix.DenseMatrix;
 import ep.db.matrix.DenseVector;
 import ep.db.matrix.Matrix;
-import ep.db.matrix.SingularValueDecomposition;
+import ep.db.matrix.SVD;
+import ep.db.matrix.SVDFactory;
 import ep.db.matrix.Vector;
 import ep.db.mdp.projection.ProjectionData;
 import me.tongfei.progressbar.ProgressBar;
@@ -26,10 +27,11 @@ class ParallelSolver implements Callable<Integer> {
 	private double epsilon;
 	private int begin;
 	private int end;
+	private int svdType;
 	private ProgressBar pb;
 
 	public ParallelSolver(ProjectionData pdata, float[] projection, float[][] sampledata, float[][] sampleproj,
-			Matrix matrix, int begin, int end, double epsilon, ProgressBar pb) {
+			Matrix matrix, int begin, int end, double epsilon, ProgressBar pb, int svdType) {
 		this.pdata = pdata;
 		this.projection = projection;
 		this.sampledata = sampledata;
@@ -39,6 +41,7 @@ class ParallelSolver implements Callable<Integer> {
 		this.end = end;
 		this.epsilon = epsilon;
 		this.pb = pb;
+		this.svdType = svdType;
 	}
 
 	@Override
@@ -195,22 +198,22 @@ class ParallelSolver implements Callable<Integer> {
 			//==============================================================
 
 			// SVD Computation      	[U, S, V]
-			SingularValueDecomposition svd = new SingularValueDecomposition(AtB);
-			Matrix V = svd.getV();
-			Matrix U = svd.getU();
+			SVD svd = SVDFactory.createSVD(svdType);
+			svd.svd(AtB);
+			float[][] V = svd.getV();
+			float[][] U = svd.getU();			
 
-			v00 = V.getRow(0).getValue(0); //(0, 0);
-			v01 = V.getRow(0).getValue(1); //(0, 1);
-			v10 = V.getRow(1).getValue(0); //(1, 0);
-			v11 = V.getRow(1).getValue(1); //(1, 1);
+			v00 = V[0][0]; 
+			v01 = V[0][1]; 
+			v10 = V[1][0]; 
+			v11 = V[1][1];
 
 			x = 0;
 			y = 0;
 			for (j = 0; j < d; j++) {
 				diff = (X[j] - Pstar[j]);
-				Vector v = U.getRow(j);
-				uj0 = v.getValue(0);
-				uj1 = v.getValue(1);
+				uj0 = U[j][0];
+				uj1 = U[j][1];
 
 				x += diff * (uj0 * v00 + uj1 * v01);
 				y += diff * (uj0 * v10 + uj1 * v11);

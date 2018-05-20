@@ -292,16 +292,34 @@ public class DocumentParserService {
 	 */
 	public static void main(String[] args) {
 
-		if ( args.length != 1){
+		if ( args.length < 1){
 			System.out.println("Provide the directory path where articles are located");
-			System.out.println("Usage: DocumentParserService <directory_with_pdf_documents>");
+			System.out.println("Usage: DocumentParserService <directory_with_pdf_documents> <config_file>(optinal)");
 			return;
 		}
 
-		try {
-			Configuration config = Configuration.getInstance();
-			config.loadConfiguration();
-
+		Configuration config = Configuration.getInstance();			
+		if (args.length > 0) {
+			File configFile = new File(args[1]);
+			try {
+				config.loadConfiguration(configFile.getAbsolutePath());
+			} catch (IOException e) {
+				System.err.println("Can't load configuration file: ");
+				e.printStackTrace();
+				System.exit(-1);		
+			}
+		}
+		else {			
+			try {
+				config.loadConfiguration();
+			} catch (IOException e) {
+				System.err.println("Can't load configuration file: ");
+				e.printStackTrace();
+				System.exit(-1);				
+			}
+		}
+		
+		try {			
 			String grobidHome = config.getGrobidHome();
 			String grobidProperties = config.getGrobidConfig();
 			DocumentParser parser = new GrobIDDocumentParser(grobidHome, grobidProperties, true);

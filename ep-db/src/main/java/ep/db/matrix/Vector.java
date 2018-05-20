@@ -69,8 +69,12 @@ public abstract class Vector {
     public abstract float[] toArray();
 
     public abstract float getValue(int index);
+    
+    public abstract float getValueQuick(int index);
 
     public abstract void setValue(int index, float value);
+    
+    public abstract void setValueQuick(int index, float value);       
 
     public abstract void write(BufferedWriter out) throws IOException;
 
@@ -78,6 +82,8 @@ public abstract class Vector {
     public abstract Object clone() throws CloneNotSupportedException;
 
     protected abstract void create(float[] vector, String id, float klass);
+    
+    protected abstract void createQuick(float[] vector, String id, float klass);
 
     protected abstract void updateNorm();
 
