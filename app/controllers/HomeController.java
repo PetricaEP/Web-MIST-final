@@ -20,7 +20,6 @@ import play.mvc.Controller;
 import play.mvc.Result;
 import play.mvc.Results;
 import play.routing.JavaScriptReverseRouter;
-import services.database.DatabaseExecutionContext;
 import services.search.DocumentSearcher;
 import views.formdata.QueryData;
 import views.html.Index;
@@ -34,9 +33,7 @@ public class HomeController extends Controller {
 	/**
 	 * IndexSearcher for documents in database
 	 */
-	private final DocumentSearcher docSearcher;
-
-	private DatabaseExecutionContext databaseContext;
+	private final DocumentSearcher docSearcher;	
 	
 	private HttpExecutionContext httpExecutionContext;
 
@@ -49,10 +46,9 @@ public class HomeController extends Controller {
 
 	@Inject
 	public HomeController(@Named("docSearcher") DocumentSearcher docSearcher, FormFactory formFactory,
-			DatabaseExecutionContext context, HttpExecutionContext ec, JsMessagesFactory jsMessagesFactory) {
+			HttpExecutionContext ec, JsMessagesFactory jsMessagesFactory) {
 		this.docSearcher = docSearcher;
-		this.formFactory = formFactory;
-		this.databaseContext = context;
+		this.formFactory = formFactory;		
 		this.httpExecutionContext = ec;		
 		jsMessages = jsMessagesFactory.filtering( key -> key.startsWith("js."));
 	}
@@ -105,7 +101,7 @@ public class HomeController extends Controller {
 		try {
 			return docSearcher.search(queryData.get()).thenApplyAsync((json) -> {				
 				return ok(json);
-			}, databaseContext);
+			}, httpExecutionContext.current());
 		}catch (Exception e) {
 			return CompletableFuture.completedFuture(
 					Results.ok(""));
@@ -119,7 +115,7 @@ public class HomeController extends Controller {
 						() -> docSearcher.getDocumentsReferences(docIds));
 				return jsonResult.thenApplyAsync((j) -> {
 					return ok(j).as("application/json");
-				}, databaseContext);
+				}, httpExecutionContext.current());
 			} catch (Exception e) {
 				Logger.error("Can't search for documents. Query: " + docIds.toString(), e);
 			}
