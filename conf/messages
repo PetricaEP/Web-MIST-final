@@ -7,7 +7,7 @@ navbar.zoom.btn.title = Quadtree zoom
 navbar.show.btn.title = Show documents list
 navbar.download.btn.title = Download selected documents
 navbar.circles.btn.title = Show/Hide documents
-navbar.cloud.btn.title =Show/Hide words cloud
+navbar.cloud.btn.title =Show/Hide word cloud
 navbar.settings.force.collision.label = Collision force:
 navbar.settings.force.attraction.label = Attraction force:
 navbar.settings.force.clustering.label = Clustering force:
@@ -25,6 +25,8 @@ navbar.advanced.num_clusters.label = Number of clusters:
 modal.no.documents.found.title = No documents found!
 modal.no.documents.found.body = Your search/zoom did not return any result.
 modal.no.documents.found.close = Close
+navbar.adv_search.btn.title = Advanced search
+navbar.settings.btn.title = Settings
 
 js.page.previous = Previous
 js.page.next = Next

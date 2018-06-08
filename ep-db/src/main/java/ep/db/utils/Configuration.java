@@ -21,7 +21,7 @@ public class Configuration {
 	/**
 	 * Arquivo de configuração
 	 */
-	public static final String PROP_FILE = "/conf/config.properties";
+	public static final String PROP_FILE = "/config.properties";
 
 	private static final String DB_HOST = "db.host";
 	private static final String DB_NAME = "db.database";

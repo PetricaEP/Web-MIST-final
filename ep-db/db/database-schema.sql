@@ -25,8 +25,8 @@ CREATE TABLE documents (
 	container_issn		varchar(100),
 	language			regconfig default 'english'::regconfig,
 	tsv					tsvector,
-	freqs				jsonb,
-	most_freq_words		jsonb,
+	freqs				jsonb,	
+	words				json,
 	path				varchar(300),
 	enabled				boolean default true,
 	bibtex				text
@@ -93,12 +93,34 @@ CREATE TRIGGER tsvector_aut_update BEFORE INSERT OR UPDATE
     ON authors FOR EACH ROW EXECUTE PROCEDURE authors_trigger();
 
 CREATE OR REPLACE FUNCTION documents_trigger() RETURNS TRIGGER AS $documents_trigger$
+	DECLARE
+		words tsvector;
+		json_str json;
 	BEGIN
   		new.tsv :=
 	     setweight(to_tsvector(new.language, coalesce(new.title,'')), 'A') ||
 	     setweight(to_tsvector(new.language, coalesce(new.keywords,'')), 'B') ||
 	     setweight(to_tsvector(new.language, coalesce(new.abstract,'')), 'C');
-  	return new;
+	    
+	    words := 
+	      to_tsvector('simple_english', coalesce(new.title,'')) || 
+	    	  to_tsvector('simple_english', coalesce(new.keywords,'')) ||
+	    	  to_tsvector('simple_english', coalesce(new.abstract,''));
+	    	  
+	    	IF words != '' THEN
+	    		BEGIN
+		    		SELECT to_json(array_agg(row)) INTO json_str FROM (
+		    			SELECT word,nentry FROM 
+		    			ts_stat( format('SELECT %s::tsvector', quote_literal(words) ) ) ORDER BY nentry DESC) row;
+		    	EXCEPTION
+		    	WHEN NO_DATA_FOUND THEN
+		    		json_str := NULL;		    		
+	    		END;
+	    	END IF;
+	    	  
+		new.words = json_str;
+	
+  		return new;
 	END;
 $documents_trigger$ LANGUAGE plpgsql;
 
@@ -112,7 +134,7 @@ CREATE TRIGGER tsvector_doc_update BEFORE INSERT OR UPDATE
 	 	
 	 	IF new.tsv IS NOT NULL THEN
 		 	BEGIN
-		   		SELECT array_to_json(array_agg(row)) INTO json_str FROM ( 
+		   		SELECT array_to_jsonb(array_agg(row)) INTO json_str FROM ( 
 		   		SELECT word, nentry FROM  
 		   		ts_stat( format('SELECT %s::tsvector', quote_literal(new.tsv) ) ) ORDER BY nentry DESC) row;
 		    EXCEPTION
@@ -209,3 +231,14 @@ CREATE INDEX documents_enabled_index ON documents(enabled);
 CREATE INDEX documents_tsv_index ON documents USING gin(tsv);
 CREATE INDEX authors_tsv_index ON authors USING gin(aut_name_tsv);
 CREATE INDEX authors_on_name_trigram_index ON authors USING gin (aut_name gin_trgm_ops);
+
+
+-- Dictionaries and Configurations
+CREATE TEXT SEARCH DICTIONARY simple_english
+   (TEMPLATE = pg_catalog.simple, STOPWORDS = english);
+
+CREATE TEXT SEARCH CONFIGURATION simple_english
+   (copy = english);
+ALTER TEXT SEARCH CONFIGURATION simple_english
+   ALTER MAPPING FOR asciihword, asciiword, hword, hword_asciipart, hword_part, word
+   WITH simple_english;

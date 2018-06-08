@@ -122,9 +122,7 @@ public class DatabaseService {
 	private static final String UPDATE_RELEVANCE_AUTHORS = "UPDATE authors SET relevance = ? WHERE aut_id = ?";
 
 	private static final String SQL_SELECT_COLUMNS = "d.doc_id, d.doi, d.title, d.keywords, d.publication_date, "
-			+ "dd.x, dd.y, dd.rank, d.authors, d.bibtex, d.most_freq_words ";
-
-	private static final String UPDATE_MOST_FREQ_WORDS = "UPDATE documents d SET most_freq_words = jsonb_sub_array(d.freqs, 0, ?) WHERE d.doc_id = ?;";
+			+ "dd.x, dd.y, dd.rank, d.authors, d.bibtex, d.words ";	
 
 	private static final String SEARCH_SQL = "SELECT " + SQL_SELECT_COLUMNS + " FROM documents d "
 			+ "INNER JOIN documents_data dd ON d.doc_id = dd.doc_id AND dd.rank IS NOT NULL,"
@@ -327,29 +325,11 @@ public class DatabaseService {
 				addDocumetAuthors(Arrays.asList(doc));
 			}catch (Exception e) {
 				System.err.println(e.getMessage());
-			}
-			try {
-				setMostFrequentWords(docId);
-			}catch (Exception e) {
-				System.err.println(e.getMessage());
-			}
+			}			
 		}
 
 		return docId;
-	}
-
-	private void setMostFrequentWords(long docId) throws Exception {
-		final int numWords = Configuration.getInstance().getNumberOfMostFrequentWords();
-		try( Connection conn = db.getConnection();){
-			PreparedStatement stmt = conn.prepareStatement(UPDATE_MOST_FREQ_WORDS);
-			stmt.setInt(1, numWords);
-			stmt.setLong(2, docId);
-			stmt.executeUpdate();
-		}catch (Exception e) {
-			throw e;
-		}
-
-	}
+	}	
 
 	/**
 	 * Insere todos os documentos da lista dada no bando de dados, 
@@ -694,8 +674,7 @@ public class DatabaseService {
 			Matrix matrix = new SparseMatrix();
 			while( rs.next() ){
 				long docId = rs.getLong(1);
-				Map<String, String> terms = parseTSV(rs.getString(2));
-				docIds.add(docId);
+				Map<String, String> terms = parseTSV(rs.getString(2));				
 
 				if ( terms != null && !terms.isEmpty() ){
 					ArrayList<Pair> values = new ArrayList<>();
@@ -711,7 +690,8 @@ public class DatabaseService {
 							values.add(new Pair(col, (float) tfidf));							
 						}	
 					}
-					matrix.addRow(new SparseVector(values, Long.toString(docId), 1.0f, numTerms));					
+					matrix.addRow(new SparseVector(values, Long.toString(docId), 1.0f, numTerms));
+					docIds.add(docId);
 				}
 			}		
 
@@ -1281,7 +1261,7 @@ public class DatabaseService {
 
 	private Document newSimpleDocument(ResultSet rs) throws SQLException, JsonParseException, JsonMappingException, IOException {
 		//		d.doc_id, d.doi, d.title, d.keywords, d.publication_date, "
-		//		dd.x, dd.y, dd.rank, d.authors, d.bibtex, most_freq_words
+		//		dd.x, dd.y, dd.rank, d.authors, d.bibtex, d.words
 		Document doc = new Document();
 		doc.setId( rs.getLong(1) );
 		doc.setDOI( rs.getString(2) );
@@ -1300,16 +1280,17 @@ public class DatabaseService {
 			ObjectMapper mapper = new ObjectMapper();
 			List<Map<String,Object>> t = mapper.readValue(terms, 
 					new TypeReference<List<Map<String,Object>>>(){});
-			Word[] words = new Word[Configuration.getInstance().getNumberOfMostFrequentWords()];
-			int i = 0;
-			for(Map<String,Object> o : t){
-				String term = (String) o.get("word");				
-				int count = ((Number) o.get("nentry")).intValue();					
-				words[i] = new Word(term, count);
-				++i;
-
-			}			
-			doc.setWords(words);
+			int maxNumberOfWords = Math.min(Configuration.getInstance().getNumberOfMostFrequentWords(), t.size());
+			if(maxNumberOfWords > 0) {
+				Word[] words = new Word[maxNumberOfWords];				
+				for(int i = 0; i < maxNumberOfWords; i++){
+					Map<String,Object> o = t.get(i);
+					String term = (String) o.get("word");				
+					int count = ((Number) o.get("nentry")).intValue();					
+					words[i] = new Word(term, count);					
+				}			
+				doc.setWords(words);
+			}
 		}
 
 		return doc;

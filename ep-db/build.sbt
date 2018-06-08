@@ -35,6 +35,7 @@ libraryDependencies ++= Seq(
 )
 
 test in assembly := {}
+assemblyOutputPath in assembly := file("dist/ep-db.jar")
 
 packageOptions in assembly ~= { pos =>
   pos.filterNot { po =>

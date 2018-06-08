@@ -8,8 +8,10 @@ import java.util.Locale;
 import com.google.inject.AbstractModule;
 import com.google.inject.name.Names;
 import com.typesafe.config.Config;
+import com.typesafe.config.ConfigException;
 
 import play.Environment;
+import play.Logger;
 import services.search.DocumentSearcher;
 
 public class Module extends AbstractModule {
@@ -41,14 +43,22 @@ public class Module extends AbstractModule {
 			throw new RuntimeException(e);
 		}
 		
-		File configFile = new File(configuration.getString("ep_db.config_file"));
-		if (!configFile.exists())
-			throw new RuntimeException(
+		String configFilename = null;
+		try {
+			configFilename = configuration.getString("ep_db.config_file");
+		} catch (ConfigException.Missing | ConfigException.WrongType e) {
+			Logger.warn("No ep_db.config_file. Using default. ", e);
+		}
+		if ( configFilename != null ) {
+			File configFile = new File(configFilename);		
+			if (!configFile.exists())
+				throw new RuntimeException(
 					new FileNotFoundException("Cannot find ep-db configuration file: " +configFile.getAbsolutePath()));
+		}
 		
 		ep.db.utils.Configuration config = ep.db.utils.Configuration.getInstance();
 		try {
-			config.loadConfiguration(configFile.getAbsolutePath());
+			config.loadConfiguration(configFilename);
 		} catch (IOException e) {
 			throw new RuntimeException(e);
 		}

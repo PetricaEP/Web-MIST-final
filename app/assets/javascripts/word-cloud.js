@@ -1,6 +1,6 @@
 function wordCloud(cfg) {
 	var fill;
-
+	
 	if (cfg.colors === undefined)
 		fill = d3.schemeCategory10;
 	else
@@ -64,9 +64,11 @@ function wordCloud(cfg) {
 				]);			
 
 			var wc = d3.layout.cloud().size([cfg.width, cfg.height])
-			.words(words)
+			.words(words.filter(function(d){
+				return d.size > cfg.minWordNumber && (cfg.maxWordNumber < 0 || d.size <= cfg.maxWordNumber );
+			}))
 			.padding(5)
-			.rotate(function() { return ~~(Math.random() * 2) * 90; }) //return ~~(Math.random() * 2) * 90;
+			.rotate(function() { return 0; }) //~~(Math.random() * 2) * 90; })
 			.font("Impact")
 			.fontSize(function(d) { return wordScale(d.size); })
 			.spiral("archimedean")

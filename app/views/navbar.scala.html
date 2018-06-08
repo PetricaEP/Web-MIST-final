@@ -43,10 +43,12 @@
 				</div>
 	        		 <div class="col-sm-4 search-buttons">
 		        			<button type="submit" id="search" class="btn btn-primary">@Messages("navbar.search.btn.label")</button>
-		        			<button id="advanced-search-btn" type="button" class="btn btn-default" aria-label="Left Align">
+		        			<button id="advanced-search-btn" type="button" class="btn btn-default" aria-label="Left Align" data-tooltip="tooltip" data-placement="bottom"
+		        				title="@Messages("navbar.adv_search.btn.title")">
 		  						<span class="glyphicon glyphicon-chevron-down" aria-hidden="true"></span>
 							</button>
-						<button id="viz-settings-btn" type="button" class="btn btn-default" aria-label="Left Align">
+						<button id="viz-settings-btn" type="button" class="btn btn-default" aria-label="Left Align" data-tooltip="tooltip" data-placement="bottom"
+		        				title="@Messages("navbar.settings.btn.title")">
 		  						<span class="glyphicon glyphicon-cog" aria-hidden="true"></span>
 						</button>
 						<button type="button" id="reset-btn" class="btn btn-danger glyphicon glyphicon-erase"

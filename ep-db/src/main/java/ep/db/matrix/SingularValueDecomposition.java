@@ -48,7 +48,6 @@ public class SingularValueDecomposition implements SVD {
 	 * ------------------------ */
 
 	/** Construct the singular value decomposition
-   	@param matrix    Rectangular matrix
 	 */
 	public SingularValueDecomposition () {
 

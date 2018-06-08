@@ -395,12 +395,12 @@ public class LocalDocumentSearcher implements DocumentSearcher {
 			bw.write("DOI,Title,Authors,Year,BibTEX");
 			bw.newLine();
 			for(Document doc : docs){
-				String line = String.format("%s,%s,%s,%s,%s", 
-						doc.getDOI() != null ? doc.getDOI() : "", 
-								doc.getTitle() != null ? doc.getTitle() : "",
-										Utils.authorsToString(doc.getAuthors()),
-										doc.getPublicationDate() != null ? doc.getPublicationDate() : "",
-												doc.getBibTEX() != null ? doc.getBibTEX() : ""
+				String line = String.format("\"%s\",\"%s\",\"%s\",\"%s\",\"%s\"", 
+						doc.getDOI() != null ? followCVSformat(doc.getDOI()) : "", 
+								doc.getTitle() != null ? followCVSformat(doc.getTitle()) : "",
+										followCVSformat(Utils.authorsToString(doc.getAuthors())),
+										doc.getPublicationDate() != null ? followCVSformat(doc.getPublicationDate()) : "",
+												doc.getBibTEX() != null ? followCVSformat(doc.getBibTEX()) : ""
 						);
 				bw.write(line);
 				bw.newLine();
@@ -410,6 +410,16 @@ public class LocalDocumentSearcher implements DocumentSearcher {
 		}
 		return file;
 	}
+	
+	private static String followCVSformat(String value) {
+
+        String result = value;
+        if (result.contains("\"")) {
+            result = result.replace("\"", "\"\"");
+        }
+        return result;
+
+    }
 
 	private void clustering(final List<IDocument> documents, int numClusters, DissimilarityType type) {
 		// Matrix para K-means

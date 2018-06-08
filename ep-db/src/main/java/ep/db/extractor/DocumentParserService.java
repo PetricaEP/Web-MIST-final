@@ -250,7 +250,11 @@ public class DocumentParserService {
 			doc.setPath(filename.getAbsolutePath());
 			doc.setBibTEX(documentParser.toBibTEX());
 
-			consolidator.consolidate(doc);
+			try {
+				consolidator.consolidate(doc);
+			} catch(Exception e1) {
+				logger.error("Error consolidating document: " + doc.getDOI(), e1);
+			}
 
 			return doc;
 		} catch (Exception e) {
@@ -299,12 +303,12 @@ public class DocumentParserService {
 		}
 
 		Configuration config = Configuration.getInstance();			
-		if (args.length > 0) {
+		if (args.length > 1) {
 			File configFile = new File(args[1]);
 			try {
 				config.loadConfiguration(configFile.getAbsolutePath());
 			} catch (IOException e) {
-				System.err.println("Can't load configuration file: ");
+				System.err.println("Can't load configuration file: " + args[1]);
 				e.printStackTrace();
 				System.exit(-1);		
 			}

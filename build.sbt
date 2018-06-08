@@ -13,7 +13,7 @@ lazy val root = (project in file("."))
 
 lazy val ep_db = (project in file("ep-db"))
 
-//javacOptions ++= Seq("-g")
+javacOptions ++= Seq("-g")
 
 scalaVersion := "2.12.3"
 

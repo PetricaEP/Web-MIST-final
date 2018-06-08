@@ -81,6 +81,7 @@ function processReferences(data){
 		.enter().append("path")
 		.attr("class", "link")
 		.attr('stroke-width', 1.5)
+		.attr('visibility', 'hidden')
 		.attr("marker-end", function(d) { return "url(#link" + selectedTab.id + ")"; });		
 
 		// Força entre links (citações)
@@ -245,37 +246,17 @@ function toggleLinks(d,index){
 
 	for(i = 0; i < edges.length; i++){
 		if (edges[i].source == d){
-			var l = d3.select(nodes[i]);
+			var l = d3.select(nodes[i]);			
 			l.classed('active', !l.classed('active'));
+			if ( l.classed('active')){
+				l.attr('visibility', 'visible');				
+			}
+			else{
+				l.attr('visibility', 'hidden');
+			}
+			
 		}
-	}
-
-	// Cria tooltip fixa
-//	var tip = d3.select("body").append("div")
-//	.attr('class', 'fixed-tooltip')
-//	.style("opacity", 0);
-
-//	tip.transition()
-//	.duration(200)
-//	.style("opacity", 0.9)
-//	.style("display", "block");
-
-//	tipHtml = createToolTip(d);
-//	tip.html(tipHtml);
-
-//	var svg = $('#' + selectedTab.id + " svg");
-//	var x = d3.event.clientX, 
-//	y = d3.event.clientY;
-//	var tipW = $('.node-tooltip').width(),
-//	tipH = $('.node-tooltip').height();
-
-//	if ( x + tipW >= svg.width())
-//	x -= tipW + 10;
-//	if ( y + tipH >= svg.height())
-//	y -= tipH + 10;
-//	tip
-//	.style("left", (x) + "px")
-//	.style("top", (y) + "px");
+	}	
 
 	// Marca linhas na lista de documentos como ativas
 	var row = $("#" + selectedTab.id + " .documents-table table tbody tr")[index];
@@ -497,8 +478,8 @@ function addDocumentToTable(index, node){
 		row += doc.publicationDate;
 	row += '</td>';
 
-	var rank = (doc.documentRank * 100).toFixed(3) + " / " + (doc.authorsRank * 100).toFixed(3) + " = " + (doc.rank * 100 ).toFixed(3);
-
+	//var rank = (doc.documentRank * 100).toFixed(3) + " / " + (doc.authorsRank * 100).toFixed(3) + " = " + (doc.rank * 100 ).toFixed(3);
+	var rank =  (doc.rank * 100 ).toFixed(3);
 	row += '<td class="doc-relevance">' + rank + '</td>';
 	/* row += '<td class="doc-cluster">' + 
 		'<svg><circle cx="15" cy="15" r="10" stroke-width="0" fill="' + selectedTab.coloring(doc) + '"/></svg>'  +
@@ -517,10 +498,11 @@ function addDocumentToTable(index, node){
  */
 function resetVisualization(e){
 	// Links
-	d3.selectAll("#" + selectedTab.id + ' path.link').classed('active', false);
+	d3.selectAll("#" + selectedTab.id + ' path.link').classed('active', false).attr('visibility', 'hidden');
 	$("#" + selectedTab.id + " .documents-table table tbody tr").removeClass('success');
 	// Circulos selecionados
 	d3.selectAll('circle').style("stroke-opacity", "0");	
+	selectedTab.selectedCircles = [];
 }
 
 /**
@@ -630,8 +612,8 @@ function startSelection(start, svg) {
 	selectionHeight = selectionHeight.replace("px", "");
 
 	svg.select('.selection')
-	.attr("d", rect(start[0], start[1], selectionWidth, selectionHeight))
-	.attr("text", d3.mouse(svg));
+	.attr("d", rect(start[0], start[1], selectionWidth, selectionHeight));
+//	.attr("text", d3.mouse(svg));
 }
 
 //Zoom: fim da seleção
@@ -664,8 +646,11 @@ function createMiniMap(svg, tab){
 		var headerHeight = $('.navbar').height() + $('.nav-tabs-wrapper').height();
 		var canvas = d3.select('#' + tab.id + " .minimap-wrapper").append('canvas', ':first-child')
 		.classed('minimap', true).node();
-		canvas.width = $("#" + tab.id + " .visualization-wrapper").width() * 0.2;
-		canvas.height = Math.min( canvas.width * 9 / 16, headerHeight);
+//		canvas.width = $("#" + tab.id + " .visualization-wrapper").width() * 0.2;
+		var svgNode = d3.select('#' + tab.id + ' svg.visualization').node();
+		canvas.width = svgNode.clientWidth * 0.2;
+//		canvas.height = Math.min( canvas.width * 9 / 16, headerHeight);
+		canvas.height = svgNode.clientHeight * 0.2;
 		var ctx = canvas.getContext('2d');
 		ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 	};
@@ -733,15 +718,17 @@ function sliderRankChange(e){
 	var rankFactor = selectedTab.rankFactor;
 	d3.selectAll('#' + selectedTab.id + ' circle')	
 	.filter(function(d,i){return d.data.rank * rankFactor >= e.value[0] && d.data.rank * rankFactor <= e.value[1];})	
-	.each( function(d){		
-		for( var i = 0; i < d.data.words.length; i++){
-			var word = d.data.words[i];
-			if ( wordsMap.has( word.text ) ){
-				wordsMap.get( word.text ).size += word.size;
+	.each( function(d){	
+		if ( d.data.words !== null ){
+			for( var i = 0; i < d.data.words.length; i++){
+				var word = d.data.words[i];
+				if ( wordsMap.has( word.text ) ){
+					wordsMap.get( word.text ).size += word.size;
+				}
+				else{
+					wordsMap.set(word.text, {text: word.text, size: word.size});
+				}			
 			}
-			else{
-				wordsMap.set(word.text, {text: word.text, size: word.size});
-			}			
 		}
 	});	
 
@@ -756,6 +743,12 @@ function downloadDocuments(){
 	var docIds = [];
 	for(var key in selectedTab.selectedCircles)
 		docIds.push(key);
+	if ( docIds.length === 0){
+		// Download all
+		for(key in selectedTab.documents){
+			docIds.push(key);
+		}
+	}
 	var r = jsRoutes.controllers.HomeController.download(docIds);
 	window.location=r.absoluteURL();
 }

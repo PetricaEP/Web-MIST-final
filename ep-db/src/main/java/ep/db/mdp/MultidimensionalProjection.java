@@ -82,12 +82,6 @@ public class MultidimensionalProjection {
 
 		// Realiza projeção multidimensional utilizando LAMP
 		System.out.println("Projecting...");
-
-//		Matrix subset = new SparseMatrix();
-//		int[] selectedIds = new Random().ints(10000, 0, matrix.getRowCount()).toArray();
-//		for( int i : selectedIds) {
-//			subset.addRow(matrix.getRow(i));			
-//		}
 		
 		final int numberControlPoints = (int) Math.sqrt(matrix.getRowCount());
 		ProjectionData pdata = new ProjectionData();
@@ -104,9 +98,7 @@ public class MultidimensionalProjection {
 		long start = System.nanoTime();
 		float[] proj = lamp.project(matrix, pdata);
 		System.out.println("Elapsed: " + ((System.nanoTime() - start)/1e9));
-		int nrows = proj.length / 2;
-		
-		Lamp.save("documents200k.prj", proj);		
+		int nrows = proj.length / 2;	
 
 		List<Integer> outliers = null;
 		if ( Configuration.getInstance().isDisableOutliers()  ) {
@@ -127,9 +119,7 @@ public class MultidimensionalProjection {
 		if ( normalize ){
 			System.out.println("Normalizing to range [-1,1]...");
 			normalizeProjections(proj, rows);
-		} 
-
-//		Lamp.save("documents200k-norm.prj", proj);		
+		}	
 
 		// Atualiza projeções no banco de dados.
 		System.out.println("Updating databse...");

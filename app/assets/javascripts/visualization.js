@@ -101,7 +101,15 @@ createVisualization = function(jsonData){
 		.duration(500)
 		.style('opacity', 0)
 		.style('display', 'none');		
-	});
+	});	
+		
+	$('.node-tooltip').on('mouseleave', function(){
+		d3.select('.node-tooltip')
+		.transition()
+		.duration(500)
+		.style('opacity', 0)
+		.style('display', 'none');		
+	});	
 
 	// Adiciona paginacao (Previous, Next)
 	addPagination(currentTab);
@@ -345,6 +353,8 @@ createVisualization = function(jsonData){
 			selector: '#' + currentTab.id + ' .word-cloud',
 			minWordSize: 10,
 			maxWordSize: 60,
+			minWordNumber: 1,
+			maxWordNumber: -1,
 			width: width / 3,
 			height: height,
 			colors: [
