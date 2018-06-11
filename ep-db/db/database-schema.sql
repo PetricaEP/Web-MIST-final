@@ -134,7 +134,7 @@ CREATE TRIGGER tsvector_doc_update BEFORE INSERT OR UPDATE
 	 	
 	 	IF new.tsv IS NOT NULL THEN
 		 	BEGIN
-		   		SELECT array_to_jsonb(array_agg(row)) INTO json_str FROM ( 
+		   		SELECT to_jsonb(array_agg(row)) INTO json_str FROM ( 
 		   		SELECT word, nentry FROM  
 		   		ts_stat( format('SELECT %s::tsvector', quote_literal(new.tsv) ) ) ORDER BY nentry DESC) row;
 		    EXCEPTION
