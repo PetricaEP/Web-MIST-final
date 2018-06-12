@@ -4,8 +4,7 @@ version := "1.0"
 
 lazy val ep_db = (project in file("."))
 
-javacOptions ++= Seq("-g")
-//javacOptions in (Compile) ++= Seq("-source", "1.8")
+//javacOptions ++= Seq("-g")
 
 scalaVersion := "2.12.3"
 
