@@ -165,14 +165,7 @@ public class LocalDocumentSearcher implements DocumentSearcher {
 			if( docs != null && !docs.isEmpty()){
 
 				result = Json.newObject();
-				numDocs = docs.size() + points.size();
-				
-				//Clustering
-				//final int numClusters = queryData.getNumClusters();
-				//start = System.nanoTime();
-				//clustering(docs, numClusters, configuration.getDissimilarityType());
-				//elapsed = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start);
-				//timeLogger.info(String.format("Clustering: %d", elapsed));
+				numDocs = docs.size() + points.size();				
 
 				if ( points != null && !points.isEmpty()){
 					int densityMap = configuration.getDensityMapCalculation();
@@ -199,8 +192,7 @@ public class LocalDocumentSearcher implements DocumentSearcher {
 				result.put("tabId", queryData.getTabId());
 				result.set("documents", Json.toJson(docs));	
 				result.put("ndocs", numDocs);
-				result.put("page", page);
-				//				result.put("nclusters", numClusters);
+				result.put("page", page);				
 				result.put("op", "search");
 				result.put("minRadiusPerc", configuration.getMinRadiusSizePercent());
 				result.put("maxRadiusPerc", configuration.getMaxRadiusSizePercent());
@@ -295,20 +287,14 @@ public class LocalDocumentSearcher implements DocumentSearcher {
 						result.put("densityMap", Configuration.DENSITY_MAP_CLIENT);
 					}
 				}
-
-				start = System.nanoTime();
-				clustering(documents, queryData.getNumClusters(), configuration.getDissimilarityType());
-				elapsed = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start);
-				timeLogger.info(String.format("Clustering results: %d", elapsed));
-
+				
 				// Somente documentos selecionados para exibição,
 				// demais documentos irão compor o mapa de densidade.
 				result.put("tabId", queryData.getTabId());
 				result.set("documents",  Json.toJson(documents));
 				result.put("ndocs", numDocs);
 				result.put("page", page);
-				result.set("bounds",  Json.toJson(minmax));
-//				result.put("nclusters", queryData.getNumClusters());
+				result.set("bounds",  Json.toJson(minmax));				
 				result.put("op", "zoom");				
 				result.put("minRadiusPerc", configuration.getMinRadiusSizePercent());
 				result.put("maxRadiusPerc", configuration.getMaxRadiusSizePercent());
@@ -347,16 +333,13 @@ public class LocalDocumentSearcher implements DocumentSearcher {
 
 	public String getDocumentsReferences(List<Long> docIds){
 		// References
-		final Map<Long, List<Long>> references;
-		Map<Long, List<Long>> ref;
+		Map<Long, List<Long>> references;		
 		try {
-			ref = dbService.getReferences(docIds);
+			references = dbService.getReferences(docIds);
 		} catch (Exception e) {
 			Logger.error("Can't get references for documents", e);
-			ref = new HashMap<>(0);
-		}
-		references = ref;
-
+			references = new HashMap<>(0);
+		}		
 
 		Map<String, Object> result = new HashMap<>();
 		result.put("references", references);

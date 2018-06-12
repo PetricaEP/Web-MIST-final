@@ -1153,10 +1153,7 @@ public class DatabaseService {
 			PreparedStatement stmt = conn.prepareStatement(SEARCH_SQL_ALL);
 			stmt.setInt(1, page * maxDocs); //OFFSET		
 			long start = System.nanoTime();			
-			try (ResultSet rs = stmt.executeQuery()){			
-				long elapsed = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start);
-				System.out.println("Exec: " + elapsed);
-
+			try (ResultSet rs = stmt.executeQuery()){										
 				List<IDocument> docs = new ArrayList<>(maxDocs);
 				boolean next = rs.next();
 				start = System.nanoTime();
@@ -1164,10 +1161,8 @@ public class DatabaseService {
 					Document doc = newSimpleDocument( rs );
 					docs.add(doc);
 					next = rs.next();
-				}
-				elapsed = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start);
-				System.out.println("Docs: " + elapsed);
-
+				}				
+				
 				// Documentos para mapa de densidade
 				start = System.nanoTime();
 				while( next ){
@@ -1175,9 +1170,7 @@ public class DatabaseService {
 							y = rs.getFloat(7);
 					densities.add(new Vec2(x, y));
 					next = rs.next();
-				}
-				elapsed = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start);
-				System.out.println("Points: " + elapsed);
+				}				
 
 				return docs;
 

@@ -79,16 +79,10 @@ $(function() {
 	$("#show-word-cloud-btn").click(function(e){
 		var isActive = $("#show-word-cloud-btn").hasClass("active");		
 		if ( !isActive ){			
-			d3.select('#' + selectedTab.id + ' .word-cloud ')
-			.transition()
-			.duration(750)
-			.style('left', '0%');			
+			showWordCloud(selectedTab);			
 		}
 		else{
-			d3.select('#' + selectedTab.id + ' .word-cloud ')
-			.transition()
-			.duration(750)
-			.style('left', '-100%');			
+			hideWordCloud(selectedTab);							
 		}		
 	});
 });
@@ -116,8 +110,7 @@ function ajaxSubmitForm(page){
 	op = $("#operator").val(),
 	author = $("#author").val(),
 	yearS = $("#year-start").val(),
-	yearE = $("#year-end").val(),
-	numClusters = $("#num-clusters").val(),
+	yearE = $("#year-end").val(),	
 	maxDocs = $("#max-number-of-docs").val();
 
 	$.ajaxPrefilter(function (options, originalOptions, jqXHR) {
@@ -133,8 +126,7 @@ function ajaxSubmitForm(page){
 			operator: op,
 			author: author,
 			yearStart:  yearS,
-			yearEnd: yearE,
-			numClusters: numClusters,
+			yearEnd: yearE,			
 			maxDocs: maxDocs,
 			page: page,
 			tabId: selectedTab !== null ? selectedTab.id : ''

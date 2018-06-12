@@ -4,15 +4,16 @@
  * @param documents documentos
  * @returns nós da visualização.
  */
-function createNodes(documents){
-	var docIds = [],
+function createNodes(tab){
+	var documents = tab.documents, 
+	docIds = [],
 	nodes;
+	
 	nodes = $.map(documents, function(doc, index){
 		if (doc.x !== undefined && doc.y !== undefined ){
 			// Cria nova nó
 			d = {
-					id: doc.id,
-					cluster: doc.cluster,
+					id: doc.id,					
 					r: selectedTab.radiusInterpolator(doc.rank),
 					x: selectedTab.x(doc.x),
 					y: selectedTab.y(doc.y),
@@ -21,15 +22,12 @@ function createNodes(documents){
 
 			// Adiciona docID para busca por referencias
 			docIds.push(doc.id);
-
-			// Atualiza centroide do cluster
-			if (!selectedTab.clusters[ doc.cluster ] || (d.r > selectedTab.clusters[ doc.cluster ].r)) 
-				selectedTab.clusters[ doc.cluster ] = d;
+			
 			return d;
 		}
 	});
 
-	fetchReferencesAjax(docIds);
+	fetchReferencesAjax(tab, docIds);
 
 	nodes.sort(function(a,b){
 		return b.data.rank - a.data.rank; 
@@ -43,64 +41,23 @@ function createNodes(documents){
  * @param docIds
  * @returns
  */
-function fetchReferencesAjax(docIds){
+function fetchReferencesAjax(tab, docIds){
 
 
 	$.ajaxPrefilter(function (options, originalOptions, jqXHR) {
 		jqXHR.setRequestHeader('Csrf-Token', $("input[name='csrfToken']").val());
 	});
 
-	var r = jsRoutes.controllers.HomeController.references(docIds);
+	var r = jsRoutes.controllers.HomeController.references(docIds);	
 	$.ajax({
 		url: r.url, 
 		type: r.type, 
-		success: processReferences, error: errorFn, dataType: "json"});
-}
-
-function processReferences(data){	
-	// Citações
-	if ( data.references ){
-		var i,j, docId, refId;
-		var references = data.references;
-		selectedTab.links = [];
-		$.each(references, function(docId){
-			references[docId].forEach(function(refId){
-				selectedTab.links.push({	
-					source: docId | 0,
-					target: refId | 0
-				});
-			});
-		});
-	}
-
-	// Desenha links entre circulos
-	if ( selectedTab.links !== null ){
-		selectedTab.path = d3.select("#" + selectedTab.id + " svg g")
-		.selectAll("path")
-		.data(selectedTab.links)
-		.enter().append("path")
-		.attr("class", "link")
-		.attr('stroke-width', 1.5)
-		.attr('visibility', 'hidden')
-		.attr("marker-end", function(d) { return "url(#link" + selectedTab.id + ")"; });		
-
-		// Força entre links (citações)
-		// Circulos com alguma ligação serão posicionados 
-		// próximos caso strength != 0.
-		// Default strength == 0 (somente exibe links/setas)
-		var forceLink = d3.forceLink()
-		.id(function(d) { return d.id; })
-		.links(selectedTab.links)
-		.strength(0)
-		.distance(0);
-
-		// Cria uma nova simulacao caso ainda nao tenha sido criada
-		setupSimulation(selectedTab);
-				
-		selectedTab.simulation
-		.force("link", forceLink)
-		.restart();		
-	}
+		success: function(data){
+			tab.processReferences(data);
+		}, 
+		error: errorFn, 
+		dataType: "json"
+	});
 }
 
 /**
@@ -112,8 +69,7 @@ function createPoints(density){
 	var points = [];
 	for(var i = 0; i < density.length; i++){
 		d = {
-				id: i,
-				cluster: 1,
+				id: i,				
 				r: 3,
 				x: selectedTab.x(density[i].x),
 				y: selectedTab.y(density[i].y),
@@ -316,46 +272,6 @@ function linkArc(l) {
 }
 
 /**
- * Força de clusterização.
- * Esta força mantém nós de um mesmo cluster
- * próximos na visualização e pode ser 
- * ativada/desativada nas configurações
- * da visualização.
- * @returns nova força de clusterização.
- */
-function forceCluster(){
-
-	var nodes;
-
-	function force(alpha) {
-		nodes.forEach(function(d) {
-			var cluster = selectedTab.clusters[d.cluster];
-			if (cluster === d) return;
-			var x = d.x - cluster.x,
-			y = d.y - cluster.y,
-			l = Math.sqrt(x * x + y * y),
-			r = d.r + cluster.r;
-			if (l !== r) {
-				l = (l - r) / l * alpha;
-				d.x -= x *= l;
-				d.y -= y *= l;
-				cluster.x += x;
-				cluster.y += y;
-			}  
-		});
-	}
-
-	force.initialize = function(_) {
-		var width = $("#" + selectedTab.id + " svg").width(),
-		height = $("#" + selectedTab.id + " svg").height();
-
-		nodes = _;
-	};
-
-	return force;
-}
-
-/**
  * Criar retangulo de seleção (zoom)
  * @param x coordenada inical x
  * @param y coordenada inical y
@@ -480,11 +396,7 @@ function addDocumentToTable(index, node){
 
 	//var rank = (doc.documentRank * 100).toFixed(3) + " / " + (doc.authorsRank * 100).toFixed(3) + " = " + (doc.rank * 100 ).toFixed(3);
 	var rank =  (doc.rank * 100 ).toFixed(3);
-	row += '<td class="doc-relevance">' + rank + '</td>';
-	/* row += '<td class="doc-cluster">' + 
-		'<svg><circle cx="15" cy="15" r="10" stroke-width="0" fill="' + selectedTab.coloring(doc) + '"/></svg>'  +
-		'</td>';
-	 */
+	row += '<td class="doc-relevance">' + rank + '</td>';	
 	row += '</tr>';
 	$('#' + selectedTab.id + ' .documents-table .table tbody').append(row);
 }
@@ -515,7 +427,7 @@ function zoomTool(e){
 	var isActive = !$(this).hasClass("active");
 	$(".visualization-wrapper")
 	.toggleClass("zoom-cursor", isActive);
-	var svg = d3.select("#" + selectedTab.id + " svg");
+	var svg = d3.select("#" + selectedTab.id + " svg.visualization");
 	if ( isActive ){
 		activeZoom(svg);
 	}
@@ -544,28 +456,8 @@ function activeZoom(svg){
 		endSelection(d3.mouse(this));
 		$('#loading').removeClass('hidden');
 	})
-	.on("wheel", function(){
-		var delta = d3.event.deltaY,
-		newWidth, newHeight;
-
-		var selectionWidth = $(".selection")[0].style.width.replace("px", ""),
-		svgWidth = svg.attr('width');
-
-		if ( delta > 0 ){
-			newWidth = Math.min(svgWidth, selectionWidth * 1.1);
-			newHeight = newWidth * 6 / 16;
-		}
-		else{
-			newWidth = Math.max(200, selectionWidth * 0.9);
-			newHeight = newWidth * 6 / 16;
-		}
-
-		$(".selection")[0].style.width = newWidth + 'px';
-		$(".selection")[0].style.height = newHeight + 'px';
-
-		var start = d3.mouse(this);
-		svg.select('.selection')
-		.attr("d", rect(start[0], start[1], newWidth, newHeight));
+	.on("wheel", function(){		
+		zoomAreaChange(svg, d3.event.deltaY, d3.mouse(this));		
 	});
 
 	// Remove listener para eventos de click
@@ -596,6 +488,30 @@ function desactiveZoom(svg){
 	.on("mouseout", setDefaultRadius);
 }
 
+function zoomAreaChange(svg, delta, start){
+	var newWidth, newHeight;
+
+	var selectionWidth = $(".selection").width(),
+	selectionHeight = $(".selection").height(),
+	svgWidth = svg.style('width').replace('px', ''),
+	svgHeight = svg.style('height').replace('px',''),
+	aspectRatio = svgHeight/svgWidth;
+	
+	if ( delta > 0 ){
+		newWidth  = Math.min(svgWidth, selectionWidth * 1.1);			
+	}
+	else{
+		newWidth = Math.max(200, selectionWidth * 0.9);			
+	}
+	newHeight = newWidth * aspectRatio;
+
+	$(".selection").width(newWidth);
+	$(".selection").height(newHeight);
+	
+	svg.select('.selection')
+	.attr("d", rect(start[0], start[1], newWidth, newHeight));
+}
+
 //Zoom: inicia seleção
 function startSelection(start, svg) {
 	var selectionWidth = $(".selection")[0].style.width,
@@ -613,7 +529,6 @@ function startSelection(start, svg) {
 
 	svg.select('.selection')
 	.attr("d", rect(start[0], start[1], selectionWidth, selectionHeight));
-//	.attr("text", d3.mouse(svg));
 }
 
 //Zoom: fim da seleção
@@ -634,26 +549,18 @@ function showMaxTabsAlert(){
 }
 
 function createMiniMap(svg, tab){
-//	serialize our SVG XML to a string.
+//	serialize our SVG XML to a string.	
 	var source = (new XMLSerializer()).serializeToString(svg.node());
-//	Put the svg into an image tag so that the Canvas element can read it in.
-	var img = new Image();
-
-	img.src = 'data:image/svg+xml;base64,'+window.btoa(source);
-
-	img.onload = function(){
-		// Now that the image has loaded, put the image into a canvas element.
-		var headerHeight = $('.navbar').height() + $('.nav-tabs-wrapper').height();
-		var canvas = d3.select('#' + tab.id + " .minimap-wrapper").append('canvas', ':first-child')
+	// Now that the image has loaded, put the image into a canvas element.
+	var headerHeight = $('.navbar').height() + $('.nav-tabs-wrapper').height();
+	var canvas = d3.select('#' + tab.id + " .minimap-wrapper").append('canvas', ':first-child')
 		.classed('minimap', true).node();
-//		canvas.width = $("#" + tab.id + " .visualization-wrapper").width() * 0.2;
-		var svgNode = d3.select('#' + tab.id + ' svg.visualization').node();
-		canvas.width = svgNode.clientWidth * 0.2;
-//		canvas.height = Math.min( canvas.width * 9 / 16, headerHeight);
-		canvas.height = svgNode.clientHeight * 0.2;
-		var ctx = canvas.getContext('2d');
-		ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-	};
+	canvas.width = $("#" + tab.id + " .visualization-wrapper").width() * 0.2;
+	canvas.height = $("#" + tab.id + " .visualization-wrapper").height() * 0.2;
+	var ctx = canvas.getContext('2d');		
+	ctx.clearRect(0,0,canvas.width, canvas.height);
+//	ctx.drawImage(img, 0, 0, canvas.width, canvas.height);		
+	ctx.drawSvg(source, 0, 0, canvas.width, canvas.height);
 }
 
 function copyMiniMapFromParent(svg, tab, minX, minY, maxX, maxY){
@@ -662,8 +569,8 @@ function copyMiniMapFromParent(svg, tab, minX, minY, maxX, maxY){
 	.classed('minimap', true).node(),
 	parentCanvas = $('#' + tab.parentId + ' .minimap-wrapper .minimap');
 
-	canvas.width = $("#" + tab.id + " .minimap").width();
-	canvas.height = $("#" + tab.id + " .minimap").height();
+	canvas.width = parentCanvas.prop('width');
+	canvas.height = parentCanvas.prop('height');
 	var ctx = canvas.getContext('2d');
 	ctx.drawImage(parentCanvas[0], 0, 0, canvas.width, canvas.height);
 
@@ -691,10 +598,15 @@ function noDocumentsFound(){
  * @param b valor maximo
  * @returns d3.scaleThreshold
  */
-function palette(a, b) {
+function palette(a, b, colorScheme) {
 	var d = (b-a)/7;
+	if ( colorScheme === null ){
+		return d3.scaleThreshold()
+		.range(['#556b2f','#6f7d22','#7f921e','#8ca722','#95bf2b','#e8c219','#ffd700'])
+		.domain([a+1*d,a+2*d,a+3*d,a+4*d,a+5*d,a+6*d,a+7*d]);
+	}
 	return d3.scaleThreshold()
-	.range(['#556b2f','#6f7d22','#7f921e','#8ca722','#95bf2b','#e8c219','#ffd700'])
+	.range(colorScheme)
 	.domain([a+1*d,a+2*d,a+3*d,a+4*d,a+5*d,a+6*d,a+7*d]);
 }
 
@@ -703,23 +615,21 @@ function palette(a, b) {
  * Trata evento de alteracao 
  * dos sliders de rank min/max
  */
-function sliderRankSlide(e){	
-	var rankFactor = selectedTab.rankFactor;
+function sliderRankSlide(e){		
+	var max = $(e.target).data('slider').options.max;
 	d3.selectAll('#' + selectedTab.id + ' circle')
 	.style('opacity', "0.3")
-	.filter(function(d,i){return d.data.rank * rankFactor >= e.value[0] && d.data.rank * rankFactor <= e.value[1];})
+	.filter(function(d,i){return i >= (e.value[0]-1) && i <= ( e.value[1] );})
 	.style('opacity', "1.0");
 }
 
 function sliderRankChange(e){
 	// Atualiza nuvem de palavras
 	// Constroi nuvem de palavras	
-	var wordsMap = d3.map(); 
-	var rankFactor = selectedTab.rankFactor;
-	d3.selectAll('#' + selectedTab.id + ' circle')	
-	.filter(function(d,i){return d.data.rank * rankFactor >= e.value[0] && d.data.rank * rankFactor <= e.value[1];})	
-	.each( function(d){	
-		if ( d.data.words !== null ){
+	var wordsMap = d3.map();
+	d3.selectAll('#' + selectedTab.id + ' circle')		
+	.each( function(d,j){	
+		if ( j >= (e.value[0]-1) && j <= e.value[1] && d.data.words !== null ){
 			for( var i = 0; i < d.data.words.length; i++){
 				var word = d.data.words[i];
 				if ( wordsMap.has( word.text ) ){
@@ -799,8 +709,9 @@ function addPagination(tab){
  * @param tab
  * @returns
  */
-function cleanVisualization( tab ){
-	$('#' + tab.id).empty().append(newTabContent());
+function cleanVisualization( tab ){	
+	tab.clean();
+	$('#' + tab.id).empty().append(newTabContent());	
 }
 
 function contourDensityPromise( contours, densityMap, tab, minMaxX, minMaxY ){
@@ -827,4 +738,56 @@ function getWordCloudPromise( words, cfg, tab ){
 		defer.resolve(wc, tab);
 	}, 5);
 	return defer.promise();
+}
+
+function addRelevanceSlider( tab ){	
+	var slider = $("#" + tab.id + " .slider-range .slider");	
+	$(slider).slider({
+		tooltip:  "always",
+		min: 1,
+		max: tab.view_docs,		
+		value: [1, tab.view_docs]
+	})
+	.on('slideStop', sliderRankChange)
+	.on('slide', sliderRankSlide);	
+
+	var colors = tab.color.range();
+	var gradientStr = colors[colors.length-1];
+	for(var i = colors.length-2; i >= 0; i--){
+		gradientStr += "," + colors[i];
+	}
+
+	$("#" + tab.id + " .slider-range .slider .slider-track").css({
+		"background": "linear-gradient(to right," + gradientStr + ")"
+	});
+}
+
+function showWordCloud(tab){
+	d3.select('#' + tab.id + ' .visualization-wrapper ')
+	.transition()
+	.duration(720)
+	.style('width', (100/1.5) + '%')
+	.style('left', (100 - 100/1.5) + '%');			
+	
+	d3.select('#' + tab.id + ' .word-cloud ')
+	.transition()
+	.duration(750)
+	.style('display', 'block')
+	.style('left', '0%');
+}
+
+function hideWordCloud(tab){
+	d3.select('#' + tab.id + ' .word-cloud ')
+	.transition()
+	.duration(720)			
+	.style('left', '-100%')
+	.on('end', function(d) {
+		d3.select(this).style('display', 'none');
+	});
+	
+	d3.select('#' + tab.id + ' .visualization-wrapper ')
+	.transition()
+	.duration(750)
+	.style('width', '100%')
+	.style('left', '0%');	
 }

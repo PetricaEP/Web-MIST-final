@@ -30,19 +30,19 @@
     			<form id="searchForm" class="navbar-form row" >
     			@CSRF.formField 
     			<div class="row form-inline simple-search col-sm-11 row">
-	    			<div class="col-sm-4">
+	    			<div class="col-sm-3">
 	    				<input type="text" id="terms" name="terms" class="form-control">
 	    			</div>	    			
 	        		 <div class="form-group col-sm-3 year-search">
-						<label for="year-start" class="col-sm-3">@Messages("navbar.year.label")</label>
-						<div class="col-sm-9">
+						<label for="year-start" class="col-sm-2">@Messages("navbar.year.label")</label>
+						<div class="col-sm-10">
 							<input type="text" class="form-control auto-width col-sm-4" id="year-start" size="4" maxlength="4" pattern="[0-9]*" placeholder="@Messages("navbar.year.start")">
 							<span class="col-sm-1 col-small">-</span>  
-							<input type="text" class="form-control auto-width col-sm-4" id="year-end" size="4" maxlength="4" pattern="[0-9]*" placeholder="@Messages("navbar.year.end")">
+							<input type="text" class="form-control auto-width col-sm-4" id="year-end" size="4" maxlength="4" pattern="[0-9]*" placeholder="@Messages("navbar.year.end")">							
 						</div>
 				</div>
-	        		 <div class="col-sm-4 search-buttons">
-		        			<button type="submit" id="search" class="btn btn-primary">@Messages("navbar.search.btn.label")</button>
+	        		 <div class="col-sm-2 search-buttons">		
+	        		 		<button type="submit" id="search" class="btn btn-primary">@Messages("navbar.search.btn.label")</button>        			
 		        			<button id="advanced-search-btn" type="button" class="btn btn-default" aria-label="Left Align" data-tooltip="tooltip" data-placement="bottom"
 		        				title="@Messages("navbar.adv_search.btn.title")">
 		  						<span class="glyphicon glyphicon-chevron-down" aria-hidden="true"></span>
@@ -51,6 +51,12 @@
 		        				title="@Messages("navbar.settings.btn.title")">
 		  						<span class="glyphicon glyphicon-cog" aria-hidden="true"></span>
 						</button>
+				</div>
+				<div class="col-sm-4">
+						<button type="button" id="step-btn" class="btn btn-success glyphicon glyphicon-step-forward"
+			    					data-toggle="tooltip" data-placement="bottom" title="@Messages("navbar.settings.simulation.step.title")"></button>
+			    			<button type="button" id="reheat-btn" class="btn btn-warning glyphicon glyphicon-fire"
+			    					data-toggle="tooltip" data-placement="bottom" title="@Messages("navbar.settings.simulation.reheat.title")"></button>
 						<button type="button" id="reset-btn" class="btn btn-danger glyphicon glyphicon-erase"
 		    					data-toggle="tooltip" data-placement="bottom" title="@Messages("navbar.reset.btn.title")"></button>		    			
 		    				<button type="button" id="zoom-btn" class="btn btn-primary glyphicon glyphicon-zoom-in" data-toggle="button" 
@@ -68,62 +74,41 @@
 				
 				<div class="viz-settings form-inline row col-sm-11">
 					<div class="row">
-						<div class="form-group col-sm-3">
+						<div class="form-group col-sm-4">
 							<label for="collision-force" class="col-sm-6">@Messages("navbar.settings.force.collision.label")</label>
 							<div class="col-sm-6">
 								<input id="collision-force" data-slider-id='collision-force-slider' type="text" data-slider-min="0" data-slider-max="1" data-slider-step="0.1" data-slider-value="0.5"/>							
 							</div>
 						</div>
 						<div class="form-group col-sm-3">
+							<label for="show-density-points" class="col-sm-8">@Messages("navbar.settings.show.density.points.label")</label>							
+							<div class="col-sm-4 material-switch pull-right">								
+	      						<input id="density-points-on-off" type="checkbox" id="show-density-points" value="1">
+	      						<label for="density-points-on-off" class="label-primary"></label>      							      						
+							</div>
+						</div>											
+						<div class="clear col-sm-1"></div>
+					</div>
+					<div class="row" style="margin-top: 5px;">
+						<div class="form-group col-sm-4">
 							<label for="manybody-force" class="col-sm-6">@Messages("navbar.settings.force.attraction.label")</label>
 							<div class="col-sm-6">
 								<input id="manybody-force" data-slider-id='manybody-force-slider' type="text" data-slider-min="0" data-slider-max="50" data-slider-step="5" data-slider-value="0"/>							
 							</div>
 						</div>
 						<div class="form-group col-sm-3">
-							<label for="max-number-of-docs" class="col-sm-6">
+							<label for="max-number-of-docs" class="col-sm-8">
 							@Messages("navbar.settings.max.docs.label")
 							</label>
-							<select class="col-sm-6 form-control" id="max-number-of-docs">
+							<select class="col-sm-4 form-control" id="max-number-of-docs">
 							<option value="100">100</option>
 							<option value="200">200</option>
 							<option value="300">300</option>
 							<option value="400">400</option>
 							<option value="500">500</option>
 							</select>
-						</div>
-					</div>
-					<div class="row">
-						<div class="form-group col-sm-3">
-							<label for="clustering-force" class="col-sm-6">@Messages("navbar.settings.force.clustering.label")</label>
-							<div class="col-sm-6">
-								<label>
-	      							<input type="checkbox" id="clustering-force" value="1">@Messages("navbar.settings.onoff")
-	    						</label>							
-							</div>
-						</div>
-						<div class="form-group col-sm-3">
-							<label for="show-density-points" class="col-sm-5">@Messages("navbar.settings.show.density.points.label")</label>
-							<div class="col-sm-7">
-								<label>
-	      							<input type="checkbox" id="show-density-points" value="1">@Messages("navbar.settings.onoff")
-	    						</label>							
-							</div>
-						</div>	
-						<div class="form-group col-sm-3">
-							<label for="color-schema" class="col-sm-5">@Messages("navbar.settings.color.schema")</label>
-							<div class="col-sm-7">
-								<label>
-	      							<input type="checkbox" id="color-schema" value="1" checked>@Messages("navbar.settings.onoff")
-	    						</label>							
-							</div>
-						</div>
-						<div class="col-sm-3">
-							<button type="button" id="step-btn" class="btn btn-success glyphicon glyphicon-step-forward"
-			    					data-toggle="tooltip" data-placement="bottom" title="@Messages("navbar.settings.simulation.step.title")"></button>
-			    				<button type="button" id="reheat-btn" class="btn btn-warning glyphicon glyphicon-fire"
-			    					data-toggle="tooltip" data-placement="bottom" title="@Messages("navbar.settings.simulation.reheat.title")"></button>
-			    			</div>
+						</div>													
+			    			<div class="clear col-sm-4"></div>
 					</div>					
 				</div>
 				<div class="advanced-search form-inline col-sm-11 row">

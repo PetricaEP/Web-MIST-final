@@ -1,6 +1,5 @@
 var margin = {top: 100, right: 100, bottom: 100, left: 100},
 padding = 3, // separation between same-color nodes
-clusterPadding = 6, // separation between different-color nodes
 fixRadius = 5;
 
 //Inicializa visualização
@@ -59,16 +58,17 @@ createVisualization = function(jsonData){
 
 	var	currentTab;
 	if ( jsonData.page > 0 ){
-		currentTab = tabs[ jsonData.tabId ];
-		currentTab.page = jsonData.page;
+		currentTab = tabs[ jsonData.tabId ];		
+		currentTab.page = jsonData.page;		
 		cleanVisualization( currentTab );		
 	}
 	else {
 		// Cria nova aba
-		currentTab = addNewTab(jsonData.op);	
-		currentTab.ndocs = jsonData.ndocs;
+		currentTab = addNewTab(jsonData.op);
+		currentTab.ndocs = jsonData.ndocs; // numero total de documentos (todas as paginas)		
 		currentTab.page = 0;
 	}
+	
 	currentTab.step = 1;	
 
 	$("#reset-btn").prop('disabled', false);
@@ -87,13 +87,16 @@ createVisualization = function(jsonData){
 	var width = $("#" + currentTab.id + " svg.visualization").width(),	
 	height = Math.min( width * 9 / 16 - (headerHeight + footerHeight), maxHeight); //$("#" + currentTab.id + " svg").height();
 
-	$('.visualization-wrapper').css('max-height', height);
+	$('#' + currentTab.id + ' .visualization-wrapper')
+	.css('max-height', height)
+	.css('width', '100%')
+	.css('left', '0%');
 
 	$("#" + currentTab.id + " svg.visualization").height(height);
 	$(".tab-content").height(height);
 
-	svg.attr('width', width);
-	svg.attr('height', height);
+	svg.attr('viewBox', '0 0 ' + width + ' ' + height);
+	svg.attr('preserveAspectRatio', 'xMidYMid meet');
 
 	svg.on('click', function(){
 		d3.select('.node-tooltip')
@@ -113,10 +116,8 @@ createVisualization = function(jsonData){
 
 	// Adiciona paginacao (Previous, Next)
 	addPagination(currentTab);
-
-	var m = jsonData.nclusters; // no. de clusters
-	var maxDocs = $("#max-number-of-docs").val();
-	var isColoringByRelevance = $('#color-schema').prop('checked');
+	
+	var maxDocs = $("#max-number-of-docs").val();	
 	var minRank, maxRank, minRadius, maxRadius;
 
 	maxRank = jsonData.documents[0].rank;
@@ -214,19 +215,11 @@ createVisualization = function(jsonData){
 	contours = null; //Libera memoria
 	jsonData = null; //Libera memoria
 
-	// Inicializa coloração dos clusters
-	if ( isColoringByRelevance ){
-		currentTab.initColorSchema(true, minRank, maxRank);
-	}
-	else{
-		currentTab.initColorSchema(false, 0, m);
-	}
-
-	// Array para armazenar o maior nó de cada cluster (centroide)
-	currentTab.clusters = new Array(m);
+	// inicializa esquema de cores
+	currentTab.initColorSchema(minRank, maxRank);	
 
 	//Cria nós
-	currentTab.nodes = createNodes(currentTab.documents);	
+	currentTab.nodes = createNodes(currentTab);	
 
 	// Se pontos do contorno devem ser mostrados na
 	// visualizaçã, cria pontos.	
@@ -307,31 +300,9 @@ createVisualization = function(jsonData){
 		.style('display', 'none');
 	}
 
-	// Adiciona legenda
-	currentTab.rankFactor = 1.0/minRank;
-
-	var slider = $("#" + currentTab.id + " .slider-range .slider");
-	$(slider).slider({
-		tooltip:  "always",
-		min: (minRank * currentTab.rankFactor),
-		max: Math.ceil(maxRank * currentTab.rankFactor),
-		precision: 3,
-		value: [(minRank * currentTab.rankFactor ), Math.ceil(maxRank * currentTab.rankFactor)]
-	})
-	.on('slideStop', sliderRankChange)
-	.on('slide', sliderRankSlide);	
-
-	var colors = currentTab.color.range();
-	var gradientStr = colors[0];
-	for(var i = 1; i < colors.length; i++){
-		gradientStr += "," + colors[i];
-	}
-
-	$("#" + currentTab.id + " .slider-range .slider .slider-track").css({
-		"background": "linear-gradient(to right," + gradientStr + ")"
-	});
-
-
+	// Adiciona slider de relevancia
+	addRelevanceSlider(currentTab);
+	
 	// Constroi nuvem de palavras	
 	var wordsMap = d3.map();
 	$.each(currentTab.documents, function(ind, d){
@@ -353,7 +324,7 @@ createVisualization = function(jsonData){
 			selector: '#' + currentTab.id + ' .word-cloud',
 			minWordSize: 10,
 			maxWordSize: 60,
-			minWordNumber: 1,
+			minWordNumber: 0,
 			maxWordNumber: -1,
 			width: width / 3,
 			height: height,
@@ -391,8 +362,7 @@ function thirdStep(){
 
 	// Configuração de forças
 	var collideStrength = parseFloat( $("#collision-force").val() ),
-	manyBodyStrength = parseFloat($("#manybody-force").val()),
-	clusteringForceOn = $("#clustering-force").prop('checked');
+	manyBodyStrength = parseFloat($("#manybody-force").val());	
 
 	// Força de colisão
 	var forceCollide = d3.forceCollide()
@@ -408,15 +378,13 @@ function thirdStep(){
 	// Inicializa simulação
 	selectedTab.simulation
 	.force("collide", forceCollide)
-	.force("gravity", forceGravity);	
-
-	// Se a força de clusterização estiver selecionada,
-	// ativa a força na simulação.
-	if ( clusteringForceOn )
-		selectedTab.simulation.force("cluster", forceCluster());
+	.force("gravity", forceGravity);		
 	
-	// Inicia simulacao
-	selectedTab.simulation.restart();
+	// Reinicia simulacao
+	reheat();
+	//selectedTab.simulation
+	//.alphaTarget(0.001)
+	//.restart();
 }
 
 function setupSimulation(tab){
@@ -424,8 +392,13 @@ function setupSimulation(tab){
 	if ( tab.simulation === undefined || tab.simulation === null ){
 		tab.simulation = d3.forceSimulation(tab.nodes)
 		.stop()
-		.on("tick", ticked)
-		.on("end", endSimulation);
+		.on("tick", function() { tab.ticked(); })
+		.on("end", function() { tab.endSimulation(); });
+	}
+	else {
+		tab.simulation
+		.on("tick", function() { tab.ticked(); })
+		.on("end", function() { tab.endSimulation(); });
 	}
 }
 
@@ -441,8 +414,7 @@ function selectArea(p){
 		showMaxTabsAlert();
 		return;
 	}
-
-	var numClusters = $("#num-clusters").val();
+	
 	var r = jsRoutes.controllers.HomeController.zoom(),
 	selectionWidth = $(".selection")[0].style.width.replace("px", ""),
 	selectionHeight = $(".selection")[0].style.height.replace("px",""),
@@ -468,38 +440,4 @@ function selectArea(p){
 		error: errorFn, 
 		dataType: "json"
 	});
-}
-
-/** Finaliza simulação.
- * Ativa botao de reheating e habilita tooltips.
- * 
- * @returns void
- */
-function endSimulation(){
-	selectedTab.circles
-	.attr("fill-opacity", 0.80);
-
-	$("#reheat-btn").prop('disabled', false);
-}
-
-/** Executa a cada iteracão da simulação.
- * Corrigi posição cx,cy dos circulos evitando
- * que estes saiam fora da area de visualização
- * (bounding box).
- *  
- * @returns void
- */
-function ticked(){
-
-	var width = $('#' + selectedTab.id + " svg.visualization").width();
-	var height = $('#' + selectedTab.id + " svg.visualization").height();
-
-	selectedTab.circles
-	.attr("cx", function(d) { return (d.x = Math.max(d.r, Math.min(width - d.r, d.x)));})
-	.attr("cy", function(d) { return (d.y = Math.max(d.r, Math.min(height - d.r, d.y)));});
-
-	if ( selectedTab.path !== null ){
-		selectedTab.path
-		.attr("d", linkArc);
-	}
 }

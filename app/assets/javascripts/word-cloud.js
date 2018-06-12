@@ -10,7 +10,8 @@ function wordCloud(cfg) {
 
 	var wordScale = d3.scaleLinear().range([cfg.minWordSize, cfg.maxWordSize]);
 	// Construct the word cloud's SVG element
-	d3.select(cfg.selector).selectAll("svg").remove();
+	d3.select(cfg.selector).style('height', cfg.height + 'px').selectAll("svg").remove();
+	
 	var svg = d3.select(cfg.selector).append("svg")
 	.attr("width", cfg.width)
 	.attr("height", cfg.height)

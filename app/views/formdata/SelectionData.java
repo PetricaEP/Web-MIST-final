@@ -8,9 +8,7 @@ public class SelectionData {
 	protected float[] start;
 	
 	@Required
-	protected float[] end;
-	
-	private int numClusters = 10; 
+	protected float[] end;	
 	
 	@Required
 	protected int maxDocs;
@@ -19,17 +17,11 @@ public class SelectionData {
 	
 	}
 
-	public SelectionData(float[] start, float[] end, 
-			int numClusters, int maxDocs) {
+	public SelectionData(float[] start, float[] end, int maxDocs) {
 		super();
 		this.start = start;
-		this.end = end;
-		this.numClusters = numClusters;
+		this.end = end;		
 		this.maxDocs = maxDocs;
-	}
-	
-	public SelectionData(float[] start, float[] end, int maxDocs){
-		this(start, end, 10, maxDocs);
 	}
 
 	public int getMaxDocs() {
@@ -54,13 +46,5 @@ public class SelectionData {
 	
 	public void setEnd(float[] end) {
 		this.end = end;
-	}
-	
-	public int getNumClusters() {
-		return numClusters;
-	}
-	
-	public void setNumClusters(int numClusters) {
-		this.numClusters = numClusters;
 	}
 }

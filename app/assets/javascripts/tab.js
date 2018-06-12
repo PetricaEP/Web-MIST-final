@@ -125,8 +125,15 @@ function addTab(id, title, parentId, altTextTitle){
 
 		var isZoomActive = $('#zoom-btn').hasClass('active');
 		if ( isZoomActive ){
-			var svg = d3.select("#" + selectedTabId + " svg");
-			activeZoom(svg);
+			var svg = d3.select("#" + selectedTabId + " svg.visualization");
+			activeZoom(svg);			
+		}
+		
+		var isWordCloudActive = $("#" + selectedTab.id + " .word-cloud").css('display') !== 'none';
+		$('#show-word-cloud-btn').toggleClass('active', isWordCloudActive);
+		
+		if (selectedTab.simulation && selectedTab.step == 2){
+			selectedTab.simulation.restart();
 		}
 	})
 	.on('hide.bs.tab', function(e){
@@ -136,6 +143,10 @@ function addTab(id, title, parentId, altTextTitle){
 		.on('click.selection', null)
 		.select('.selection')
 		.attr("visibility", "hidden");
+		
+		if ( tabs[prevTabId].simulation ){
+			tabs[prevTabId].simulation.stop();
+		}
 
 	});
 
@@ -162,8 +173,9 @@ function deleteTab(tabId){
  */
 function newTabContent(){
 	return '<div class="minimap-wrapper"></div>' +
-	'<div class="visualization-wrapper"><svg id="visualization" class="visualization"></svg></div>' +
-	'<div class="word-cloud"></div>' + 
+	'<div class="row visualization-content">' +
+	'<div class="word-cloud col-sm-4"></div>' +
+	'<div class="visualization-wrapper col-sm-12"><svg id="visualization" class="visualization"></svg></div></div>' +	
 	'<div class="viz-controls-footer row"><div id="slider-range" class="slider-range col-sm-6"><input type="text" class="slider" value=""/></div></div>' +
 	'<div class="documents-list_wrapper">' +
 	'<div class="documents-table">' +
@@ -171,7 +183,6 @@ function newTabContent(){
 	'<table class="table table-hover table-striped hidden">' +
 	'<thead><tr><th class="doc-index"></th><th class="doc-title">' + Messages('js.table.doc.title') + '</th><th class="doc-authors">' + 
 	Messages('js.table.doc.authors') + '</th>' +
-	'<th class="doc-year">' + Messages('js.table.doc.year') + '</th><th class="doc-relevance">' + Messages('js.table.doc.rank') + '</th>' +
-	//'<th class="doc-cluster">' + Messages('js.table.doc.cluster') + '</th>' +
+	'<th class="doc-year">' + Messages('js.table.doc.year') + '</th><th class="doc-relevance">' + Messages('js.table.doc.rank') + '</th>' +	//
 	'</tr></thead><tbody></tbody></table></div></div>';
 }
