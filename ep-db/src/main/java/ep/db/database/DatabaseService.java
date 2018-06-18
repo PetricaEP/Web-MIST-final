@@ -126,7 +126,7 @@ public class DatabaseService {
 
 	private static final String SEARCH_SQL = "SELECT " + SQL_SELECT_COLUMNS + " FROM documents d "
 			+ "INNER JOIN documents_data dd ON d.doc_id = dd.doc_id AND dd.rank IS NOT NULL,"
-			+ "to_tsquery(?) query WHERE query @@ tsv AND d.enabled is TRUE "
+			+ "to_tsquery(language::regconfig, ?) query WHERE query @@ tsv AND d.enabled is TRUE "
 			+ "ORDER BY rank DESC OFFSET ?";	
 
 	private static final String SEARCH_SQL_ALL = "SELECT " + SQL_SELECT_COLUMNS + " FROM documents d "
@@ -138,7 +138,7 @@ public class DatabaseService {
 			+ " ORDER BY dd.rank DESC OFFSET ?";
 
 	private static final String ADVANCED_SEARCH_AUTHORS_INNER_JOIN_SQL = " INNER JOIN (SELECT doc_id FROM document_authors da INNER JOIN "
-			+ "authors a ON da.aut_id = a.aut_id, to_tsquery(?) aut_query WHERE aut_query @@ aut_name_tsv) a "
+			+ "authors a ON da.aut_id = a.aut_id, to_tsquery(language::regconfig,?) aut_query WHERE aut_query @@ aut_name_tsv) a "
 			+ "ON a.doc_id = d.doc_id ";
 
 	private static final String SEARCH_SQL_ALL_MAX_RANK = "SELECT x,y FROM documents_data d WHERE "
@@ -159,7 +159,7 @@ public class DatabaseService {
 			+ " FROM documents_data dd INNER JOIN documents d "
 			+ "ON d.doc_id = dd.doc_id WHERE dd.node_id = ?";
 
-	private static final String POST_DOCUMENTS_NODE_SQL = ") s, to_tsquery(?) query WHERE query @@ tsv AND s.enabled is TRUE ORDER BY s.rank DESC";
+	private static final String POST_DOCUMENTS_NODE_SQL = ") s, to_tsquery(language::regconfig,?) query WHERE query @@ tsv AND s.enabled is TRUE ORDER BY s.rank DESC";
 
 	private static final String NODE_DATA_SQL = "SELECT *, (select count(*) as nDocuments FROM documents_data dn "
 			+ "where dn.node_id=n.node_id)  FROM nodes n ORDER BY node_id";
@@ -1196,7 +1196,7 @@ public class DatabaseService {
 
 			// Adiciona SQL para busca por termos no documento
 			if ( querySearch != null )
-				where.append(", to_tsquery(?) query WHERE query @@ tsv AND d.enabled is TRUE ");			
+				where.append(", to_tsquery(language::regconfig,?) query WHERE query @@ tsv AND d.enabled is TRUE ");			
 			else
 				where.append(" WHERE d.enabled is TRUE ");		
 
