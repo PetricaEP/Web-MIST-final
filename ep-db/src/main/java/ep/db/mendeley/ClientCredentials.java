@@ -1,6 +1,6 @@
 package ep.db.mendeley;
 
-import org.postgresql.util.Base64;
+import java.util.Base64;
 
 /**
  * <p>
@@ -28,6 +28,6 @@ public class ClientCredentials {
     }
 
 	public synchronized String getCredentialsEncoded() {
-		return Base64.encodeBytes((clientId+":"+clientSecret).getBytes());
+		return Base64.getEncoder().encodeToString((clientId+":"+clientSecret).trim().getBytes());
 	}
 }

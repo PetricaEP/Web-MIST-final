@@ -9,7 +9,9 @@ import java.net.URL;
 import java.net.URLEncoder;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
+import org.apache.commons.io.IOUtils;
 import org.grobid.core.utilities.TextUtilities;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -47,20 +49,22 @@ public class OAuthTokenEndpoint {
 						String.format(TOKENS_URL, getGrantType()));
 				
 				conn = (HttpURLConnection) url.openConnection();
-				conn.setRequestMethod("POST");
+				conn.setRequestMethod("POST");				
 				conn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
 				conn.setRequestProperty("Authorization", "Basic " + clientCredentials.getCredentialsEncoded());
+				
 
 				String postData = "grant_type=" + URLEncoder.encode(getGrantType(), "UTF-8") +  "&scope=all";
-				conn.setDoOutput(true);
+				conn.setDoOutput(true);				
 				OutputStreamWriter writer = new OutputStreamWriter(conn.getOutputStream());
 
 			    writer.write(postData);
 			    writer.flush();
-				
+			    			    				
 				final int responseCode = conn.getResponseCode();
-				if (responseCode != 200) {
-					throw new Exception(responseCode + " " + conn.getResponseMessage() + " " + url.toString());
+				if (responseCode != 200) {					
+					String errorMsg = IOUtils.readLines(conn.getErrorStream()).stream().collect(Collectors.joining("\n"));
+					throw new Exception(responseCode + " " + conn.getResponseMessage() + " " + url.toString() + "Message: " + errorMsg);
 				}
 
 				is = conn.getInputStream();
