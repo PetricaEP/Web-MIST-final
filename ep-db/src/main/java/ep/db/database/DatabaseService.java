@@ -12,10 +12,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -196,8 +193,8 @@ public class DatabaseService {
 
 	private static final String UPDATE_DOCUMENTS_RANK = "SELECT update_documents_rank(?,?);";
 
-	private static final String SELECT_TERMS_FREQ_FROM_TSV = "SELECT d.doc_id, tsv::varchar tsv_str FROM "
-			+ "documents d INNER JOIN documents_data da ON d.doc_id = da.doc_id %s ORDER BY da.rank DESC, d.doc_id";
+	private static final String SELECT_TERMS_FREQ_FROM_TSV_UNNEST = "SELECT d.doc_id, t.lexeme, t.weights  FROM "
+			+ "documents d, unnest(d.tsv) t %s ORDER BY d.doc_id";
 
 	/**
 	 * Data source
@@ -661,7 +658,7 @@ public class DatabaseService {
 			String where, TFIDF tfidfCalc, List<Long> docIds) throws Exception {
 		try ( Connection conn = db.getConnection();){
 
-			String sql = String.format(SELECT_TERMS_FREQ_FROM_TSV, where != null ? where : "");
+			String sql = String.format(SELECT_TERMS_FREQ_FROM_TSV_UNNEST, where != null ? where : "");
 			Statement stmt = conn.createStatement();
 			ResultSet rs = stmt.executeQuery(sql);
 
@@ -672,72 +669,57 @@ public class DatabaseService {
 				docIds = new ArrayList<>(numberOfDocs);
 
 			Matrix matrix = new SparseMatrix();
+			long lastDocId = -1;
+			ArrayList<Pair> values = new ArrayList<>();
 			while( rs.next() ){
 				long docId = rs.getLong(1);
-				Map<String, String> terms = parseTSV(rs.getString(2));				
+				String term = rs.getString(2).trim();				
+				String[] weights = rs.getString(3).replaceAll("\\{|\\}", "").split(",");
 
-				if ( terms != null && !terms.isEmpty() ){
-					ArrayList<Pair> values = new ArrayList<>();
-
-					for(String term : terms.keySet()){
-
-						if ( termsToColumnMap.containsKey(term)){
-							String value = terms.get(term);
-							// Divide valores para contagem de termos e pesos
-							float[] freqWeight = splitValue(value);
-							double tfidf = tfidfCalc.calculate(freqWeight[1], numberOfDocs, term);
-							int col = termsToColumnMap.get(term);
-							values.add(new Pair(col, (float) tfidf));							
-						}	
-					}
-					matrix.addRow(new SparseVector(values, Long.toString(docId), 1.0f, numTerms));
-					docIds.add(docId);
+				if ( lastDocId != -1 && docId != lastDocId ) {
+					// Mudou o documento
+					matrix.addRow(new SparseVector(values, Long.toString(lastDocId), 1.0f, numTerms));
+					docIds.add(lastDocId);
+					values = new ArrayList<>();
 				}
-			}		
+				else {
+					if (termsToColumnMap.containsKey(term)) {						
+						double weight = 0.0;
+						for(int i = 0; i < weights.length; i++) {
+							weight += getTermWeight(weights[i]);							
+						}
+						int col = termsToColumnMap.get(term);
+						double tfidf = tfidfCalc.calculate(weight, numberOfDocs, term);
+						values.add(new Pair(col, (float) tfidf));						
+					}
+				}
+				lastDocId = docId;
+			}
+			
+			// Ultimo documento
+			matrix.addRow(new SparseVector(values, Long.toString(lastDocId), 1.0f, numTerms));
+			docIds.add(lastDocId);			
 
 			return matrix;
 		}catch( Exception e){
 			throw e;
 		}
-	}
+	}	
 
-	private Map<String, String> parseTSV(String tsv) {
-		if ( tsv != null && !tsv.trim().isEmpty()){
-			return Arrays.stream(tsv.split("\\s+"))
-					.map((s) -> s.split(":"))
-					.collect(Collectors.toMap((e) -> e[0].replace("'", ""), (e) -> e[1]));
-		}
-		return null;
-	}
-
-	private float[] splitValue(String value) {
-		String[] f = value.split(",");
-		Float[] weigths = Configuration.getInstance().getWeights();
-		float weight = 0;
-		for(String s : f){
-			Matcher m = TSV_VALUE_PATTERN.matcher(s);
-			if ( m.matches() ){
-				switch (m.group(1)) {
-				case "A":
-					weight += weigths[0];
-					break;
-				case "B":
-					weight += weigths[1];
-					break;
-				case "C":
-					weight += weigths[2];
-					break;
-				case "D":
-					weight += weigths[3];
-					break;
-				default:
-					weight += weigths[0];
-					break;
-				}
-			}
-		}
-
-		return new float[]{f.length, weight};
+	private float getTermWeight(String weight) {
+		float[] weigths = Configuration.getInstance().getWeights();
+		switch (weight) {
+		case "A":
+			return weigths[0];			
+		case "B":
+			return weigths[1];			
+		case "C":
+			return weigths[2];			
+		case "D":
+			return weigths[3];			
+		default:
+			return weigths[0];			
+		}		
 	}
 
 	/**
@@ -1151,20 +1133,17 @@ public class DatabaseService {
 
 		try ( Connection conn = db.getConnection();){
 			PreparedStatement stmt = conn.prepareStatement(SEARCH_SQL_ALL);
-			stmt.setInt(1, page * maxDocs); //OFFSET		
-			long start = System.nanoTime();			
+			stmt.setInt(1, page * maxDocs); //OFFSET					
 			try (ResultSet rs = stmt.executeQuery()){										
 				List<IDocument> docs = new ArrayList<>(maxDocs);
-				boolean next = rs.next();
-				start = System.nanoTime();
+				boolean next = rs.next();				
 				for(int i = 0; i < maxDocs && next; i++){
 					Document doc = newSimpleDocument( rs );
 					docs.add(doc);
 					next = rs.next();
 				}				
-				
-				// Documentos para mapa de densidade
-				start = System.nanoTime();
+
+				// Documentos para mapa de densidade				
 				while( next ){
 					float x = rs.getFloat(6),
 							y = rs.getFloat(7);
@@ -1355,9 +1334,9 @@ public class DatabaseService {
 			String sql = NODE_DATA_SQL;
 			PreparedStatement stmt = conn.prepareStatement(sql);
 			HashMap<Integer, QuadTreeNode> nodesMap = new HashMap<>();
-						
+
 			try (ResultSet rs = stmt.executeQuery()) {
-				
+
 				int leafCount = 0, branchCount = 0, treeDepth = 1;				
 				while (rs.next()) {
 					int node_id = rs.getInt(1);
@@ -1394,7 +1373,7 @@ public class DatabaseService {
 				qTree.setBranchCount(branchCount);
 				qTree.setLeafCount(leafCount);				
 			}
-						
+
 			conn.close();
 		} catch (Exception e) {
 			System.out.println(e.getMessage());
@@ -1430,13 +1409,13 @@ public class DatabaseService {
 				stmt.setBoolean(2, node.isLeaf());
 				stmt.setFloat(3, node.getRankMax());
 				stmt.setFloat(4, node.getRankMin());
-				
+
 				long pId = node.getParentNodeId();
 				if ( pId != -1 )
 					stmt.setLong(5, pId);
 				else
 					stmt.setNull(5, Types.BIGINT);
-				
+
 				stmt.setInt(6, node.getDepth());
 				stmt.setInt(7, node.getIndex());
 

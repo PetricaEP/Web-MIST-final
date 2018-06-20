@@ -123,7 +123,7 @@ public class Configuration {
 
 	private  float minRadiusSizePercent;
 
-	private  Float[] weights;
+	private  float[] weights;
 
 	private  int normalization;
 
@@ -324,7 +324,7 @@ public class Configuration {
 		}
 
 
-		weights = new Float[4];
+		weights = new float[4];
 		int i = 0;
 		prop = properties.getProperty(WEIGHT_A);
 		try{
@@ -708,11 +708,11 @@ public class Configuration {
 		this.minRadiusSizePercent = minRadiusSizePercent;
 	}
 
-	public Float[] getWeights() {
+	public float[] getWeights() {
 		return weights;
 	}
 
-	public void setWeights(Float[] weights) {
+	public void setWeights(float[] weights) {
 		this.weights = weights;
 	}
 
