@@ -215,7 +215,7 @@ Tab.prototype.ticked = function() {
  */
 Tab.prototype.endSimulation = function(){
 	this.circles
-	.attr("fill-opacity", 0.80);
+	.attr("fill-opacity", 1.0);
 
 	$("#reheat-btn").prop('disabled', false);
 };
