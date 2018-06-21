@@ -295,6 +295,7 @@ function nextVisualizationStep(){
 	else if ( selectedTab.step == 2){
 		thirdStep();
 		++selectedTab.step;
+		$('#step-btn').tooltip('hide');
 		$('#step-btn').prop('disabled',true);
 	}
 }

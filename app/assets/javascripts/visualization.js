@@ -381,10 +381,10 @@ function thirdStep(){
 	.force("gravity", forceGravity);		
 	
 	// Reinicia simulacao
-	reheat();
-	//selectedTab.simulation
+	//reheat();
+	selectedTab.simulation
 	//.alphaTarget(0.001)
-	//.restart();
+	.restart();
 }
 
 function setupSimulation(tab){
