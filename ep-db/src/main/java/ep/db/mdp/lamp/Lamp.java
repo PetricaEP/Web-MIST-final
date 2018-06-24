@@ -14,7 +14,6 @@ import org.slf4j.LoggerFactory;
 
 import ep.db.matrix.Matrix;
 import ep.db.matrix.MatrixFactory;
-import ep.db.matrix.SingularValueDecomposition;
 import ep.db.mdp.clustering.BKMeans;
 import ep.db.mdp.dissimilarity.Dissimilarity;
 import ep.db.mdp.dissimilarity.DissimilarityType;
@@ -23,7 +22,6 @@ import ep.db.mdp.projection.ControlPointsType;
 import ep.db.mdp.projection.IDMAPProjection;
 import ep.db.mdp.projection.ProjectionData;
 import ep.db.mdp.projection.ProjectorType;
-import ep.db.utils.Configuration;
 import ep.db.utils.QuickSort;
 import me.tongfei.progressbar.ProgressBar;
 import me.tongfei.progressbar.ProgressBarStyle;
@@ -81,36 +79,35 @@ public class Lamp {
 		if ( xs == null )
 			return null;
 		sampledata  = xs.toMatrix();
-
+				
 		IDMAPProjection idmap = new IDMAPProjection();
-		sampleproj = idmap.project(xs, pdata);
+		sampleproj = idmap.project(xs, pdata);		
 
 		int n = x.getRowCount();
 		float[] proj_aux = new float[n * 2];
 
 		int nrpartitions = nrthreads * 4; //number os pieces to split the data
-		int step = (int) Math.ceil( (float) n / nrpartitions);
+		int step = n / nrpartitions;
 		int begin = 0, end = 0;										
 		List<ParallelSolver> threads = new ArrayList<>();
 
 		final ProgressBar pb = new ProgressBar("LAMP", n, 1000, System.out, ProgressBarStyle.ASCII);
 		pb.start();
-
-		final int svdType = Configuration.getInstance().getSvdType();
-		for (int i = 0; i < nrpartitions && begin < n; i++) 
+		
+		for (int i = 0; i < nrpartitions; i++) 
 		{
 			end += step;
-			end = (end > n) ? n : end;
+			end = (end > n - 1) ? n - 1 : end;
 
-			ParallelSolver ps = new ParallelSolver(pdata, proj_aux, sampledata, sampleproj, x, begin, end, epsilon, pb, svdType);
+			ParallelSolver ps = new ParallelSolver(pdata, proj_aux, sampledata, sampleproj, x, begin, end, epsilon, pb);
 			threads.add(ps);
 			logger.info("Partition: " + begin + " - " + end);
 
-			begin = end;						
+			begin = end + 1;						
 		}
 
-		if (end < n) {
-			ParallelSolver ps = new ParallelSolver(pdata, proj_aux, sampledata, sampleproj, x, end, n, epsilon, pb, svdType);
+		if (end < n - 1) {
+			ParallelSolver ps = new ParallelSolver(pdata, proj_aux, sampledata, sampleproj, x, end + 1 , n - 1, epsilon, pb);
 			threads.add(ps);	
 			logger.info("Partition: " + end + " - " + n);
 		}
@@ -184,22 +181,28 @@ public class Lamp {
 		}
 		else { // pdata.getControlPointsChoice() == ControlPointsType.REPRESENTATIVE
 			// Replicate code from TH
-			int lines = x.getRowCount();
-			int cols = x.getDimensions();
+			int lines = x.getRowCount(); // n
+			int cols = x.getDimensions(); // m
 			int np = lines;
 			int dimension = cols;
 			int ks = Math.min(np, dimension);
 			int ns = Math.max(pdata.getNumberControlPoints(), ks);
 
 			controlPoints = new int[ns];
-
+								
+			// 1. Transpose input matrix			
+			Jama.Matrix V = new Jama.Matrix(cols, lines, 0); // m x n
+			for(int j = 0; j < cols; j++) {
+				for(int i = 0; i < lines; i++) {
+					float v = x.getRow(i).getValueQuick(j);
+					V.set(j, i, v);
+				}
+			}
+			
 			// 2. Calcule SVD in xt [U, S, V]
-			Matrix V = x.transpose();			
-			SingularValueDecomposition svd = new SingularValueDecomposition();
-			svd.svd(V);
-
+			Jama.SingularValueDecomposition svd = new Jama.SingularValueDecomposition(V);			
 			// Transpose SVD 
-			Matrix vt = svd.getVMatrix().transpose();
+			Jama.Matrix vt = svd.getV();
 
 			// 3. Calcule control points (indices) 
 			double[] p = new double[np];  
@@ -210,7 +213,7 @@ public class Lamp {
 				double norm = 0;
 				for (int i = 0; i < ks; i++)
 				{
-					double vj = vt.getRow(j).getValue(i); //(j, i);//(i, j);
+					double vj = vt.get(j, i);
 					norm += vj * vj;
 				}
 				p[j] = norm;

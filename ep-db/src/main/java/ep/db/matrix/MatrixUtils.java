@@ -47,8 +47,12 @@ address = {Washington, DC, USA},
 
 package ep.db.matrix;
 
+import java.io.BufferedWriter;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -142,5 +146,38 @@ public class MatrixUtils {
             Logger.getLogger(MatrixUtils.class.getName()).log(Level.SEVERE, null, ex);
         }
     }
+
+	public static void save(Matrix matrix, Map<String, Integer> termsToColumnMap, String filename) {
+		Map<Integer,String> invertedMap = invertMap(termsToColumnMap);
+		try ( BufferedWriter bw = new BufferedWriter(new FileWriter(filename)); ) {
+			for(int j = 0; j < matrix.getDimensions(); j++) {
+				String term = invertedMap.get(j);
+				bw.append(term);
+				bw.append("\t");
+			}
+			bw.newLine();
+			
+			for(int i = 0; i < matrix.getRowCount(); i++) {
+				Vector row = matrix.getRow(i);
+				for(int j = 0; j < matrix.getDimensions(); j++) {
+					float f = row.getValueQuick(j);
+					bw.append(String.format("%.6f\t", f));										
+				}
+				bw.newLine();
+			}
+		}catch (Exception e) {
+			e.printStackTrace();
+		}
+		
+	}
+
+	private static <K,V> Map<V, K> invertMap(Map<K, V> map) {
+		Map<V, K> invertedMap = new HashMap<>();
+		for(K key : map.keySet()) {
+			V value = map.get(key);
+			invertedMap.put(value, key);
+		}
+		return invertedMap;
+	}
 
 }

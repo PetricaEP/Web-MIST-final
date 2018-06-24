@@ -30,7 +30,8 @@ libraryDependencies ++= Seq(
   "org.jfree" % "jfreechart" % "1.0.19",
   "org.jsoup" % "jsoup" % "1.10.3",
   "me.tongfei" % "progressbar" % "0.5.5",
-  "org.jbibtex" % "jbibtex" % "1.0.15"
+  "org.jbibtex" % "jbibtex" % "1.0.15",
+  "gov.nist.math" % "jama" % "1.0.3"
 )
 
 test in assembly := {}

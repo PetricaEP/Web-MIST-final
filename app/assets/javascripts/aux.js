@@ -48,10 +48,12 @@ function fetchReferencesAjax(tab, docIds){
 		jqXHR.setRequestHeader('Csrf-Token', $("input[name='csrfToken']").val());
 	});
 
-	var r = jsRoutes.controllers.HomeController.references(docIds);	
+	var r = jsRoutes.controllers.HomeController.references();	
 	$.ajax({
 		url: r.url, 
 		type: r.type, 
+		data: JSON.stringify(docIds),
+		contentType: "application/json; charset=utf-8",
 		success: function(data){
 			tab.processReferences(data);
 		}, 

@@ -11,7 +11,6 @@ import java.util.Properties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import ep.db.matrix.SVDFactory;
 import ep.db.mdp.dissimilarity.DissimilarityType;
 import ep.db.mdp.projection.ControlPointsType;
 import ep.db.mdp.projection.ProjectorType;
@@ -64,8 +63,6 @@ public class Configuration {
 	private static final String LAMP_PERCENTAGE = "lamp_percentage";
 	private static final String LAMP_NUMBER_OF_THREADS = "lamp_threads";
 	private static final String NUMBER_OF_MOST_FREQ_WORDS = "num_most_freq_words";
-	private static final String SVD_TYPE = "svd_type";
-	private static final String RANDOM_SVD_INTERATIONS = "random_svd_interations";
 
 
 
@@ -154,10 +151,6 @@ public class Configuration {
 	private int lampNumberOfThreads;
 
 	private int numberOfMostFrequentWords;
-
-	private int svdType;
-
-	private int randomSVDInterations;
 
 	private static Configuration instance;
 
@@ -425,29 +418,7 @@ public class Configuration {
 				logger.warn("Cannot parse number of most frequent words: " + prop, e);
 			}
 		}	
-
-		prop = properties.getProperty(SVD_TYPE);
-		if ( prop != null ){
-			try {
-				svdType = Integer.parseInt(prop.trim());
-				if ( svdType != SVDFactory.FULL_SVD && svdType != SVDFactory.RANDOM_SVD) {
-					logger.warn("Unknown SVD type. Using default FULL SVD");
-					svdType = SVDFactory.FULL_SVD;
-				}				
-			} catch( NumberFormatException e){
-				logger.warn("Cannot parse SVD type: " + prop, e);
-			}
-		}
-
-		prop = properties.getProperty(RANDOM_SVD_INTERATIONS);
-		if ( prop != null ){
-			try {
-				randomSVDInterations = Integer.parseInt(prop.trim());				
-			} catch( NumberFormatException e){
-				logger.warn("Cannot parse random SVD number of iterations: " + prop, e);
-			}
-		}
-
+		
 		prop = properties.getProperty(DENSITY_MAP_CALCULATION);
 		if ( prop.trim().equals("client"))
 			densityMapCalculation = DENSITY_MAP_CLIENT;
@@ -521,9 +492,6 @@ public class Configuration {
 		properties.setProperty(LAMP_PERCENTAGE, Float.toString(lampPercentage));
 		properties.setProperty(LAMP_NUMBER_OF_THREADS, Integer.toString(lampNumberOfThreads));
 		properties.setProperty(NUMBER_OF_MOST_FREQ_WORDS, Integer.toString(numberOfMostFrequentWords));
-
-		properties.setProperty(SVD_TYPE, Integer.toString(svdType));
-		properties.setProperty(RANDOM_SVD_INTERATIONS, Integer.toString(randomSVDInterations));
 
 		properties.setProperty(CONTROL_POINTS_CHOICE, controlPointsChoice.name());
 		properties.setProperty(DISSIMILARITY_TYPE, dissimilarityType.name());
@@ -838,21 +806,5 @@ public class Configuration {
 
 	public void setNumberOfMostFrequentWords(int numberOfMostFrequentWords) {
 		this.numberOfMostFrequentWords = numberOfMostFrequentWords;
-	}
-
-	public int getSvdType() {
-		return svdType;
-	}
-
-	public void setSvdType(int svdType) {
-		this.svdType = svdType;
-	}
-
-	public int getRandomSVDInterations() {
-		return randomSVDInterations;
-	}
-
-	public void setRandomSVDInterations(int randomSVDInterations) {
-		this.randomSVDInterations = randomSVDInterations;
 	}
 }

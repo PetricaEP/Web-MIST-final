@@ -6,12 +6,8 @@ import java.util.concurrent.Callable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import ep.db.matrix.DenseMatrix;
-import ep.db.matrix.DenseVector;
+import Jama.SingularValueDecomposition;
 import ep.db.matrix.Matrix;
-import ep.db.matrix.SVD;
-import ep.db.matrix.SVDFactory;
-import ep.db.matrix.Vector;
 import ep.db.mdp.projection.ProjectionData;
 import me.tongfei.progressbar.ProgressBar;
 
@@ -26,12 +22,11 @@ class ParallelSolver implements Callable<Integer> {
 	private final float[][] sampleproj;
 	private double epsilon;
 	private int begin;
-	private int end;
-	private int svdType;
+	private int end;	
 	private ProgressBar pb;
 
 	public ParallelSolver(ProjectionData pdata, float[] projection, float[][] sampledata, float[][] sampleproj,
-			Matrix matrix, int begin, int end, double epsilon, ProgressBar pb, int svdType) {
+			Matrix matrix, int begin, int end, double epsilon, ProgressBar pb) {
 		this.pdata = pdata;
 		this.projection = projection;
 		this.sampledata = sampledata;
@@ -41,26 +36,25 @@ class ParallelSolver implements Callable<Integer> {
 		this.end = end;
 		this.epsilon = epsilon;
 		this.pb = pb;
-		this.svdType = svdType;
 	}
 
 	@Override
 	public Integer call() {
 		try {					
-			createTransformation();		
+			createTransformation();			
 			return 0;
 		}catch (Exception e) {
 			logger.error("Error in thread: " + Thread.currentThread().getName() + ". Partition: " + begin + ", " + end, e);
 			throw e;
 		}finally {
-			
+			pb.stepBy(end-begin);
 		}
 	}
 
 	private void createTransformation() 
 	{
-		// dimensions
-		int len = projection.length / 2;
+		// dimensions	
+		final int len = projection.length / 2;
 		int d = matrix.getDimensions();      // origin space: dimension
 		int k = sampledata.length;    // sampling:  instances
 		int r = sampleproj[0].length;  // projected: dimension
@@ -87,11 +81,11 @@ class ParallelSolver implements Callable<Integer> {
 		local_W = new float[n];
 
 		// arrays 2d		
-		Matrix AtB = new DenseMatrix(); //(d,r); 		
+		Jama.Matrix AtB = new Jama.Matrix(d,r);	
 
 		// Starting calcs
 		int p, i, j, m;
-		for (p = begin; p < end; p++) {
+		for (p = begin; p <= end; p++) {
 			// point to be projected
 			X = matrix.getRow(p).toArray();
 
@@ -118,7 +112,7 @@ class ParallelSolver implements Callable<Integer> {
 				// coincident points
 				if (w < epsilon) {
 					projection[p] = Q[0];
-					projection[len + p] = Q[1];
+					projection[p + len] = Q[1];					
 					jump = true;
 					break;
 				}
@@ -171,9 +165,8 @@ class ParallelSolver implements Callable<Integer> {
 			//==============================================================
 			//calculating AtB
 			for (i = 0; i < d; i++) {
-//				x = 0;
-//				y = 0;
-				float[] xy = new float[2];
+				x = 0;
+				y = 0;
 				for (j = 0; j < n; j++) {
 					P = sampledata[neighbors_index[j]];
 					Q = sampleproj[neighbors_index[j]];
@@ -182,38 +175,34 @@ class ParallelSolver implements Callable<Integer> {
 
 					aij = (P[i] - Pstar[i]) * wsqrt;
 
-					xy[0] = xy[0] + (aij * ((Q[0] - Qstar[0]) * wsqrt));
-					xy[1] = xy[1] + (aij * ((Q[1] - Qstar[1]) * wsqrt));
+					x = x + (aij * ((Q[0] - Qstar[0]) * wsqrt));
+					y = y + (aij * ((Q[1] - Qstar[1]) * wsqrt));
 				}
-				
-				
-				Vector row = new DenseVector(xy);
-				AtB.addRow(row);
-//				AtB.setEntry(i, 0, x);
-//				AtB.setEntry(i, 1, y);				
+
+				AtB.set(i, 0, x);
+				AtB.set(i, 1, y);				
 			}
 
 			//==============================================================
 			// STEP 3: Projection
 			//==============================================================
 
-			// SVD Computation      	[U, S, V]
-			SVD svd = SVDFactory.createSVD(svdType);
-			svd.svd(AtB);
-			float[][] V = svd.getV();
-			float[][] U = svd.getU();			
+			// SVD Computation      	[U, S, V]			
+			SingularValueDecomposition svdcalc = new SingularValueDecomposition(AtB);			
+			Jama.Matrix V = svdcalc.getV();
+			Jama.Matrix U = svdcalc.getU();
 
-			v00 = V[0][0]; 
-			v01 = V[0][1]; 
-			v10 = V[1][0]; 
-			v11 = V[1][1];
+			v00 = (float) V.get(0, 0);
+			v01 = (float) V.get(0, 1);
+			v10 = (float) V.get(1, 0);
+			v11 = (float) V.get(1, 1);
 
 			x = 0;
 			y = 0;
 			for (j = 0; j < d; j++) {
 				diff = (X[j] - Pstar[j]);
-				uj0 = U[j][0];
-				uj1 = U[j][1];
+				uj0 = (float) U.get(j, 0);
+				uj1 = (float) U.get(j, 1);
 
 				x += diff * (uj0 * v00 + uj1 * v01);
 				y += diff * (uj0 * v10 + uj1 * v11);
@@ -223,9 +212,7 @@ class ParallelSolver implements Callable<Integer> {
 			y = y + Qstar[1];
 			
 			projection[p] = x;
-			projection[len + p] = y;
-			
-			pb.step();
+			projection[p+len] = y;					
 		}
 	}
 }

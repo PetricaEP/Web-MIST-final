@@ -23,6 +23,7 @@ import edu.uci.ics.jung.algorithms.scoring.PageRank;
 import edu.uci.ics.jung.graph.DirectedGraph;
 import edu.uci.ics.jung.graph.DirectedSparseGraph;
 import ep.db.matrix.Matrix;
+import ep.db.matrix.MatrixUtils;
 import ep.db.matrix.Pair;
 import ep.db.matrix.SparseMatrix;
 import ep.db.matrix.SparseVector;
@@ -271,6 +272,9 @@ public class DatabaseService {
 			matrix = buildFrequencyMatrix(numberOfDocuments, termsCount.size(), termsToColumnMap, where, tfidfCalc, docIds);
 		else
 			matrix = buildFrequencyMatrixFromTSV(numberOfDocuments, termsCount.size(), termsToColumnMap, where, tfidfCalc, docIds);
+		
+		MatrixUtils.save(matrix, termsToColumnMap, "tdm.tsv");		
+		
 		return matrix;
 	}
 

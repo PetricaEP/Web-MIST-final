@@ -3,6 +3,7 @@ package ep.db.mdp;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import org.apache.commons.math3.stat.descriptive.rank.Percentile;
@@ -14,6 +15,7 @@ import ep.db.database.DefaultDatabase;
 import ep.db.matrix.Matrix;
 import ep.db.mdp.lamp.Lamp;
 import ep.db.mdp.projection.ProjectionData;
+import ep.db.tfidf.InverseDocumentFrequencyTFIDF;
 import ep.db.tfidf.LogaritmicInverseDocumentFrequencyTFIDF;
 import ep.db.tfidf.LogaritmicTFIDF;
 import ep.db.tfidf.RawInverseDocumentFrequencyTFIDF;
@@ -78,11 +80,13 @@ public class MultidimensionalProjection {
 	public void project() throws Exception {
 
 		List<Long> docIds = new ArrayList<>();		
-		Matrix matrix = getBagOfWordsMatrix(docIds);						
+		Matrix matrix = getBagOfWordsMatrix(docIds);		
+		
+		System.out.println(String.format("Bag of words size: %d x %d (rows x cols)", matrix.getRowCount(), matrix.getDimensions()));
 
 		// Realiza projeção multidimensional utilizando LAMP
 		System.out.println("Projecting...");
-		
+
 		final int numberControlPoints = (int) Math.sqrt(matrix.getRowCount());
 		ProjectionData pdata = new ProjectionData();
 		pdata.setControlPointsChoice(config.getControlPointsChoice());
@@ -91,7 +95,10 @@ public class MultidimensionalProjection {
 		pdata.setNumberIterations(config.getLampNumberOfIterations());
 		pdata.setFractionDelta(config.getLampFractionDelta());		
 		pdata.setPercentage(config.getLampPercentage());
-		pdata.setNumberControlPoints(numberControlPoints);		
+		pdata.setNumberControlPoints(numberControlPoints);
+		
+		System.out.println("MDP settings: ");
+		System.out.println(pdata.toString());
 
 		final int nThreads = config.getLampNumberOfThreads();
 		Lamp lamp = new Lamp(nThreads);
@@ -99,7 +106,7 @@ public class MultidimensionalProjection {
 		float[] proj = lamp.project(matrix, pdata);
 		System.out.println("Elapsed: " + ((System.nanoTime() - start)/1e9));
 		int nrows = proj.length / 2;	
-
+		
 		List<Integer> outliers = null;
 		if ( Configuration.getInstance().isDisableOutliers()  ) {
 			System.out.println("Outliers detection...");
@@ -114,7 +121,7 @@ public class MultidimensionalProjection {
 				if ( !outliers.contains(i) )
 					rows[k++] = i;
 		}
-
+		
 		//		 Normaliza projeção para intervalo [-1,1]
 		if ( normalize ){
 			System.out.println("Normalizing to range [-1,1]...");
@@ -156,6 +163,9 @@ public class MultidimensionalProjection {
 		case 3: 
 			tfidf = new LogaritmicTFIDF();
 			break;
+		case 4:
+			tfidf = new InverseDocumentFrequencyTFIDF();
+			break;
 		default:
 			tfidf = new LogaritmicInverseDocumentFrequencyTFIDF();
 			break;
@@ -185,7 +195,7 @@ public class MultidimensionalProjection {
 		for(int i = 0; i < size; i++){
 			float xp = proj[i],
 					yp = proj[i + size];
-			
+
 			if ( ( xp < Q1_x - IQR_x || xp > Q3_x + IQR_x) || 
 					( yp < Q1_y - IQR_y || yp > Q3_y + IQR_y))
 				indices.add(i);
@@ -196,23 +206,27 @@ public class MultidimensionalProjection {
 
 	private void normalizeProjections(float[] proj, int[] rows) {
 		final int size = proj.length / 2; 
-		float maxX = proj[0], 
-				maxY = proj[size],
-				minX = proj[0],
-				minY = proj[size];
+		float maxX = Float.MIN_VALUE, 
+				maxY = Float.MIN_VALUE,
+				minX = Float.MAX_VALUE,
+				minY = Float.MAX_VALUE;
 
-		for(int i = 1; i < size; i++) {
-			float x = proj[i], y = proj[i + size];
-			
-			//X
-			if ( x > maxX) maxX = x;
-			if ( x < minX) minX = x;
-			
-			//Y
-			if ( y > maxY) maxY = y;
-			if ( y < minY) minY = y;						
-		}
 		
+		for(int i = 0; i < size; i++) {
+			int k = rows != null ? Arrays.binarySearch(rows, i) : -1;
+			if ( k < 0 ) {
+				float x = proj[i], y = proj[i + size];
+
+				//X
+				if ( x > maxX) maxX = x;
+				if ( x < minX) minX = x;
+
+				//Y
+				if ( y > maxY) maxY = y;
+				if ( y < minY) minY = y;	
+			}
+		}
+
 		//Normaliza em [-1,1]
 		for(int i = 0; i < size; i++) {
 			proj[i] = 2 * (proj[i] - minX) / (maxX - minX) -1;
@@ -234,7 +248,7 @@ public class MultidimensionalProjection {
 				long[] outliersIds = new long[outliers.size()];
 				for(int i = 0; i < outliers.size(); i++) 
 					outliersIds[i] = docIds.get(outliers.get(i));				
-				
+
 				dbService.disableDocuments(outliersIds);
 			}
 		} catch (Exception e) {
@@ -249,7 +263,7 @@ public class MultidimensionalProjection {
 	 */
 	public static void main(String[] args) {
 		try {
-			
+
 			Configuration config = Configuration.getInstance();			
 			if (args.length > 0) {
 				File configFile = new File(args[0]);
@@ -258,10 +272,9 @@ public class MultidimensionalProjection {
 			else {			
 				config.loadConfiguration();
 			}
-
-			System.out.println("SVD Type:" + config.getSvdType());
+			
 			System.out.println("Updating MDP...");
-			MultidimensionalProjection mdp = new MultidimensionalProjection(config);
+			MultidimensionalProjection mdp = new MultidimensionalProjection(config, true);
 			mdp.project();
 			System.out.println("MDP successful updated");
 			System.out.println("\n");

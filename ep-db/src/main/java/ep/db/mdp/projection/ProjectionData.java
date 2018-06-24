@@ -118,6 +118,33 @@ public class ProjectionData {
     public float getPercentage() {
 		return percentage;
 	}
+    
+    @Override
+    public String toString() {
+    		StringBuilder sb = new StringBuilder();
+    		sb.append("Source file: ");
+    		sb.append(sourceFile);
+    		sb.append("\n");
+    		sb.append("Distance Type: ");
+    		sb.append(distanceType.name());
+    		sb.append("\n");
+    		sb.append("Num. iterations: ");
+    		sb.append(numberIterations);
+    		sb.append("\n");
+    		sb.append("Projector: ");
+    		sb.append(projector.name());
+    		sb.append("\n");
+    		sb.append("Num. cp: ");
+    		sb.append(numberControlPoint);
+    		sb.append("\n");
+    		sb.append("CP choice: ");
+    		sb.append(controlPointsChoice.name());
+    		sb.append("\n");
+    		sb.append("Percentage KNN: ");
+    		sb.append(percentage);
+    		sb.append("\n");
+    		return sb.toString();
+    }
 
     @Override
     public Object clone() throws CloneNotSupportedException {
