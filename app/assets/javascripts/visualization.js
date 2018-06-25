@@ -223,7 +223,7 @@ createVisualization = function(jsonData){
 
 	// Se pontos do contorno devem ser mostrados na
 	// visualizaçã, cria pontos.	
-	var showPoints = $("#show-density-points").prop('checked');
+	var showPoints = $("#density-points-on-off").prop('checked');
 	if ( showPoints ){
 		currentTab.points = createPoints(currentTab.densities);
 	}	

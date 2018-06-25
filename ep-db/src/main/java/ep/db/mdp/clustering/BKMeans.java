@@ -357,16 +357,16 @@ public class BKMeans {
 			this.distance = distance;
 			this.id = id;
 		}
+		
+		
+		public boolean equals(float a, float b) {		
+			if(a==b) return true;
+			return Math.abs(a - b) <= EPSILON;
+		}
 
 		@Override
 		public int compareTo(Pivot o) {
-			if (Math.abs(this.distance -  o.distance) <= EPSILON) {
-				return 0;
-			} else if (this.distance - o.distance > EPSILON) {
-				return 1;
-			} else {
-				return -1;
-			}
+			return equals(this.distance, o.distance) ? 0 : (this.distance < o.distance ) ? -1 : 1;			
 		}
 
 		public float distance;

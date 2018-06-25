@@ -28,7 +28,7 @@ public class TestDatabase {
 			DatabaseService dbService = new DatabaseService(new DefaultDatabase(config));
 			List<Long> docIds = new ArrayList<>();
 			TFIDF tfidf = new InverseDocumentFrequencyTFIDF();
-			Matrix matrix = dbService.getFrequencyMatrix(null, tfidf, docIds);				
+			Matrix matrix = dbService.getDocumentTermMatrix(null, tfidf, docIds);				
 
 		} catch (Exception e) {
 			e.printStackTrace(System.err);

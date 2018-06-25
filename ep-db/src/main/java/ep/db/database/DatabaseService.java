@@ -22,10 +22,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import edu.uci.ics.jung.algorithms.scoring.PageRank;
 import edu.uci.ics.jung.graph.DirectedGraph;
 import edu.uci.ics.jung.graph.DirectedSparseGraph;
-import ep.db.matrix.Matrix;
-import ep.db.matrix.MatrixUtils;
+import ep.db.matrix.DocumentTermMatrix;
 import ep.db.matrix.Pair;
-import ep.db.matrix.SparseMatrix;
 import ep.db.matrix.SparseVector;
 import ep.db.model.Author;
 import ep.db.model.Document;
@@ -229,7 +227,7 @@ public class DatabaseService {
 		}
 	}
 
-	public Matrix getFrequencyMatrix(long[] seletecDocIds, TFIDF tfidfCalc, List<Long> docIds) throws Exception {
+	public DocumentTermMatrix getDocumentTermMatrix(long[] seletecDocIds, TFIDF tfidfCalc, List<Long> docIds) throws Exception {
 
 		// Retorna numero de documentos e ocorrencia total dos termos
 		int numberOfDocuments;
@@ -267,13 +265,13 @@ public class DatabaseService {
 		tfidfCalc.setTermsCount(termsCount);
 
 		// Popula matriz com frequencia dos termos em cada documento
-		Matrix matrix;
+		DocumentTermMatrix matrix;
 		if ( config.isUsePreCalculatedFreqs() )
 			matrix = buildFrequencyMatrix(numberOfDocuments, termsCount.size(), termsToColumnMap, where, tfidfCalc, docIds);
 		else
 			matrix = buildFrequencyMatrixFromTSV(numberOfDocuments, termsCount.size(), termsToColumnMap, where, tfidfCalc, docIds);
 		
-		MatrixUtils.save(matrix, termsToColumnMap, "tdm.tsv");		
+		matrix.save("tdm_pex.data");
 		
 		return matrix;
 	}
@@ -591,7 +589,7 @@ public class DatabaseService {
 	 * @param docIds
 	 * @throws Exception erro ao executar consulta.
 	 */
-	private Matrix buildFrequencyMatrix(int numberOfDocs, int numTerms, Map<String, Integer> termsToColumnMap,
+	private DocumentTermMatrix buildFrequencyMatrix(int numberOfDocs, int numTerms, Map<String, Integer> termsToColumnMap,
 			String where, TFIDF tfidfCalc, List<Long> docIds) throws Exception {		
 		try ( Connection conn = db.getConnection();){			
 			String sql = "SELECT d.doc_id, freqs FROM documents d INNER JOIN documents_data da "
@@ -611,7 +609,7 @@ public class DatabaseService {
 			else
 				docIds = new ArrayList<>(numberOfDocs);
 
-			Matrix matrix = new SparseMatrix();
+			DocumentTermMatrix matrix = new DocumentTermMatrix(termsToColumnMap);
 			while( rs.next() ){
 				long docId = rs.getLong(1);
 				String terms = rs.getString(2);
@@ -658,7 +656,7 @@ public class DatabaseService {
 	 * @param docIds 
 	 * @throws Exception erro ao executar consulta.
 	 */
-	private Matrix buildFrequencyMatrixFromTSV(int numberOfDocs, int numTerms, Map<String, Integer> termsToColumnMap,
+	private DocumentTermMatrix buildFrequencyMatrixFromTSV(int numberOfDocs, int numTerms, Map<String, Integer> termsToColumnMap,
 			String where, TFIDF tfidfCalc, List<Long> docIds) throws Exception {
 		try ( Connection conn = db.getConnection();){
 
@@ -672,7 +670,7 @@ public class DatabaseService {
 			else
 				docIds = new ArrayList<>(numberOfDocs);
 
-			Matrix matrix = new SparseMatrix();
+			DocumentTermMatrix matrix = new DocumentTermMatrix(termsToColumnMap);
 			long lastDocId = -1;
 			ArrayList<Pair> values = new ArrayList<>();
 			while( rs.next() ){

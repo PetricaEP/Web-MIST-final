@@ -12,6 +12,7 @@ import org.slf4j.LoggerFactory;
 
 import ep.db.database.DatabaseService;
 import ep.db.database.DefaultDatabase;
+import ep.db.matrix.DocumentTermMatrix;
 import ep.db.matrix.Matrix;
 import ep.db.mdp.lamp.Lamp;
 import ep.db.mdp.projection.ProjectionData;
@@ -80,10 +81,11 @@ public class MultidimensionalProjection {
 	public void project() throws Exception {
 
 		List<Long> docIds = new ArrayList<>();		
-		Matrix matrix = getBagOfWordsMatrix(docIds);		
+		DocumentTermMatrix matrix = getBagOfWordsMatrix(docIds);		
 		
-		System.out.println(String.format("Bag of words size: %d x %d (rows x cols)", matrix.getRowCount(), matrix.getDimensions()));
-
+		System.out.println(String.format("Bag of words size: %d x %d (rows x cols)", matrix.getRowCount(), matrix.getDimensions()));		
+		System.out.println(matrix.toString());
+		
 		// Realiza projeção multidimensional utilizando LAMP
 		System.out.println("Projecting...");
 
@@ -133,16 +135,16 @@ public class MultidimensionalProjection {
 		updateProjections(docIds, proj, outliers);
 	}
 
-	private Matrix getBagOfWordsMatrix(List<Long> docIds) throws Exception {
+	private DocumentTermMatrix getBagOfWordsMatrix(List<Long> docIds) throws Exception {
 		// Constroi matriz de frequência de termos
 		// ordenada decrescentemente pela relevancia.
 		// Primeira coluna contém docIds.
-		Matrix matrix = null;	
+		DocumentTermMatrix matrix = null;	
 		TFIDF tfidf = getTFIDFWeightingScheme();
 
 		try {
 			System.out.println("Building frequency matrix (bag of words)...");			
-			matrix = dbService.getFrequencyMatrix(null, tfidf, docIds);
+			matrix = dbService.getDocumentTermMatrix(null, tfidf, docIds);
 		} catch (Exception e) {
 			logger.error("Error building frequency matrix", e);
 			throw e;

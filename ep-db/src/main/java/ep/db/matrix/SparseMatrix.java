@@ -64,23 +64,23 @@ import java.util.logging.Logger;
  */
 public class SparseMatrix extends Matrix {
 
-    @Override
-    public void addRow(Vector vector) {
-        assert (vector instanceof SparseVector) : "ERROR: vector of wrong type!";
+	@Override
+	public void addRow(Vector vector) {
+		assert (vector instanceof SparseVector) : "ERROR: vector of wrong type!";
 
-        super.addRow(vector);
-    }
+		super.addRow(vector);
+	}
 
-    @Override
-    public void setRow(int index, Vector vector) {
-        assert (vector instanceof SparseVector) : "ERROR: vector of wrong type!";
+	@Override
+	public void setRow(int index, Vector vector) {
+		assert (vector instanceof SparseVector) : "ERROR: vector of wrong type!";
 
-        super.setRow(index, vector);
-    }
-    
-    @Override
-    protected void copyTranspose(Matrix t) {
-    	for(int i = 0; i < this.dimensions; i++) {
+		super.setRow(index, vector);
+	}
+
+	@Override
+	protected void copyTranspose(Matrix t) {
+		for(int i = 0; i < this.dimensions; i++) {
 			ArrayList<Pair> pairs = new ArrayList<>();		
 			for(int j = 0; j < this.getRowCount(); j++){
 				float val = getRow(j).getValue(i);
@@ -89,178 +89,178 @@ public class SparseMatrix extends Matrix {
 			}
 			t.addRow(new SparseVector(pairs, Integer.toString(i), 1.0f, this.getRowCount()));			
 		}  
-    }
+	}
 
-    @Override
-    public void load(String filename) throws IOException {
-        this.rows = new ArrayList<Vector>();
-        this.attributes = new ArrayList<String>();
+	@Override
+	public void load(String filename) throws IOException {
+		this.rows = new ArrayList<Vector>();
+		this.attributes = new ArrayList<String>();
 
-        BufferedReader in = null;
-        try {
-            in = new BufferedReader(new FileReader(filename));
+		BufferedReader in = null;
+		try {
+			in = new BufferedReader(new FileReader(filename));
 
-            //read the header
-            char[] header = in.readLine().trim().toCharArray();
+			//read the header
+			char[] header = in.readLine().trim().toCharArray();
 
-            //checking
-            if (header.length != 2) {
-                throw new IOException("Wrong format of header information.");
-            }
-
-            //checking
-            if (header[0] != 'S') {
-                throw new IOException("Wrong matrix format. It is not the sparse format.");
-            }
-
-            //read the number of objects
-            int nrobjs = Integer.parseInt(in.readLine());
-
-            //read the number of dimensions
-            int nrdims = Integer.parseInt(in.readLine());
-
-            //read the attributes
-            String line = in.readLine();
-            StringTokenizer t1 = new StringTokenizer(line, ";");
-
-            while (t1.hasMoreTokens()) {
-                String token = t1.nextToken();
-                this.attributes.add(token.trim());
-            }
-
-            //checking
-            if (this.attributes.size() > 0 && this.attributes.size() != nrdims) {
-                throw new IOException("The number of attributes does not match "
-                        + "with the dimensionality of matrix (" + this.attributes.size()
-                        + " - " + nrdims + ").");
-            }
-
-            //read the vectors
-            while ((line = in.readLine()) != null && line.trim().length() > 0) {
-                StringTokenizer t2 = new StringTokenizer(line, ";");
-
-                //read the id
-                String id = t2.nextToken().trim();
-
-                //class data
-                float klass = 0.0f;
-
-                //the vector
-                ArrayList<Pair> values = new ArrayList<Pair>();
-
-                while (t2.hasMoreTokens()) {
-                    String token = t2.nextToken();
-
-                    if (header[1] == 'Y') {
-                        if (t2.hasMoreTokens()) {
-                            StringTokenizer t3 = new StringTokenizer(token, ":");
-
-                            int index = Integer.parseInt(t3.nextToken().trim());
-                            float value = Float.parseFloat(t3.nextToken().trim());
-
-                            values.add(new Pair(index, value));
-                        } else {
-                            klass = Float.parseFloat(token.trim());
-                        }
-                    } else if (header[1] == 'N') {
-                        StringTokenizer t3 = new StringTokenizer(token, ":");
-
-                        int index = Integer.parseInt(t3.nextToken().trim());
-                        float value = Float.parseFloat(t3.nextToken().trim());
-
-                        values.add(new Pair(index, value));
-                    } else {
-                        throw new IOException("Unknown class data option");
-                    }
-                }
-
-                this.addRow(new SparseVector(values, id, klass, nrdims));
-            }
-
-            //checking
-            if (this.getRowCount() != nrobjs) {
-                throw new IOException("The number of vectors does not match "
-                        + "with the matrix size (" + this.getRowCount()
-                        + " - " + nrobjs + ").");
-            }
-
-        } catch (FileNotFoundException e) {
-            throw new IOException("File " + filename + " does not exist!");
-        } catch (IOException e) {
-            throw new IOException(e.getMessage());
-        } finally {
-            if (in != null) {
-                try {
-                    in.close();
-                } catch (IOException ex) {
-                    Logger.getLogger(DenseMatrix.class.getName()).log(Level.SEVERE, null, ex);
-                }
-            }
-        }
-    }
-
-    @Override
-    public void save(String filename) throws IOException {
-        BufferedWriter out = null;
-
-        try {
-            out = new BufferedWriter(new FileWriter(filename));
-
-            //Writting the file header
-            out.write("SY\r\n");
-            out.write(Integer.toString(this.getRowCount()));
-            out.write("\r\n");
-            out.write(Integer.toString(this.getDimensions()));
-            out.write("\r\n");
-
-            //Writting the attributes
-            if (attributes != null) {
-                for (int i = 0; i < attributes.size(); i++) {
-                    out.write(attributes.get(i).replaceAll("<>", " ").trim());
-
-                    if (i < attributes.size() - 1) {
-                        out.write(";");
-                    }
-                }
-                out.write("\r\n");
-            } else {
-                out.write("\r\n");
-            }
-
-            //writting the vectors            
-            for (int i = 0; i < this.getRowCount(); i++) {
-                this.rows.get(i).write(out);
-                out.write("\r\n");
-            }
-
-        } catch (IOException ex) {
-            throw new IOException("Problems written \"" + filename + "\"!");
-        } finally {
-            //close the file
-            if (out != null) {
-                try {
-                    out.flush();
-                    out.close();
-                } catch (IOException ex) {
-                    Logger.getLogger(DenseMatrix.class.getName()).log(Level.SEVERE, null, ex);
-                }
-            }
-        }
-    }
-    
-    public static void main(String[] args) {
-	
-    		try {
-				DenseMatrix dense = (DenseMatrix) MatrixFactory.getInstance(DenseMatrix.class);
-				dense.load("/Users/jose/Documents/freelancer/petricaep/ep-project/ep-db/documents100.data");
-				Matrix sparse = MatrixUtils.convert(dense);
-				sparse.save("/Users/jose/Documents/freelancer/petricaep/ep-project/ep-db/sparse100.data");
-			} catch (IOException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
+			//checking
+			if (header.length != 2) {
+				throw new IOException("Wrong format of header information.");
 			}
-    		
-    	
+
+			//checking
+			if (header[0] != 'S') {
+				throw new IOException("Wrong matrix format. It is not the sparse format.");
+			}
+
+			//read the number of objects
+			int nrobjs = Integer.parseInt(in.readLine());
+
+			//read the number of dimensions
+			int nrdims = Integer.parseInt(in.readLine());
+
+			//read the attributes
+			String line = in.readLine();
+			StringTokenizer t1 = new StringTokenizer(line, ";");
+
+			while (t1.hasMoreTokens()) {
+				String token = t1.nextToken();
+				this.attributes.add(token.trim());
+			}
+
+			//checking
+			if (this.attributes.size() > 0 && this.attributes.size() != nrdims) {
+				throw new IOException("The number of attributes does not match "
+						+ "with the dimensionality of matrix (" + this.attributes.size()
+						+ " - " + nrdims + ").");
+			}
+
+			//read the vectors
+			while ((line = in.readLine()) != null && line.trim().length() > 0) {
+				StringTokenizer t2 = new StringTokenizer(line, ";");
+
+				//read the id
+				String id = t2.nextToken().trim();
+
+				//class data
+				float klass = 0.0f;
+
+				//the vector
+				ArrayList<Pair> values = new ArrayList<Pair>();
+
+				while (t2.hasMoreTokens()) {
+					String token = t2.nextToken();
+
+					if (header[1] == 'Y') {
+						if (t2.hasMoreTokens()) {
+							StringTokenizer t3 = new StringTokenizer(token, ":");
+
+							int index = Integer.parseInt(t3.nextToken().trim());
+							float value = Float.parseFloat(t3.nextToken().trim());
+
+							values.add(new Pair(index, value));
+						} else {
+							klass = Float.parseFloat(token.trim());
+						}
+					} else if (header[1] == 'N') {
+						StringTokenizer t3 = new StringTokenizer(token, ":");
+
+						int index = Integer.parseInt(t3.nextToken().trim());
+						float value = Float.parseFloat(t3.nextToken().trim());
+
+						values.add(new Pair(index, value));
+					} else {
+						throw new IOException("Unknown class data option");
+					}
+				}
+
+				this.addRow(new SparseVector(values, id, klass, nrdims));
+			}
+
+			//checking
+			if (this.getRowCount() != nrobjs) {
+				throw new IOException("The number of vectors does not match "
+						+ "with the matrix size (" + this.getRowCount()
+						+ " - " + nrobjs + ").");
+			}
+
+		} catch (FileNotFoundException e) {
+			throw new IOException("File " + filename + " does not exist!");
+		} catch (IOException e) {
+			throw new IOException(e.getMessage());
+		} finally {
+			if (in != null) {
+				try {
+					in.close();
+				} catch (IOException ex) {
+					Logger.getLogger(DenseMatrix.class.getName()).log(Level.SEVERE, null, ex);
+				}
+			}
+		}
+	}
+
+	@Override
+	public void save(String filename) throws IOException {
+		BufferedWriter out = null;
+
+		try {
+			out = new BufferedWriter(new FileWriter(filename));
+
+			//Writting the file header
+			out.write("SY\r\n");
+			out.write(Integer.toString(this.getRowCount()));
+			out.write("\r\n");
+			out.write(Integer.toString(this.getDimensions()));
+			out.write("\r\n");
+
+			//Writting the attributes
+			if (attributes != null) {
+				for (int i = 0; i < attributes.size(); i++) {
+					out.write(attributes.get(i).replaceAll("<>", " ").trim());
+
+					if (i < attributes.size() - 1) {
+						out.write(";");
+					}
+				}
+				out.write("\r\n");
+			} else {
+				out.write("\r\n");
+			}
+
+			//writting the vectors            
+			for (int i = 0; i < this.getRowCount(); i++) {
+				this.rows.get(i).write(out);
+				out.write("\r\n");
+			}
+
+		} catch (IOException ex) {
+			throw new IOException("Problems written \"" + filename + "\"!");
+		} finally {
+			//close the file
+			if (out != null) {
+				try {
+					out.flush();
+					out.close();
+				} catch (IOException ex) {
+					Logger.getLogger(DenseMatrix.class.getName()).log(Level.SEVERE, null, ex);
+				}
+			}
+		}
+	}
+
+	public static void main(String[] args) {
+
+		try {
+			DenseMatrix dense = (DenseMatrix) MatrixFactory.getInstance(DenseMatrix.class);
+			dense.load("/Users/jose/Documents/freelancer/petricaep/ep-project/ep-db/documents100.data");
+			Matrix sparse = MatrixUtils.convert(dense);
+			sparse.save("/Users/jose/Documents/freelancer/petricaep/ep-project/ep-db/sparse100.data");
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
+
 	}
 
 }

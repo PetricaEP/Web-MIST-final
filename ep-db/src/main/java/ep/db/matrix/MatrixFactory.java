@@ -62,12 +62,23 @@ public class MatrixFactory {
 	public static Matrix getInstance(Class<? extends Matrix> type) {
 		Matrix matrix = null;
 
-		try {
-			matrix = type.newInstance();
-		} catch (InstantiationException ex) {
-			Logger.getLogger(MatrixFactory.class.getName()).log(Level.SEVERE, null, ex);
-		} catch (IllegalAccessException ex) {
-			Logger.getLogger(MatrixFactory.class.getName()).log(Level.SEVERE, null, ex);
+		if ( type == DocumentTermMatrix.class ) {
+			try {
+				matrix = (Matrix) type.getSuperclass().newInstance();
+			} catch (InstantiationException ex) {
+				Logger.getLogger(MatrixFactory.class.getName()).log(Level.SEVERE, null, ex);
+			} catch (IllegalAccessException ex) {
+				Logger.getLogger(MatrixFactory.class.getName()).log(Level.SEVERE, null, ex);
+			}
+		}
+		else {
+			try {
+				matrix = type.newInstance();
+			} catch (InstantiationException ex) {
+				Logger.getLogger(MatrixFactory.class.getName()).log(Level.SEVERE, null, ex);
+			} catch (IllegalAccessException ex) {
+				Logger.getLogger(MatrixFactory.class.getName()).log(Level.SEVERE, null, ex);
+			}
 		}
 
 		return matrix;
@@ -76,7 +87,7 @@ public class MatrixFactory {
 	public static Matrix getInstance(String filename) throws IOException {
 		Matrix matrix = null;
 		char[] header;
-		
+
 		try(BufferedReader in = new BufferedReader(new java.io.FileReader(filename));){
 
 			//read the header
