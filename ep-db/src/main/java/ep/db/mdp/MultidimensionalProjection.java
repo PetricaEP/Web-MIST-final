@@ -13,7 +13,6 @@ import org.slf4j.LoggerFactory;
 import ep.db.database.DatabaseService;
 import ep.db.database.DefaultDatabase;
 import ep.db.matrix.DocumentTermMatrix;
-import ep.db.matrix.Matrix;
 import ep.db.mdp.lamp.Lamp;
 import ep.db.mdp.projection.ProjectionData;
 import ep.db.tfidf.InverseDocumentFrequencyTFIDF;
@@ -182,13 +181,13 @@ public class MultidimensionalProjection {
 			x[i] = proj[i];
 			y[i] = proj[i + size];
 		}
+				
+		Percentile percentile = new Percentile();		
+		double Q1_x = percentile.evaluate(x, 25);
+		double Q3_x = percentile.evaluate(x, 75);
 
-		Percentile percentile = new Percentile();
-		double Q1_x = percentile.evaluate(x, 0.25);
-		double Q3_x = percentile.evaluate(x, 0.75);
-
-		double Q1_y = percentile.evaluate(y, 0.25);
-		double Q3_y = percentile.evaluate(y, 0.75);
+		double Q1_y = percentile.evaluate(y, 25);
+		double Q3_y = percentile.evaluate(y, 75);
 
 		double IQR_x = 1.5*(Q3_x-Q1_x), 
 				IQR_y = 1.5*(Q3_y-Q1_y);
