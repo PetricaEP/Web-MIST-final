@@ -16,6 +16,7 @@ import ep.db.matrix.Matrix;
 import ep.db.matrix.MatrixFactory;
 import ep.db.mdp.clustering.BKMeans;
 import ep.db.mdp.dissimilarity.Dissimilarity;
+import ep.db.mdp.dissimilarity.DissimilarityFactory;
 import ep.db.mdp.dissimilarity.DissimilarityType;
 import ep.db.mdp.dissimilarity.Euclidean;
 import ep.db.mdp.projection.ControlPointsType;
@@ -133,7 +134,7 @@ public class Lamp {
 	private Matrix getSampleData(Matrix x, ProjectionData pdata) {
 
 		if ( pdata.getControlPointsChoice() == ControlPointsType.KMEANS) {
-			Dissimilarity diss = new Euclidean();
+			Dissimilarity diss = DissimilarityFactory.getInstance(pdata.getDissimilarityType());
 			//clustering points
 			BKMeans bkmeans = new BKMeans(pdata.getNumberControlPoints(), true);
 			ArrayList<ArrayList<Integer>> clusters;
@@ -256,7 +257,7 @@ public class Lamp {
 		pdata.setNumberIterations(50);
 		pdata.setFractionDelta(8.0f);	
 		pdata.setPercentage(1.0f);
-		pdata.setSourceFile("/Volumes/external/Mac/home-backup/jose/Documents/freelancer/petricaep/projectionexplorer/all_reduced.data");
+		pdata.setSourceFile("/Users/jose/Documents/freelancer/petricaep/projectionexplorer/all_reduced.data");
 		//		pdata.setSourceFile("/Users/jose/Documents/freelancer/petricaep/projectionexplorer/diabetes-normcols.data-notnull.data-NORM.data");
 //		pdata.setSourceFile("/Users/jose/Documents/freelancer/petricaep/ep-project/ep-db/documents200k.data");
 
