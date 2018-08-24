@@ -32,6 +32,11 @@ $(function(){
 	d3.select("body").append("div")
 	.attr("class", "node-tooltip")
 	.style("opacity", 0);
+	
+	//Static (fixed_ tooltip
+	d3.select("body").append("div")
+	.attr("class", "fixed-tooltip")
+	.style("opacity", 1);
 
 });
 
@@ -57,7 +62,7 @@ createVisualization = function(jsonData){
 	}
 
 	var	currentTab;
-	if ( jsonData.page > 0 ){
+	if ( jsonData.page >= 0 ){
 		currentTab = tabs[ jsonData.tabId ];		
 		currentTab.page = jsonData.page;		
 		cleanVisualization( currentTab );		
@@ -116,6 +121,7 @@ createVisualization = function(jsonData){
 
 	// Adiciona paginacao (Previous, Next)
 	addPagination(currentTab);
+	addFixedToolTip(currentTab);
 	
 	var maxDocs = $("#max-number-of-docs").val();	
 	var minRank, maxRank, minRadius, maxRadius;
@@ -440,4 +446,6 @@ function selectArea(p){
 		error: errorFn, 
 		dataType: "json"
 	});
+	
+	$('#zoom-btn').click();
 }

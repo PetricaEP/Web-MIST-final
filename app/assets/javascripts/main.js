@@ -16,7 +16,7 @@ $(function() {
 			$(".advanced-search").removeClass("enabled");
 		});
 		
-		ajaxSubmitForm(0);
+		ajaxSubmitForm(-1);
 	});
 
 	$('#collision-force').slider({
@@ -74,6 +74,21 @@ $(function() {
 		}
 		$('#show-circles-btn').toggleClass('glyphicon-eye-close', !closed);
 		$('#show-circles-btn').toggleClass('glyphicon-eye-open', closed);
+	});
+	
+	$('#select-all-btn').click(function(e){
+		deselectAll(selectedTab);
+		selectAll(selectedTab);
+	});
+	
+	$('#show-links-btn').click(function(e){
+		var isActive = $('#show-links-btn').hasClass('active');
+		if ( !isActive){
+			showAllLinks(selectedTab);
+		}
+		else{
+			hideAllLinks(selectedTab);
+		}
 	});
 		
 	$("#show-word-cloud-btn").click(function(e){

@@ -2,8 +2,29 @@
 	margin-bottom: 5px !important;
 	
 	.btn {
-		padding: 3px 9px;
+		padding: 3px 9px;		
+	}	
+}
+
+#select-all-btn{
+	background-color: #aaa;
+}
+
+@media screen and (max-width: 1720px){
+	.navbar .btn{
+		padding: 1px 3px;
 	}
+}
+
+.fixed-tooltip{
+	text-align: left;	
+	margin-left: 15px;
+	display: block;
+	text-overflow: ellipsis;
+	word-wrap: break-word;
+	overflow: hidden;
+	max-height: 3.0em;
+	line-height: 1.5em;
 }
 
 .nav-tabs{
@@ -316,7 +337,7 @@ circle {
 
 .slider-range{
 	width: 300px;
-	margin: 0 0 0 30px;		
+	margin: 20px 50px 0 0px;		
 }
 
 .slider-range .slider-selection{
@@ -401,20 +422,28 @@ circle {
 .viz-controls-footer {
 	width: 100%;
 	text-align: right;
-	display: table;
-	float: none;
+	display: block;	
 	
 	.pagination {
-		display: table-cell;
-		float: none;
+		display: inline-block;
+		float: left;
 		vertical-align: middle;
+		margin: 0;
+		padding: 0;
+		
+		ul.pager li{
+			margin-left: 15px;	
+		}
+	
+		.pager li > a{
+			float: none;	
+		}
 	}
 
 	.slider-range {
 		vertical-align: middle;
-		display: table-cell;
-		float: none;
-		
+		display: inline-block;
+		float: right;			
 		.slider {
 			width: 300px;
 		}

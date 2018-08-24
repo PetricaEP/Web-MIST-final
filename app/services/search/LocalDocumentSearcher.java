@@ -133,7 +133,7 @@ public class LocalDocumentSearcher implements DocumentSearcher {
 		ObjectNode result = null;
 		
 		try {
-			final int page = queryData.getPage();
+			final int page = Math.max(0, queryData.getPage());
 			long start = System.nanoTime();
 			String query = buildQuery(queryData);
 			long elapsed = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start);
@@ -192,7 +192,7 @@ public class LocalDocumentSearcher implements DocumentSearcher {
 				result.put("tabId", queryData.getTabId());
 				result.set("documents", Json.toJson(docs));	
 				result.put("ndocs", numDocs);
-				result.put("page", page);				
+				result.put("page", queryData.getPage());				
 				result.put("op", "search");
 				result.put("minRadiusPerc", configuration.getMinRadiusSizePercent());
 				result.put("maxRadiusPerc", configuration.getMaxRadiusSizePercent());

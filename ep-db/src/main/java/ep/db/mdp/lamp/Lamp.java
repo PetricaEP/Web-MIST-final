@@ -183,7 +183,7 @@ public class Lamp {
 			// Replicate code from TH
 			int lines = x.getRowCount(); // n
 			int cols = x.getDimensions(); // m
-			int np = lines;
+			int np = lines; //n
 			int dimension = cols;
 			int ks = Math.min(np, dimension);
 			int ns = Math.max(pdata.getNumberControlPoints(), ks);
@@ -192,14 +192,14 @@ public class Lamp {
 								
 			// 1. Transpose input matrix			
 			Jama.Matrix V = new Jama.Matrix(cols, lines, 0); // m x n
-			for(int j = 0; j < cols; j++) {
-				for(int i = 0; i < lines; i++) {
+			for(int i = 0; i < lines; i++) {
+				for(int j = 0; j < cols; j++) {
 					float v = x.getRow(i).getValueQuick(j);
 					V.set(j, i, v);
 				}
 			}
 			
-			// 2. Calcule SVD in xt [U, S, V]
+			// 2. Calcule SVD in xt [U, S, V]			
 			Jama.SingularValueDecomposition svd = new Jama.SingularValueDecomposition(V);			
 			// Transpose SVD 
 			Jama.Matrix vt = svd.getV();
@@ -208,8 +208,7 @@ public class Lamp {
 			double[] p = new double[np];  
 			int[] indices = new int[np];    //controlpoints
 
-			for (int j = 0; j < np; j++)
-			{
+			for (int j = 0; j < np; j++) {
 				double norm = 0;
 				for (int i = 0; i < ks; i++)
 				{

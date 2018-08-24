@@ -176,7 +176,7 @@ function newTabContent(){
 	'<div class="row visualization-content">' +
 	'<div class="word-cloud col-sm-4"></div>' +
 	'<div class="visualization-wrapper col-sm-12"><svg id="visualization" class="visualization"></svg></div></div>' +	
-	'<div class="viz-controls-footer row"><div id="slider-range" class="slider-range col-sm-6"><input type="text" class="slider" value=""/></div></div>' +
+	'<div class="viz-controls-footer row"><div id="slider-range" class="slider-range col-sm-4"><input type="text" class="slider" value=""/></div></div>' +
 	'<div class="documents-list_wrapper">' +
 	'<div class="documents-table">' +
 	'<div class="total-documents-info"></div>' +

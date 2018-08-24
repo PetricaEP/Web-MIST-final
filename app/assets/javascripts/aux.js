@@ -87,33 +87,33 @@ function createPoints(density){
  * estiver sobre um nó.
  */
 function showTip(n){
-	var tip = d3.select('.node-tooltip');
+	var tip = $('#' + selectedTab.id + ' .fixed-tooltip'); //d3.select('.node-tooltip');
 
-	tip.transition()
-	.duration(200)
-	.style("opacity", 0.9)	
-	.style('display', 'block');
+//	tip.transition()
+//	.duration(200)
+//	.style("opacity", 0.9)	
+//	.style('display', 'block');
 
 	tipHtml = createToolTip(n);
 	tip.html(tipHtml);
 
 	var svg = $('#' + selectedTab.id + " svg");
-	var x = d3.event.clientX, 
-	y = d3.event.clientY;
-	var tipW = $('.node-tooltip').width(),
-	tipH = $('.node-tooltip').height();
+//	var x = d3.event.clientX, 
+//	y = d3.event.clientY;
+//	var tipW = $('.node-tooltip').width(),
+//	tipH = $('.node-tooltip').height();
 
-	if ( x + tipW >= svg.width())
-		x -= tipW + 10;
-	if ( y + tipH >= svg.height())
-		y -= tipH + 10;
+//	if ( x + tipW >= svg.width())
+//		x -= tipW + 10;
+//	if ( y + tipH >= svg.height())
+//		y -= tipH + 10;
+//
+//	y = Math.max(0, y);
+//	x = Math.max(0, x);
 
-	y = Math.max(0, y);
-	x = Math.max(0, x);
-
-	tip
-	.style("left", (x) + "px")
-	.style("top", (y) + "px");
+//	tip
+//	.style("left", (x) + "px")
+//	.style("top", (y) + "px");
 
 	d3.select(this)
 	.transition()
@@ -170,6 +170,49 @@ function setDefaultRadius(d){
 	});	
 }
 
+
+function selectAll(tab){
+	var visibleCircles = d3.selectAll('#' + tab.id + " circle")
+		.filter(function(d,i){
+			return d3.select(this).style('opacity') == 1;
+		})
+		.style("stroke-opacity", "1");
+	return visibleCircles;
+}
+
+function deselectAll(tab){
+	var visibleCircles = d3.selectAll('#' + tab.id + " circle")
+	.style("stroke-opacity","0");
+}
+
+function showAllLinks(tab){
+	if ( !tab.links ) return;
+
+	var selectedCircles = d3.selectAll('#' + tab.id + " circle")
+	.filter(function(d,i){
+		return d3.select(this).style('opacity') == 1;
+	}).data();
+		
+	var i;
+	var paths = d3.selectAll('#' + tab.id + ' path.link');
+	var nodes = paths.nodes();
+	var edges = paths.data();
+
+	for(i = 0; i < edges.length; i++){
+		if( ( $.inArray(edges[i].source, selectedCircles) >= 0 ) || ( $.inArray(edges[i].target, selectedCircles) >= 0 )){
+			var l = d3.select(nodes[i]);
+			l.classed('active', true);
+			l.attr('visibility', 'visible');
+		}
+	}		
+}
+
+function hideAllLinks(tab){
+	d3.selectAll('#' + tab.id + ' path.link')
+	.classed('active', false)
+	.attr('visibility', 'hidden');	
+}
+
 /**
  * Ativa links (citações) quando nós são
  * selecionados.
@@ -191,8 +234,8 @@ function toggleLinks(d,index){
 	}
 
 	// Marca docs selecionados
-	highligthSelectedCircle(this, selectCircle);
-
+	highligthSelectedCircle(this, selectCircle);	
+	
 	if ( !selectedTab.links ) return;
 
 	d3.event.stopPropagation();
@@ -222,7 +265,45 @@ function toggleLinks(d,index){
 }
 
 function highligthSelectedCircle(circle, selected){
-	d3.select(circle).style("stroke-opacity", selected ? "1" : "0");
+	var n;
+	d3.select(circle).style("stroke-opacity", selected ? "1" : "0");	
+	if ( selected ){
+		n = d3.select(circle).data()[0];
+		var tip = d3.select("body").append("div")
+		.attr("class", "node-tooltip circle-"+n.id)		
+		.style("opacity", 1);	
+		
+		
+		tip.transition()
+		.duration(200)
+		.style("opacity", 0.9)	
+		.style('display', 'block');		
+
+		tipHtml = createToolTip(n);
+		tip.html(tipHtml);
+
+		var svg = $('#' + selectedTab.id + " svg");
+		var x = d3.event.clientX, 
+		y = d3.event.clientY;
+		var tipW = $('.node-tooltip').width(),
+		tipH = $('.node-tooltip').height();
+
+		if ( x + tipW >= svg.width())
+			x -= tipW + 10;
+		if ( y + tipH >= svg.height())
+			y -= tipH + 10;
+
+		y = Math.max(0, y);
+		x = Math.max(0, x);
+
+		tip
+		.style("left", (x) + "px")
+		.style("top", (y) + "px");
+	}
+	else{
+		n = d3.select(circle).data()[0];
+		d3.select('.node-tooltip.circle-'+n.id).remove();		
+	}
 }
 
 function removeToolTip(){
@@ -233,12 +314,12 @@ function removeToolTip(){
 	.style('opacity', 0)
 	.style('display', 'none');
 
-	d3.selectAll('.fixed-tooltip')
-	.transition()
-	.duration(500)
-	.style('opacity', 0)
-	.style('display', 'none')
-	.remove();
+//	d3.selectAll('.fixed-tooltip')
+//	.transition()
+//	.duration(500)
+//	.style('opacity', 0)
+//	.style('display', 'none')
+//	.remove();
 }
 
 /**
@@ -416,8 +497,9 @@ function resetVisualization(e){
 	d3.selectAll("#" + selectedTab.id + ' path.link').classed('active', false).attr('visibility', 'hidden');
 	$("#" + selectedTab.id + " .documents-table table tbody tr").removeClass('success');
 	// Circulos selecionados
-	d3.selectAll('circle').style("stroke-opacity", "0");	
+	d3.selectAll('circle').style("stroke-opacity", "0");		
 	selectedTab.selectedCircles = [];
+	$('#show-links-btn').removeClass('active');
 }
 
 /**
@@ -694,7 +776,7 @@ function transformPoint(coordinates) {
 function addPagination(tab){
 	var maxDocs = $("#max-number-of-docs").val();
 	var numPages = ( tab.ndocs / maxDocs ) | 0;
-	var paginationHtml = '<div class="pagination col-sm-6"><nav aria-label="..."><ul class="pager">' +
+	var paginationHtml = '<div class="pagination col-sm-4"><nav aria-label="..."><ul class="pager">' +
 	'<li class="previous ' + (tab.page === 0 ? 'disabled' : '' ) + '"><a href="#" data-page="prev">' + Messages('js.page.previous') + '</a></li>' +
 	'<li class="total-documents">' + Messages('js.page.total.docs', tab.page * maxDocs + 1, Math.min( (tab.page + 1) * maxDocs, tab.ndocs), tab.ndocs) + '</li>' +
 	'<li class="next ' + ( tab.page === numPages ? 'disabled' : '' ) + '"><a href="#" data-page="next">' + Messages('js.page.next') + '</a></li></ul></nav></div>';
@@ -705,6 +787,11 @@ function addPagination(tab){
 			ajaxSubmitForm(newPage);
 		}
 	});
+}
+
+function addFixedToolTip(tab){
+	var html = '<div class="fixed-tooltip col-sm-4"></div>';
+	$('#' + tab.id + ' .viz-controls-footer').prepend(html);
 }
 
 /**
