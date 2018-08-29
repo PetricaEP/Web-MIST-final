@@ -269,6 +269,9 @@ function highligthSelectedCircle(circle, selected){
 	d3.select(circle).style("stroke-opacity", selected ? "1" : "0");	
 	if ( selected ){
 		n = d3.select(circle).data()[0];
+		
+		d3.selectAll(".node-tooltip").remove();
+		
 		var tip = d3.select("body").append("div")
 		.attr("class", "node-tooltip circle-"+n.id)		
 		.style("opacity", 1);	
@@ -717,12 +720,14 @@ function sliderRankChange(e){
 		if ( j >= (e.value[0]-1) && j <= e.value[1] && d.data.words !== null ){
 			for( var i = 0; i < d.data.words.length; i++){
 				var word = d.data.words[i];
-				if ( wordsMap.has( word.text ) ){
-					wordsMap.get( word.text ).size += word.size;
+				if( word.text.length > 2 || word.text.toLowerCase() == '2d' || word.text.toLowerCase() == '3d' ){
+					if ( wordsMap.has( word.text ) ){
+						wordsMap.get( word.text ).size += word.size;
+					}
+					else{
+						wordsMap.set(word.text, {text: word.text, size: word.size});
+					}
 				}
-				else{
-					wordsMap.set(word.text, {text: word.text, size: word.size});
-				}			
 			}
 		}
 	});	

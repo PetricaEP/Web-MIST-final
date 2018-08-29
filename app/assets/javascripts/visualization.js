@@ -315,11 +315,13 @@ createVisualization = function(jsonData){
 		if ( d.words ){
 			for(var i = 0; i < d.words.length; i++){
 				var word = d.words[i];
-				if ( wordsMap.has( word.text ) ){
-					wordsMap.get( word.text ).size += word.size;					
-				}
-				else{
-					wordsMap.set( word.text, {text: word.text, size: word.size});
+				if( word.text.length > 2 || word.text.toLowerCase() == '2d' || word.text.toLowerCase() == '3d' ){
+					if ( wordsMap.has( word.text ) ){
+						wordsMap.get( word.text ).size += word.size;					
+					}
+					else{
+						wordsMap.set( word.text, {text: word.text, size: word.size});
+					}
 				}
 			}
 		}
