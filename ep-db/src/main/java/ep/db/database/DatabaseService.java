@@ -134,7 +134,7 @@ public class DatabaseService {
 			+ " ORDER BY dd.rank DESC OFFSET ?";
 
 	private static final String ADVANCED_SEARCH_AUTHORS_INNER_JOIN_SQL = " INNER JOIN (SELECT doc_id FROM document_authors da INNER JOIN "
-			+ "authors a ON da.aut_id = a.aut_id, to_tsquery(language::regconfig,?) aut_query WHERE aut_query @@ aut_name_tsv) a "
+			+ "authors a ON da.aut_id = a.aut_id, to_tsquery(?) aut_query WHERE aut_query @@ aut_name_tsv) a "
 			+ "ON a.doc_id = d.doc_id ";
 
 	private static final String SEARCH_SQL_ALL_MAX_RANK = "SELECT x,y FROM documents_data d WHERE "
@@ -1189,6 +1189,7 @@ public class DatabaseService {
 			PreparedStatement stmt = conn.prepareStatement(
 					String.format(ADVANCED_SEARCH_SQL, where.toString()));
 
+			
 			// Adiciona parâmetros
 			int index = 1;			
 			// String de buca dos autores
@@ -1207,7 +1208,7 @@ public class DatabaseService {
 
 			//Offset
 			stmt.setInt(index, page * maxDocs);			
-
+			
 			try (ResultSet rs = stmt.executeQuery()){
 				List<IDocument> docs = new ArrayList<IDocument>(maxDocs);
 				boolean next = rs.next();
